@@ -164,24 +164,24 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       final score = scores[player.id] ?? 0;
       final isDealer = game.dealerIndex == index;
 
-      // 計算位置（上下左右）
+      // 計算位置（逆時針排列：東→北→西→南）
       double left, top;
       switch (index) {
         case 0: // 東（右）
           left = centerX + radius - 60;
           top = centerY - 60;
           break;
-        case 1: // 南（下）
+        case 1: // 南（原為下，現改為上 = 北的位置）
           left = centerX - 60;
-          top = centerY + radius - 60;
+          top = centerY - radius - 60;
           break;
         case 2: // 西（左）
           left = centerX - radius - 60;
           top = centerY - 60;
           break;
-        case 3: // 北（上）
+        case 3: // 北（原為上，現改為下 = 南的位置）
           left = centerX - 60;
-          top = centerY - radius - 60;
+          top = centerY + radius - 60;
           break;
         default:
           left = centerX;

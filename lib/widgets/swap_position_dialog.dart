@@ -139,24 +139,24 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
       final windName = AppConstants.windNames[index];
       final isSelected = _selectedIndex == index;
       
-      // 計算位置
+      // 計算位置（逆時針排列：東→北→西→南）
       double left, top;
       switch (index) {
         case 0: // 東（右）
           left = 270;
           top = 170;
           break;
-        case 1: // 南（下）
+        case 1: // 南（原為下，現改為上 = 北的位置）
           left = 170;
-          top = 270;
+          top = 30;
           break;
         case 2: // 西（左）
           left = 30;
           top = 170;
           break;
-        case 3: // 北（上）
+        case 3: // 北（原為上，現改為下 = 南的位置）
           left = 170;
-          top = 30;
+          top = 270;
           break;
         default:
           left = 200;

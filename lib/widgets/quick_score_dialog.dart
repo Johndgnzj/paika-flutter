@@ -313,23 +313,23 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: Colors.amber.shade700, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.calculate, size: 18, color: Colors.blue),
-              SizedBox(width: 8),
+              Icon(Icons.calculate, size: 18, color: Colors.amber.shade900),
+              const SizedBox(width: 8),
               Text(
                 '計算預覽',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Colors.amber.shade900,
                 ),
               ),
             ],
@@ -337,7 +337,11 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
           const SizedBox(height: 8),
           Text(
             previewText,
-            style: const TextStyle(fontSize: 13),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade900,
+            ),
           ),
         ],
       ),

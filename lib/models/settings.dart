@@ -1,7 +1,7 @@
 /// 遊戲設定
 class GameSettings {
   final int baseScore;      // 底分
-  final int maxTai;         // 上限台數
+  final int maxTai;         // 每台分數（舊名保留相容性）
   final bool selfDrawAddTai; // 自摸是否加1台
   final bool falseWinPayAll; // 詐胡是否賠三家（false=賠一家）
   final int falseWinTai;    // 詐胡賠付台數
@@ -9,12 +9,15 @@ class GameSettings {
 
   const GameSettings({
     this.baseScore = 50,
-    this.maxTai = 20,
+    this.maxTai = 20,  // 實際上是每台分數
     this.selfDrawAddTai = true,
     this.falseWinPayAll = true,
     this.falseWinTai = 8,
     this.supportMultiWin = true,
   });
+  
+  /// 每台分數（與maxTai相同，為了語意清楚）
+  int get perTai => maxTai;
 
   /// 預設底台組合
   static const List<Map<String, int>> defaultCombinations = [
@@ -80,12 +83,7 @@ class GameSettings {
       effectiveTai += 1;
     }
     
-    // 上限台數
-    if (effectiveTai > maxTai) {
-      effectiveTai = maxTai;
-    }
-    
-    // 計算：底分 × 2^台數
-    return baseScore * (1 << effectiveTai); // 位移運算等同 2^n
+    // 計算：底 + (台數 × 每台分數)
+    return baseScore + (effectiveTai * perTai);
   }
 }
