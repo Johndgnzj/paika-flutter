@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "paika"
-  }
+    "default": "paika",
+    "release": "paika-13250"
+  },
+  "targets": {},
+  "etags": {}
 }
