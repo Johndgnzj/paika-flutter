@@ -6,6 +6,8 @@ import '../models/game.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
 import '../utils/constants.dart';
+import '../widgets/multi_win_dialog.dart';
+import '../widgets/swap_position_dialog.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -33,6 +35,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           IconButton(
             icon: const Icon(Icons.casino),
             onPressed: _showDiceDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.whatshot),
+            onPressed: _showMultiWinDialog,
+            tooltip: '一炮多響',
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -362,6 +369,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     );
   }
 
+  void _showMultiWinDialog() {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+    
+    if (game == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => MultiWinDialog(game: game),
+    );
+  }
+
   void _showDiceDialog() {
     final random = math.Random();
     final dice1 = random.nextInt(6) + 1;
@@ -429,9 +448,14 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   void _showSwapDialog() {
-    // TODO: 實作換位置功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('換位置功能開發中')),
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+    
+    if (game == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => SwapPositionDialog(game: game),
     );
   }
 
