@@ -89,9 +89,11 @@ class Round {
     };
   }
 
-  /// 獲取風位顯示文字
+  /// 獲取風位顯示文字（圈+風制）
   String get windDisplay {
     const windNames = ['東', '南', '西', '北'];
-    return '${windNames[wind.index]}$sequence';
+    final roundWind = windNames[wind.index]; // 圈
+    final dealerWind = windNames[sequence.clamp(0, 3)]; // 局（sequence 存 dealerIndex）
+    return '$roundWind風$dealerWind局';
   }
 }

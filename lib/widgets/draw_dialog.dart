@@ -357,7 +357,7 @@ class _DrawDialogState extends State<DrawDialog> {
       id: uuid.v4(),
       timestamp: DateTime.now(),
       wind: widget.game.currentWind,
-      sequence: widget.game.currentSequence,
+      sequence: widget.game.dealerIndex,
       type: RoundType.draw,
       tai: 0,
       scoreChanges: scoreChanges,

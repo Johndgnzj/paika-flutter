@@ -30,7 +30,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             if (game == null) return const Text('遊戲');
             
             return Text(
-              '${game.currentWindDisplay}局 ${game.consecutiveWins > 0 ? "連${game.consecutiveWins}" : ""}',
+              '${game.currentWindDisplay}${game.consecutiveWins > 0 ? " 連${game.consecutiveWins}" : ""}',
             );
           },
         ),
@@ -141,7 +141,37 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 ),
               ),
             ),
-            
+
+            // 中央流局按鈕
+            Center(
+              child: TapScaleWrapper(
+                onTap: _showDrawDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.nature, size: 20, color: Colors.grey),
+                      SizedBox(width: 6),
+                      Text(
+                        '流局',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             // 四個玩家位置
             ..._buildPlayerPositions(game, scores, constraints),
           ],
@@ -158,7 +188,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     final players = game.players;
     final centerX = constraints.maxWidth / 2;
     final centerY = constraints.maxHeight / 2;
-    final radius = math.min(constraints.maxWidth, constraints.maxHeight) * 0.35;
+    // 使用不同的水平/垂直半徑以適應不同螢幕方向
+    final radiusX = constraints.maxWidth * 0.35;
+    final radiusY = constraints.maxHeight * 0.35;
+    const halfCard = 60.0;
 
     return List.generate(4, (index) {
       final player = players[index];
@@ -169,25 +202,29 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       double left, top;
       switch (index) {
         case 0: // 東（右）
-          left = centerX + radius - 60;
-          top = centerY - 60;
+          left = centerX + radiusX - halfCard;
+          top = centerY - halfCard;
           break;
         case 1: // 南（原為下，現改為上 = 北的位置）
-          left = centerX - 60;
-          top = centerY - radius - 60;
+          left = centerX - halfCard;
+          top = centerY - radiusY - halfCard;
           break;
         case 2: // 西（左）
-          left = centerX - radius - 60;
-          top = centerY - 60;
+          left = centerX - radiusX - halfCard;
+          top = centerY - halfCard;
           break;
         case 3: // 北（原為上，現改為下 = 南的位置）
-          left = centerX - 60;
-          top = centerY + radius - 60;
+          left = centerX - halfCard;
+          top = centerY + radiusY - halfCard;
           break;
         default:
           left = centerX;
           top = centerY;
       }
+
+      // 確保卡片不超出邊界
+      left = left.clamp(4, constraints.maxWidth - 124);
+      top = top.clamp(4, constraints.maxHeight - 160);
 
       return Positioned(
         left: left,
@@ -216,28 +253,43 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       onTap: onTap,
       child: Card(
         elevation: 4,
+        color: isDealer ? AppConstants.dealerColor.withValues(alpha: 0.12) : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isDealer
+              ? const BorderSide(color: AppConstants.dealerColor, width: 2)
+              : BorderSide.none,
+        ),
         child: Container(
           width: 120,
           padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 風位
+              // 風位 + 莊家標示
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     AppConstants.windNames[windIndex],
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   if (isDealer) ...[
                     const SizedBox(width: 4),
-                    const Icon(Icons.circle, color: AppConstants.dealerColor, size: 12),
+                    const Text(
+                      '莊',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppConstants.dealerColor,
+                      ),
+                    ),
                     if (consecutiveWins > 0)
                       Text(
-                        '連$consecutiveWins',
+                        ' 連$consecutiveWins',
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                           color: AppConstants.dealerColor,
                         ),
                       ),
@@ -258,7 +310,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               // 名稱
               Text(
                 player.name,
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -269,7 +321,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               AnimatedScoreText(
                 score: score,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: score > 0
                       ? AppConstants.winColor
@@ -296,59 +348,6 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       builder: (context) => QuickScoreDialog(
         game: game,
         selectedPlayer: player,
-      ),
-    );
-  }
-
-  void _showWinDialog(Player winner) {
-    final provider = context.read<GameProvider>();
-    final game = provider.currentGame!;
-    
-    showDialog(
-      context: context,
-      builder: (context) => _WinDialog(game: game, winner: winner),
-    );
-  }
-
-  void _showSelfDrawDialog(Player winner) {
-    final provider = context.read<GameProvider>();
-    final game = provider.currentGame!;
-    
-    showDialog(
-      context: context,
-      builder: (context) => _SelfDrawDialog(game: game, winner: winner),
-    );
-  }
-
-  void _showFalseWinDialog(Player falser) {
-    final provider = context.read<GameProvider>();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${falser.emoji} ${falser.name} 詐胡'),
-        content: Text(
-          '詐胡將賠付 ${provider.currentGame!.settings.falseWinTai} 台',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await provider.recordFalseWin(falserId: falser.id);
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('確認'),
-          ),
-        ],
       ),
     );
   }

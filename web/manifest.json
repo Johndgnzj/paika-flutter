@@ -1,11 +1,11 @@
 {
-    "name": "mahjong_scorer",
-    "short_name": "mahjong_scorer",
+    "name": "牌咖 Paika",
+    "short_name": "牌咖",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B6623",
+    "theme_color": "#0B6623",
+    "description": "牌咖 Paika - 麻將記分系統",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

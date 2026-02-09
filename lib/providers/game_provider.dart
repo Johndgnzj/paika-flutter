@@ -14,6 +14,8 @@ class GameProvider with ChangeNotifier {
   GameSettings _settings = const GameSettings();
   List<Player> _savedPlayers = [];
   ThemeMode _themeMode = ThemeMode.system;
+  bool _isLoading = true;
+  String? _error;
 
   final _uuid = const Uuid();
 
@@ -22,16 +24,26 @@ class GameProvider with ChangeNotifier {
   GameSettings get settings => _settings;
   List<Player> get savedPlayers => _savedPlayers;
   ThemeMode get themeMode => _themeMode;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   /// 初始化（載入資料）
   Future<void> initialize() async {
-    _settings = await StorageService.loadSettings();
-    _savedPlayers = await StorageService.loadPlayers();
-    _gameHistory = await StorageService.loadGames();
-    _currentGame = await StorageService.loadCurrentGame();
-    final themeModeStr = await StorageService.loadThemeMode();
-    _themeMode = _parseThemeMode(themeModeStr);
-    notifyListeners();
+    _isLoading = true;
+    _error = null;
+    try {
+      _settings = await StorageService.loadSettings();
+      _savedPlayers = await StorageService.loadPlayers();
+      _gameHistory = await StorageService.loadGames();
+      _currentGame = await StorageService.loadCurrentGame();
+      final themeModeStr = await StorageService.loadThemeMode();
+      _themeMode = _parseThemeMode(themeModeStr);
+    } catch (e) {
+      _error = '載入資料失敗：$e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   static ThemeMode _parseThemeMode(String mode) {
@@ -65,16 +77,22 @@ class GameProvider with ChangeNotifier {
       throw ArgumentError('需要4位玩家');
     }
 
-    _currentGame = Game(
-      id: _uuid.v4(),
-      createdAt: DateTime.now(),
-      settings: customSettings ?? _settings,
-      players: players,
-      status: GameStatus.playing,
-    );
+    try {
+      _currentGame = Game(
+        id: _uuid.v4(),
+        createdAt: DateTime.now(),
+        settings: customSettings ?? _settings,
+        players: players,
+        status: GameStatus.playing,
+      );
 
-    await StorageService.saveCurrentGame(_currentGame!);
-    notifyListeners();
+      await StorageService.saveCurrentGame(_currentGame!);
+      notifyListeners();
+    } catch (e) {
+      _error = '建立遊戲失敗：$e';
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// 記錄胡牌（放槍）
@@ -86,30 +104,36 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
-    final scoreChanges = CalculationService.calculateWin(
-      game: _currentGame!,
-      winnerId: winnerId,
-      loserId: loserId,
-      tai: tai,
-      flowers: flowers,
-    );
+    try {
+      final scoreChanges = CalculationService.calculateWin(
+        game: _currentGame!,
+        winnerId: winnerId,
+        loserId: loserId,
+        tai: tai,
+        flowers: flowers,
+      );
 
-    final round = Round(
-      id: _uuid.v4(),
-      timestamp: DateTime.now(),
-      wind: _currentGame!.currentWind,
-      sequence: _currentGame!.currentSequence,
-      type: RoundType.win,
-      winnerId: winnerId,
-      loserId: loserId,
-      tai: tai,
-      flowers: flowers,
-      scoreChanges: scoreChanges,
-    );
+      final round = Round(
+        id: _uuid.v4(),
+        timestamp: DateTime.now(),
+        wind: _currentGame!.currentWind,
+        sequence: _currentGame!.dealerIndex,
+        type: RoundType.win,
+        winnerId: winnerId,
+        loserId: loserId,
+        tai: tai,
+        flowers: flowers,
+        scoreChanges: scoreChanges,
+      );
 
-    _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
-    notifyListeners();
+      _currentGame = _currentGame!.addRound(round);
+      await StorageService.saveCurrentGame(_currentGame!);
+      notifyListeners();
+    } catch (e) {
+      _error = '記錄失敗：$e';
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// 記錄自摸
@@ -131,7 +155,7 @@ class GameProvider with ChangeNotifier {
       id: _uuid.v4(),
       timestamp: DateTime.now(),
       wind: _currentGame!.currentWind,
-      sequence: _currentGame!.currentSequence,
+      sequence: _currentGame!.dealerIndex,
       type: RoundType.selfDraw,
       winnerId: winnerId,
       tai: tai,
@@ -159,7 +183,7 @@ class GameProvider with ChangeNotifier {
       id: _uuid.v4(),
       timestamp: DateTime.now(),
       wind: _currentGame!.currentWind,
-      sequence: _currentGame!.currentSequence,
+      sequence: _currentGame!.dealerIndex,
       type: RoundType.falseWin,
       loserId: falserId,
       tai: _currentGame!.settings.falseWinTai,
@@ -195,7 +219,7 @@ class GameProvider with ChangeNotifier {
       id: _uuid.v4(),
       timestamp: DateTime.now(),
       wind: _currentGame!.currentWind,
-      sequence: _currentGame!.currentSequence,
+      sequence: _currentGame!.dealerIndex,
       type: RoundType.multiWin,
       winnerIds: winnerIds,
       loserId: loserId,
@@ -221,14 +245,20 @@ class GameProvider with ChangeNotifier {
   Future<void> finishGame() async {
     if (_currentGame == null) return;
 
-    _currentGame = _currentGame!.copyWith(status: GameStatus.finished);
-    await StorageService.saveCurrentGame(_currentGame!);
-    await StorageService.clearCurrentGame();
-    
-    _gameHistory.insert(0, _currentGame!);
-    _currentGame = null;
-    
-    notifyListeners();
+    try {
+      _currentGame = _currentGame!.copyWith(status: GameStatus.finished);
+      await StorageService.saveCurrentGame(_currentGame!);
+      await StorageService.clearCurrentGame();
+
+      _gameHistory.insert(0, _currentGame!);
+      _currentGame = null;
+
+      notifyListeners();
+    } catch (e) {
+      _error = '結束遊戲失敗：$e';
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// 更換玩家位置

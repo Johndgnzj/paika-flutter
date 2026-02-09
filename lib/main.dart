@@ -19,7 +19,7 @@ class MahjongScorerApp extends StatelessWidget {
       child: Consumer<GameProvider>(
         builder: (context, provider, _) {
           return MaterialApp(
-            title: '麻將記分',
+            title: '牌咖 Paika',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: provider.themeMode,

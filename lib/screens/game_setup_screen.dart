@@ -68,7 +68,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 ),
                 child: const Text(
                   '開始打牌',
-                  style: TextStyle(fontSize: 20),
+                  style: TextStyle(fontSize: 22),
                 ),
               ),
             ),
@@ -89,7 +89,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
         const SizedBox(height: 16),
         
         // 快速選擇
-        const Text('快速選擇：', style: TextStyle(fontSize: 14, color: Colors.grey)),
+        const Text('快速選擇：', style: TextStyle(fontSize: 16, color: Colors.grey)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -241,7 +241,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 ),
                 child: Text(
                   player.emoji,
-                  style: const TextStyle(fontSize: 24),
+                  style: const TextStyle(fontSize: 28),
                 ),
               ),
             ),

@@ -59,10 +59,19 @@ class Game {
   /// 獲取莊家
   Player get dealer => players[dealerIndex];
 
-  /// 獲取當前風位顯示
+  /// 獲取當前風位顯示（圈+風制）
+  /// 例如：東風東局、東風南局、南風西局
   String get currentWindDisplay {
     const windNames = ['東', '南', '西', '北'];
-    return '${windNames[currentWind.index]}$currentSequence';
+    final roundWind = windNames[currentWind.index]; // 圈（東風、南風...）
+    final dealerWind = windNames[dealerIndex];       // 局（東局、南局...）
+    return '$roundWind風$dealerWind局';
+  }
+
+  /// 短版風位顯示（用於空間有限的地方）
+  String get currentWindDisplayShort {
+    const windNames = ['東', '南', '西', '北'];
+    return '${windNames[currentWind.index]}${windNames[dealerIndex]}';
   }
 
   /// 從 JSON 反序列化

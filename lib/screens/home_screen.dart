@@ -17,7 +17,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🀄 麻將記分'),
+        title: const Text('🀄 牌咖'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -32,6 +32,46 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
+          // Loading 狀態
+          if (provider.isLoading) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('載入中...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                ],
+              ),
+            );
+          }
+
+          // 錯誤狀態
+          if (provider.error != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      provider.error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => provider.initialize(),
+                      child: const Text('重試'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           // 如果有進行中的遊戲，顯示繼續按鈕
           if (provider.currentGame != null) {
             return _buildContinueGameView(context, provider);
@@ -61,13 +101,13 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '${game.currentWindDisplay} 局',
-              style: const TextStyle(fontSize: 18),
+              game.currentWindDisplay,
+              style: const TextStyle(fontSize: 20),
             ),
             const SizedBox(height: 8),
             Text(
               '已進行 ${game.rounds.length} 局',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: const TextStyle(fontSize: 18, color: Colors.grey),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
@@ -132,7 +172,7 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               icon: const Icon(Icons.add_circle_outline, size: 28),
-              label: const Text('開始新局', style: TextStyle(fontSize: 20)),
+              label: const Text('開始新局', style: TextStyle(fontSize: 22)),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 20),
               ),
@@ -148,7 +188,7 @@ class HomeScreen extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 '最近牌局',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -172,7 +212,7 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(height: 16),
                   Text(
                     '尚無牌局紀錄',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
               ),
@@ -219,7 +259,7 @@ class HomeScreen extends StatelessWidget {
                   Text(
                     dateFormat.format(game.createdAt),
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: Colors.grey,
                     ),
                   ),
@@ -235,7 +275,7 @@ class HomeScreen extends StatelessWidget {
                       game.status == GameStatus.finished ? '已結束' : '進行中',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -244,7 +284,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 '底${game.settings.baseScore} / ${game.rounds.length}局',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 12),
               // 玩家分數列表
@@ -256,14 +296,14 @@ class HomeScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      Text(player.emoji, style: const TextStyle(fontSize: 20)),
+                      Text(player.emoji, style: const TextStyle(fontSize: 22)),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(player.name)),
+                      Expanded(child: Text(player.name, style: const TextStyle(fontSize: 16))),
                       Text(
                         CalculationService.formatScore(score),
                         style: TextStyle(
                           fontWeight: isTop ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 16,
+                          fontSize: 18,
                           color: score > 0
                               ? Colors.green
                               : score < 0

@@ -14,7 +14,7 @@ class GameDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final scores = game.currentScores;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text('牌局詳情 - ${dateFormat.format(game.createdAt)}'),
@@ -30,19 +30,19 @@ class GameDetailScreen extends StatelessWidget {
         children: [
           // 牌局概要卡片
           _buildSummaryCard(scores),
-          
+
           const SizedBox(height: 16),
-          
+
           // 最終排名
           _buildRankingCard(scores),
-          
+
           const SizedBox(height: 24),
-          
+
           // 分隔線
           const Divider(thickness: 2),
-          
+
           const SizedBox(height: 16),
-          
+
           // 標題
           Row(
             children: [
@@ -57,15 +57,11 @@ class GameDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
-          // 每局詳情
-          ...game.rounds.asMap().entries.map((entry) {
-            final index = entry.key;
-            final round = entry.value;
-            return _buildRoundCard(index + 1, round);
-          }),
+
+          // 五欄表格：局+結果 | 玩家1 | 玩家2 | 玩家3 | 玩家4
+          _buildRoundsTable(context),
         ],
       ),
     );
@@ -84,13 +80,11 @@ class GameDetailScreen extends StatelessWidget {
             ),
             const Divider(),
             _buildInfoRow('底分', '${game.settings.baseScore} 元'),
-            _buildInfoRow('上限', '${game.settings.maxTai} 台'),
+            _buildInfoRow('每台', '${game.settings.perTai} 元'),
             _buildInfoRow('總局數', '${game.rounds.length} 局'),
-            _buildInfoRow('狀態', game.status == GameStatus.finished ? '已結束' : '進行中'),
             _buildInfoRow(
-              '結束於',
-              game.currentWindDisplay,
-            ),
+                '狀態', game.status == GameStatus.finished ? '已結束' : '進行中'),
+            _buildInfoRow('結束於', game.currentWindDisplay),
           ],
         ),
       ),
@@ -103,22 +97,23 @@ class GameDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 16)),
+          Text(value,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ],
       ),
     );
   }
 
   Widget _buildRankingCard(Map<String, int> scores) {
-    // 排序玩家
     final sortedPlayers = List.from(game.players);
     sortedPlayers.sort((a, b) {
       final scoreA = scores[a.id] ?? 0;
       final scoreB = scores[b.id] ?? 0;
       return scoreB.compareTo(scoreA);
     });
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -126,7 +121,7 @@ class GameDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '🏆 最終排名',
+              '最終排名',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Divider(),
@@ -134,24 +129,19 @@ class GameDetailScreen extends StatelessWidget {
               final rank = entry.key + 1;
               final player = entry.value;
               final score = scores[player.id] ?? 0;
-              
+
               return Container(
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: rank == 1
-                      ? Colors.amber.shade50
-                      : Colors.grey.shade50,
+                  color: rank == 1 ? Colors.amber.shade50 : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: rank == 1
-                        ? Colors.amber
-                        : Colors.grey.shade300,
+                    color: rank == 1 ? Colors.amber : Colors.grey.shade300,
                   ),
                 ),
                 child: Row(
                   children: [
-                    // 排名
                     SizedBox(
                       width: 30,
                       child: Text(
@@ -160,8 +150,6 @@ class GameDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    
-                    // 玩家
                     Text(player.emoji, style: const TextStyle(fontSize: 24)),
                     const SizedBox(width: 8),
                     Expanded(
@@ -173,8 +161,6 @@ class GameDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    
-                    // 分數
                     Text(
                       CalculationService.formatScore(score),
                       style: TextStyle(
@@ -212,124 +198,131 @@ class GameDetailScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildRoundCard(int roundNumber, Round round) {
+  /// 五欄表格顯示每局分數增減，時間降序排列
+  Widget _buildRoundsTable(BuildContext context) {
+    // 時間降序排列
+    final reversedRounds = game.rounds.reversed.toList();
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: _getRoundColor(round),
-          child: Text(
-            '$roundNumber',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        title: Text(
-          '${round.windDisplay}局 - ${_getRoundTypeText(round)}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(_getRoundSummary(round)),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 詳細資訊
-                if (round.winnerId != null) ...[
-                  _buildDetailRow('勝者', _getPlayerName(round.winnerId!)),
-                  if (round.loserId != null)
-                    _buildDetailRow('放槍', _getPlayerName(round.loserId!)),
-                  _buildDetailRow('台數', '${round.tai} 台'),
-                  if (round.flowers > 0)
-                    _buildDetailRow('花牌', '${round.flowers} 台'),
-                  _buildDetailRow('總台數', '${round.totalTai} 台'),
-                ],
-                
-                if (round.type == RoundType.multiWin) ...[
-                  _buildDetailRow(
-                    '贏家',
-                    round.winnerIds.map(_getPlayerName).join(', '),
-                  ),
-                  if (round.loserId != null)
-                    _buildDetailRow('放槍', _getPlayerName(round.loserId!)),
-                ],
-                
-                if (round.type == RoundType.falseWin) ...[
-                  _buildDetailRow('詐胡者', _getPlayerName(round.loserId!)),
-                  _buildDetailRow('賠付', '${round.tai} 台'),
-                ],
-                
-                if (round.notes != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '備註: ${round.notes}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          children: [
+            // 表頭：玩家名稱
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 80,
+                    child: Text(
+                      '局',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.center,
                     ),
                   ),
+                  ...game.players.map((player) {
+                    return Expanded(
+                      child: Column(
+                        children: [
+                          Text(player.emoji,
+                              style: const TextStyle(fontSize: 18)),
+                          Text(
+                            player.name,
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
-                
-                const Divider(),
-                
-                // 分數變化
-                const Text(
-                  '分數變化',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            // 每局資料
+            ...reversedRounds.map((round) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                ...game.players.map((player) {
-                  final change = round.scoreChanges[player.id] ?? 0;
-                  if (change == 0) return const SizedBox.shrink();
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        Text(player.emoji, style: const TextStyle(fontSize: 18)),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(player.name)),
-                        Text(
-                          CalculationService.formatScore(change),
+                child: Row(
+                  children: [
+                    // 第一欄：局 + 結果
+                    SizedBox(
+                      width: 80,
+                      child: Column(
+                        children: [
+                          Text(
+                            round.windDisplay,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _getRoundColor(round)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getRoundTypeText(round),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _getRoundColor(round),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 四欄：各玩家分數增減
+                    ...game.players.map((player) {
+                      final change = round.scoreChanges[player.id] ?? 0;
+                      return Expanded(
+                        child: Text(
+                          change == 0 ? '-' : CalculationService.formatScore(change),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            fontWeight: change != 0
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             color: change > 0
                                 ? Colors.green
                                 : change < 0
                                     ? Colors.red
-                                    : null,
+                                    : Colors.grey,
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 60,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -361,29 +354,6 @@ class GameDetailScreen extends StatelessWidget {
         return '一炮多響';
       case RoundType.draw:
         return '流局';
-    }
-  }
-
-  String _getRoundSummary(Round round) {
-    switch (round.type) {
-      case RoundType.win:
-        return '${_getPlayerName(round.winnerId!)} 胡 ${round.totalTai} 台';
-      case RoundType.selfDraw:
-        return '${_getPlayerName(round.winnerId!)} 自摸 ${round.totalTai} 台';
-      case RoundType.falseWin:
-        return '${_getPlayerName(round.loserId!)} 詐胡';
-      case RoundType.multiWin:
-        return '${round.winnerIds.length} 人胡牌';
-      case RoundType.draw:
-        return '流局';
-    }
-  }
-
-  String _getPlayerName(String playerId) {
-    try {
-      return game.players.firstWhere((p) => p.id == playerId).name;
-    } catch (e) {
-      return '未知';
     }
   }
 
