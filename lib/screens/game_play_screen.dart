@@ -8,6 +8,7 @@ import '../services/calculation_service.dart';
 import '../utils/constants.dart';
 import '../widgets/multi_win_dialog.dart';
 import '../widgets/swap_position_dialog.dart';
+import '../widgets/draw_dialog.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -44,6 +45,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
+                case 'draw':
+                  _showDrawDialog();
+                  break;
                 case 'swap':
                   _showSwapDialog();
                   break;
@@ -56,6 +60,16 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'draw',
+                child: Row(
+                  children: [
+                    Icon(Icons.nature, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text('流局'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'swap',
                 child: Row(
@@ -378,6 +392,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     showDialog(
       context: context,
       builder: (context) => MultiWinDialog(game: game),
+    );
+  }
+
+  void _showDrawDialog() {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+    
+    if (game == null) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => DrawDialog(game: game),
     );
   }
 

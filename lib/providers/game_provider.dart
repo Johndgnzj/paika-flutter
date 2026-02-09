@@ -240,4 +240,13 @@ class GameProvider with ChangeNotifier {
     await StorageService.clearCurrentGame();
     notifyListeners();
   }
+
+  /// 記錄自訂 Round（用於流局等特殊情況）
+  Future<void> recordCustomRound(Round round) async {
+    if (_currentGame == null) return;
+
+    _currentGame = _currentGame!.addRound(round);
+    await StorageService.saveCurrentGame(_currentGame!);
+    notifyListeners();
+  }
 }
