@@ -1,0 +1,34 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+lib/generated_plugin_registrant.dart
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VSCode
+.vscode/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# macOS
+.DS_Store
+
+# Web
+web/firebase-config.js
+
+# Local config
+*.local.dart
+.env
+.env.local

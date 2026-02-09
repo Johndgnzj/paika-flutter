@@ -1,0 +1,166 @@
+import '../models/game.dart';
+import '../models/settings.dart';
+
+/// 分數計算服務
+class CalculationService {
+  /// 計算胡牌（放槍）的分數變化
+  static Map<String, int> calculateWin({
+    required Game game,
+    required String winnerId,
+    required String loserId,
+    required int tai,
+    required int flowers,
+  }) {
+    final settings = game.settings;
+    final totalTai = tai + flowers;
+    final score = settings.calculateScore(totalTai);
+    
+    final changes = <String, int>{};
+    for (var player in game.players) {
+      if (player.id == winnerId) {
+        changes[player.id] = score;
+      } else if (player.id == loserId) {
+        changes[player.id] = -score;
+      } else {
+        changes[player.id] = 0;
+      }
+    }
+    
+    return changes;
+  }
+
+  /// 計算自摸的分數變化
+  static Map<String, int> calculateSelfDraw({
+    required Game game,
+    required String winnerId,
+    required int tai,
+    required int flowers,
+  }) {
+    final settings = game.settings;
+    final totalTai = tai + flowers;
+    final score = settings.calculateScore(totalTai, isSelfDraw: true);
+    
+    final changes = <String, int>{};
+    for (var player in game.players) {
+      if (player.id == winnerId) {
+        // 贏家拿三家的錢
+        changes[player.id] = score * 3;
+      } else {
+        // 其他人各付
+        changes[player.id] = -score;
+      }
+    }
+    
+    return changes;
+  }
+
+  /// 計算詐胡的分數變化
+  static Map<String, int> calculateFalseWin({
+    required Game game,
+    required String falserId,
+  }) {
+    final settings = game.settings;
+    final penalty = settings.calculateScore(settings.falseWinTai);
+    
+    final changes = <String, int>{};
+    
+    if (settings.falseWinPayAll) {
+      // 賠三家
+      for (var player in game.players) {
+        if (player.id == falserId) {
+          changes[player.id] = -penalty * 3;
+        } else {
+          changes[player.id] = penalty;
+        }
+      }
+    } else {
+      // 只賠莊家（或特定一家）
+      final dealer = game.dealer;
+      for (var player in game.players) {
+        if (player.id == falserId) {
+          changes[player.id] = -penalty;
+        } else if (player.id == dealer.id) {
+          changes[player.id] = penalty;
+        } else {
+          changes[player.id] = 0;
+        }
+      }
+    }
+    
+    return changes;
+  }
+
+  /// 計算一炮多響的分數變化
+  static Map<String, int> calculateMultiWin({
+    required Game game,
+    required List<String> winnerIds,
+    required String loserId,
+    required Map<String, int> taiMap,  // {winnerId: tai}
+    required Map<String, int> flowerMap, // {winnerId: flowers}
+  }) {
+    final settings = game.settings;
+    final changes = <String, int>{};
+    
+    // 初始化所有玩家分數為 0
+    for (var player in game.players) {
+      changes[player.id] = 0;
+    }
+    
+    // 計算每個贏家應得的分數
+    int totalLoss = 0;
+    for (var winnerId in winnerIds) {
+      final tai = taiMap[winnerId] ?? 0;
+      final flowers = flowerMap[winnerId] ?? 0;
+      final score = settings.calculateScore(tai + flowers);
+      
+      changes[winnerId] = (changes[winnerId] ?? 0) + score;
+      totalLoss += score;
+    }
+    
+    // 放槍者全賠
+    changes[loserId] = -totalLoss;
+    
+    return changes;
+  }
+
+  /// 計算流局（簡化版：不處理聽牌）
+  static Map<String, int> calculateDraw({
+    required Game game,
+  }) {
+    // 簡化版：流局不計分
+    final changes = <String, int>{};
+    for (var player in game.players) {
+      changes[player.id] = 0;
+    }
+    return changes;
+  }
+
+  /// 格式化分數顯示（加上 + / - 符號）
+  static String formatScore(int score) {
+    if (score > 0) {
+      return '+$score';
+    } else if (score < 0) {
+      return '$score';
+    } else {
+      return '0';
+    }
+  }
+
+  /// 計算預覽（不儲存，用於顯示）
+  static String getScorePreview({
+    required GameSettings settings,
+    required int tai,
+    required int flowers,
+    required bool isSelfDraw,
+  }) {
+    final totalTai = tai + flowers;
+    final score = settings.calculateScore(totalTai, isSelfDraw: isSelfDraw);
+    
+    if (isSelfDraw) {
+      return '三家各付 ${settings.baseScore} × 2^$totalTai = $score\n'
+             '贏家共得 ${score * 3}';
+    } else {
+      return '${settings.baseScore} × 2^$totalTai = $score';
+    }
+  }
+}
