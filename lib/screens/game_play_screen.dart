@@ -135,27 +135,35 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
 
             // 中央快速功能按鈕（垂直排列）
             Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildCenterButton(
-                    icon: Icons.nature,
-                    label: '流局',
-                    onTap: _showDrawDialog,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCenterButton(
-                    icon: Icons.whatshot,
-                    label: '一炮多響',
-                    onTap: _showMultiWinDialog,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCenterButton(
-                    icon: Icons.casino,
-                    label: '數位骰子',
-                    onTap: _showDiceDialog,
-                  ),
-                ],
+              child: Builder(
+                builder: (context) {
+                  final centerScale = math.min(1.0, constraints.maxWidth / 400);
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildCenterButton(
+                        icon: Icons.nature,
+                        label: '流局',
+                        onTap: _showDrawDialog,
+                        scale: centerScale,
+                      ),
+                      SizedBox(height: 8 * centerScale),
+                      _buildCenterButton(
+                        icon: Icons.whatshot,
+                        label: '一炮多響',
+                        onTap: _showMultiWinDialog,
+                        scale: centerScale,
+                      ),
+                      SizedBox(height: 8 * centerScale),
+                      _buildCenterButton(
+                        icon: Icons.casino,
+                        label: '數位骰子',
+                        onTap: _showDiceDialog,
+                        scale: centerScale,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -175,33 +183,41 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     final players = game.players;
     final centerX = constraints.maxWidth / 2;
     final centerY = constraints.maxHeight / 2;
-    // 使用不同的水平/垂直半徑以適應不同螢幕方向（減小半徑讓玩家更靠中間）
-    final radiusX = AppConstants.playerCardWidth * 0.6;
+    // 響應式卡片寬度：手機窄螢幕自動縮小
+    final cardWidth = math.min(constraints.maxWidth * 0.28, 150.0);
+    final scaleFactor = cardWidth / 150.0;
+    // 使用不同的水平/垂直半徑以適應不同螢幕方向
+    final radiusX = cardWidth * 0.6;
     final radiusY = constraints.maxHeight * 0.33 * 0.6;
-    const halfCard = AppConstants.playerCardWidth * 0.5;
-    const cardHeight = AppConstants.playerCardWidth * 1.2;
+    final halfCard = cardWidth * 0.5;
+    final cardHeight = cardWidth * 1.2;
 
     return List.generate(4, (index) {
       final player = players[index];
       final score = scores[player.id] ?? 0;
       final isDealer = game.dealerIndex == index;
 
-      // 計算位置（逆時針排列：東→北→西→南）
+      // 風位 = (arrayIndex - dealerIndex + 4) % 4
+      // 0=東, 1=南, 2=西, 3=北
+      // 莊家永遠是東(0)，其他玩家相對推算
+      final windPos = (index - game.dealerIndex + 4) % 4;
+
+      // 用 windPos 決定螢幕位置（東=右, 南=上, 西=左, 北=下）
       double left, top;
-      switch (index) {
+      switch (windPos) {
         case 0: // 東（右）
           left = centerX + radiusX;
           top = centerY - halfCard;
           break;
-        case 1: // 南（原為下，現改為上 = 北的位置）
+        case 1: // 南（上）
           left = centerX - halfCard;
           top = centerY - radiusY - cardHeight;
           break;
         case 2: // 西（左）
-          left = centerX - AppConstants.playerCardWidth - radiusX;
+          left = centerX - cardWidth - radiusX;
           top = centerY - halfCard;
           break;
-        case 3: // 北（原為上，現改為下 = 南的位置）
+        case 3: // 北（下）
           left = centerX - halfCard;
           top = centerY + radiusY - cardHeight * 0.1;
           break;
@@ -211,8 +227,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       }
 
       // 確保卡片不超出邊界
-      left = left.clamp(4, constraints.maxWidth - AppConstants.playerCardWidth - 4);
-      top = top.clamp(4, constraints.maxHeight - cardHeight - 4);
+      left = left.clamp(4.0, constraints.maxWidth - cardWidth - 4);
+      top = top.clamp(4.0, constraints.maxHeight - cardHeight - 4);
 
       return Positioned(
         left: left,
@@ -220,10 +236,12 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         child: _buildPlayerCard(
           player: player,
           score: score,
-          windIndex: index,
+          windIndex: windPos,
           isDealer: isDealer,
           consecutiveWins: isDealer ? game.consecutiveWins : 0,
           onTap: () => _showPlayerActionDialog(player),
+          cardWidth: cardWidth,
+          scaleFactor: scaleFactor,
         ),
       );
     });
@@ -236,21 +254,24 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     required bool isDealer,
     required int consecutiveWins,
     required VoidCallback onTap,
+    double cardWidth = 150.0,
+    double scaleFactor = 1.0,
   }) {
+    final s = scaleFactor;
     return TapScaleWrapper(
       onTap: onTap,
       child: Card(
         elevation: 4,
         color: isDealer ? AppConstants.dealerColor.withValues(alpha: 0.12) : null,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16 * s),
           side: isDealer
               ? const BorderSide(color: AppConstants.dealerColor, width: 2)
               : BorderSide.none,
         ),
         child: Container(
-          width: AppConstants.playerCardWidth,
-          padding: const EdgeInsets.all(12),
+          width: cardWidth,
+          padding: EdgeInsets.all(12 * s),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -260,18 +281,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 children: [
                   Text(
                     AppConstants.windNames[windIndex],
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: 16 * s,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
                   ),
                   if (isDealer) ...[
-                    const SizedBox(width: 4),
-                    const Text(
+                    SizedBox(width: 4 * s),
+                    Text(
                       '莊',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 14 * s,
                         fontWeight: FontWeight.bold,
                         color: AppConstants.dealerColor,
                       ),
@@ -279,8 +300,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     if (consecutiveWins > 0)
                       Text(
                         ' 連$consecutiveWins',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: 14 * s,
                           fontWeight: FontWeight.bold,
                           color: AppConstants.dealerColor,
                         ),
@@ -289,31 +310,31 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8 * s),
 
               // Emoji
               Text(
                 player.emoji,
-                style: const TextStyle(fontSize: 36),
+                style: TextStyle(fontSize: 36 * s),
               ),
 
-              const SizedBox(height: 4),
+              SizedBox(height: 4 * s),
 
               // 名稱
               Text(
                 player.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: 8 * s),
 
               // 分數（動畫，字體放大2倍）
               AnimatedScoreText(
                 score: score,
                 style: TextStyle(
-                  fontSize: 44,
+                  fontSize: 44 * s,
                   fontWeight: FontWeight.bold,
                   color: score > 0
                       ? AppConstants.winColor
@@ -333,17 +354,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    double scale = 1.0,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return TapScaleWrapper(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
         decoration: BoxDecoration(
           color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20 * scale),
           border: Border.all(
             color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
           ),
@@ -353,14 +375,14 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 18 * scale,
               color: isDark ? Colors.grey.shade200 : Colors.grey.shade700,
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4 * scale),
             Text(
               label,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 14 * scale,
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.grey.shade200 : Colors.grey.shade700,
               ),
@@ -795,8 +817,10 @@ class _DiceDialogState extends State<_DiceDialog>
 
   int _displayDice1 = 1;
   int _displayDice2 = 1;
+  int _displayDice3 = 1;
   late int _finalDice1;
   late int _finalDice2;
+  late int _finalDice3;
   bool _isRolling = true;
 
   @override
@@ -804,6 +828,7 @@ class _DiceDialogState extends State<_DiceDialog>
     super.initState();
     _finalDice1 = _random.nextInt(6) + 1;
     _finalDice2 = _random.nextInt(6) + 1;
+    _finalDice3 = _random.nextInt(6) + 1;
 
     _controller = AnimationController(
       vsync: this,
@@ -817,6 +842,7 @@ class _DiceDialogState extends State<_DiceDialog>
           _isRolling = false;
           _displayDice1 = _finalDice1;
           _displayDice2 = _finalDice2;
+          _displayDice3 = _finalDice3;
         });
       }
     });
@@ -830,6 +856,7 @@ class _DiceDialogState extends State<_DiceDialog>
       setState(() {
         _displayDice1 = _random.nextInt(6) + 1;
         _displayDice2 = _random.nextInt(6) + 1;
+        _displayDice3 = _random.nextInt(6) + 1;
       });
     }
   }
@@ -839,6 +866,7 @@ class _DiceDialogState extends State<_DiceDialog>
       _isRolling = true;
       _finalDice1 = _random.nextInt(6) + 1;
       _finalDice2 = _random.nextInt(6) + 1;
+      _finalDice3 = _random.nextInt(6) + 1;
     });
     _controller.forward(from: 0.0);
   }
@@ -860,8 +888,10 @@ class _DiceDialogState extends State<_DiceDialog>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildAnimatedDice(_displayDice1),
-              const SizedBox(width: 24),
+              const SizedBox(width: 12),
               _buildAnimatedDice(_displayDice2),
+              const SizedBox(width: 12),
+              _buildAnimatedDice(_displayDice3),
             ],
           ),
           const SizedBox(height: 16),
@@ -869,7 +899,7 @@ class _DiceDialogState extends State<_DiceDialog>
             opacity: _isRolling ? 0.0 : 1.0,
             duration: const Duration(milliseconds: 200),
             child: Text(
-              '合計：${_finalDice1 + _finalDice2}',
+              '合計：${_finalDice1 + _finalDice2 + _finalDice3}',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
@@ -899,24 +929,10 @@ class _DiceDialogState extends State<_DiceDialog>
             : 0.0;
         return Transform.translate(
           offset: Offset(shakeOffset, 0),
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.black, width: 2),
-            ),
-            child: Center(
-              child: Text(
-                value.toString(),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            ),
+          child: Image.asset(
+            'assets/images/dice-$value.png',
+            width: 52,
+            height: 52,
           ),
         );
       },
@@ -945,11 +961,14 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
     _selectedDealer = widget.game.dealerIndex;
   }
 
-  // 當重新計算圈風時，莊家必須是東（index 0）
-  int get effectiveDealer => _recalculateWind ? 0 : _selectedDealer;
-
   @override
   Widget build(BuildContext context) {
+    // 計算每個玩家在選定莊家時的風位預覽
+    String windLabel(int playerIndex) {
+      final windPos = (playerIndex - _selectedDealer + 4) % 4;
+      return AppConstants.windNames[windPos];
+    }
+
     return AlertDialog(
       title: const Text('指定莊家'),
       content: SingleChildScrollView(
@@ -959,7 +978,35 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
           children: [
             const Text('選擇新莊家：', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            if (_recalculateWind)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(4, (index) {
+                final player = widget.game.players[index];
+                final isSelected = _selectedDealer == index;
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 4),
+                      Text(player.name),
+                      Text(' (${windLabel(index)})',
+                          style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedDealer = index;
+                    });
+                  },
+                );
+              }),
+            ),
+
+            if (_recalculateWind) ...[
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -973,40 +1020,14 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '重新計算圈風時，莊家將自動設為東',
+                        '所選玩家將成為東家，風圈重置為東風',
                         style: TextStyle(color: Colors.amber.shade900, fontSize: 13),
                       ),
                     ),
                   ],
                 ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(4, (index) {
-                  final player = widget.game.players[index];
-                  final isSelected = _selectedDealer == index;
-                  return ChoiceChip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(player.emoji, style: const TextStyle(fontSize: 18)),
-                        const SizedBox(width: 4),
-                        Text(player.name),
-                        Text(' (${AppConstants.windNames[index]})',
-                            style: const TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedDealer = index;
-                      });
-                    },
-                  );
-                }),
               ),
+            ],
 
             const SizedBox(height: 20),
             const Divider(),
@@ -1043,7 +1064,7 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
           onPressed: () async {
             final provider = context.read<GameProvider>();
             await provider.setDealer(
-              dealerIndex: effectiveDealer,
+              dealerIndex: _selectedDealer,
               resetConsecutiveWins: _resetConsecutiveWins,
               recalculateWind: _recalculateWind,
             );
