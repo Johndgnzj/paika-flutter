@@ -6,6 +6,7 @@ import '../models/game.dart';
 import '../services/calculation_service.dart';
 import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
+import 'game_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -200,7 +201,12 @@ class HomeScreen extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: InkWell(
         onTap: () {
-          // TODO: 打開詳細紀錄頁面
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GameDetailScreen(game: game),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
