@@ -56,6 +56,10 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
             _buildScoreSettings(),
             const SizedBox(height: 32),
             
+            // 進階設定
+            _buildAdvancedSettings(),
+            const SizedBox(height: 32),
+            
             // 玩家設定
             _buildPlayersSection(),
             const SizedBox(height: 32),
@@ -176,6 +180,43 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdvancedSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '進階設定',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        
+        SwitchListTile(
+          title: const Text('自動計算莊家台數', style: TextStyle(fontSize: 16)),
+          subtitle: const Text('莊家胡牌自動多算 1 台', style: TextStyle(fontSize: 14)),
+          value: _dealerTai,
+          onChanged: (value) {
+            setState(() {
+              _dealerTai = value;
+            });
+          },
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+        ),
+        
+        SwitchListTile(
+          title: const Text('自動計算連莊台數', style: TextStyle(fontSize: 16)),
+          subtitle: const Text('連莊時自動多算對應台數', style: TextStyle(fontSize: 14)),
+          value: _consecutiveTai,
+          onChanged: (value) {
+            setState(() {
+              _consecutiveTai = value;
+            });
+          },
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
         ),
       ],
     );
@@ -321,6 +362,8 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     final settings = GameSettings(
       baseScore: _baseScore,
       maxTai: _maxTai,
+      dealerTai: _dealerTai,
+      consecutiveTai: _consecutiveTai,
     );
 
     final provider = context.read<GameProvider>();

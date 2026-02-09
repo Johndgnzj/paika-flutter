@@ -340,4 +340,23 @@ class GameProvider with ChangeNotifier {
     await StorageService.saveCurrentGame(_currentGame!);
     notifyListeners();
   }
+
+  /// 更換莊家
+  Future<void> changeDealer(
+    int newDealerIndex, {
+    bool resetConsecutiveWins = true,
+    bool recalculateWind = false,
+  }) async {
+    if (_currentGame == null) return;
+    if (newDealerIndex < 0 || newDealerIndex >= 4) return;
+
+    // 更新莊家
+    _currentGame = _currentGame!.copyWith(
+      dealerIndex: newDealerIndex,
+      consecutiveWins: resetConsecutiveWins ? 0 : _currentGame!.consecutiveWins,
+    );
+
+    await StorageService.saveCurrentGame(_currentGame!);
+    notifyListeners();
+  }
 }
