@@ -6,6 +6,7 @@ import '../models/game.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
 import '../utils/constants.dart';
+import '../widgets/animation_helpers.dart';
 import '../widgets/multi_win_dialog.dart';
 import '../widgets/swap_position_dialog.dart';
 import '../widgets/draw_dialog.dart';
@@ -211,9 +212,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     required int consecutiveWins,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return TapScaleWrapper(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppConstants.playerCardBorderRadius),
       child: Card(
         elevation: 4,
         child: Container(
@@ -244,17 +244,17 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   ],
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Emoji
               Text(
                 player.emoji,
                 style: const TextStyle(fontSize: 36),
               ),
-              
+
               const SizedBox(height: 4),
-              
+
               // 名稱
               Text(
                 player.name,
@@ -262,12 +262,12 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               const SizedBox(height: 8),
-              
-              // 分數
-              Text(
-                CalculationService.formatScore(score),
+
+              // 分數（動畫）
+              AnimatedScoreText(
+                score: score,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -378,68 +378,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   void _showDiceDialog() {
-    final random = math.Random();
-    final dice1 = random.nextInt(6) + 1;
-    final dice2 = random.nextInt(6) + 1;
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('🎲 電子骰子'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildDice(dice1),
-                const SizedBox(width: 24),
-                _buildDice(dice2),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '合計：${dice1 + dice2}',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showDiceDialog(); // 再擲一次
-            },
-            child: const Text('再擲一次'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('確定'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDice(int value) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black, width: 2),
-      ),
-      child: Center(
-        child: Text(
-          value.toString(),
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.red,
-          ),
-        ),
-      ),
+      builder: (context) => const _DiceDialog(),
     );
   }
 
@@ -790,6 +731,150 @@ class _SelfDrawDialogState extends State<_SelfDrawDialog> {
           child: const Text('確認'),
         ),
       ],
+    );
+  }
+}
+
+// 骰子滾動動畫對話框
+class _DiceDialog extends StatefulWidget {
+  const _DiceDialog();
+
+  @override
+  State<_DiceDialog> createState() => _DiceDialogState();
+}
+
+class _DiceDialogState extends State<_DiceDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final math.Random _random = math.Random();
+
+  int _displayDice1 = 1;
+  int _displayDice2 = 1;
+  late int _finalDice1;
+  late int _finalDice2;
+  bool _isRolling = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _finalDice1 = _random.nextInt(6) + 1;
+    _finalDice2 = _random.nextInt(6) + 1;
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _controller.addListener(_onAnimationUpdate);
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() {
+          _isRolling = false;
+          _displayDice1 = _finalDice1;
+          _displayDice2 = _finalDice2;
+        });
+      }
+    });
+
+    _controller.forward();
+  }
+
+  void _onAnimationUpdate() {
+    final progress = _controller.value;
+    if (progress < 0.8) {
+      setState(() {
+        _displayDice1 = _random.nextInt(6) + 1;
+        _displayDice2 = _random.nextInt(6) + 1;
+      });
+    }
+  }
+
+  void _reroll() {
+    setState(() {
+      _isRolling = true;
+      _finalDice1 = _random.nextInt(6) + 1;
+      _finalDice2 = _random.nextInt(6) + 1;
+    });
+    _controller.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('🎲 電子骰子'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildAnimatedDice(_displayDice1),
+              const SizedBox(width: 24),
+              _buildAnimatedDice(_displayDice2),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AnimatedOpacity(
+            opacity: _isRolling ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            child: Text(
+              '合計：${_finalDice1 + _finalDice2}',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _reroll,
+          child: const Text('再擲一次'),
+        ),
+        ElevatedButton(
+          onPressed: _isRolling ? null : () => Navigator.pop(context),
+          child: const Text('確定'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnimatedDice(int value) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shakeOffset = _isRolling
+            ? math.sin(_controller.value * 20 * math.pi) *
+                3 *
+                (1 - _controller.value)
+            : 0.0;
+        return Transform.translate(
+          offset: Offset(shakeOffset, 0),
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.black, width: 2),
+            ),
+            child: Center(
+              child: Text(
+                value.toString(),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

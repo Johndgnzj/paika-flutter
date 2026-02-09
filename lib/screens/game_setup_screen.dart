@@ -5,6 +5,7 @@ import '../providers/game_provider.dart';
 import '../models/player.dart';
 import '../models/settings.dart';
 import '../utils/constants.dart';
+import '../widgets/animation_helpers.dart';
 import 'game_play_screen.dart';
 
 class GameSetupScreen extends StatefulWidget {
@@ -329,9 +330,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const GamePlayScreen(),
-        ),
+        FadeSlidePageRoute(page: const GamePlayScreen()),
       );
     }
   }

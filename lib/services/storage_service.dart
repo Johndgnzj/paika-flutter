@@ -10,6 +10,7 @@ class StorageService {
   static const String _keyCurrentGame = 'current_game';
   static const String _keyPlayers = 'players';
   static const String _keySettings = 'settings';
+  static const String _keyThemeMode = 'theme_mode';
 
   /// 儲存遊戲
   static Future<void> saveGame(Game game) async {
@@ -135,6 +136,18 @@ class StorageService {
     } catch (e) {
       return const GameSettings();
     }
+  }
+
+  /// 儲存主題模式
+  static Future<void> saveThemeMode(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyThemeMode, mode);
+  }
+
+  /// 載入主題模式
+  static Future<String> loadThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyThemeMode) ?? 'system';
   }
 
   /// 清除所有資料（用於測試或重置）

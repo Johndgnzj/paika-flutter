@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game.dart';
 import '../models/player.dart';
@@ -13,6 +13,7 @@ class GameProvider with ChangeNotifier {
   List<Game> _gameHistory = [];
   GameSettings _settings = const GameSettings();
   List<Player> _savedPlayers = [];
+  ThemeMode _themeMode = ThemeMode.system;
 
   final _uuid = const Uuid();
 
@@ -20,6 +21,7 @@ class GameProvider with ChangeNotifier {
   List<Game> get gameHistory => _gameHistory;
   GameSettings get settings => _settings;
   List<Player> get savedPlayers => _savedPlayers;
+  ThemeMode get themeMode => _themeMode;
 
   /// 初始化（載入資料）
   Future<void> initialize() async {
@@ -27,7 +29,31 @@ class GameProvider with ChangeNotifier {
     _savedPlayers = await StorageService.loadPlayers();
     _gameHistory = await StorageService.loadGames();
     _currentGame = await StorageService.loadCurrentGame();
+    final themeModeStr = await StorageService.loadThemeMode();
+    _themeMode = _parseThemeMode(themeModeStr);
     notifyListeners();
+  }
+
+  static ThemeMode _parseThemeMode(String mode) {
+    switch (mode) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  static String _themeModeToString(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
+    }
   }
 
   /// 建立新遊戲
@@ -224,6 +250,13 @@ class GameProvider with ChangeNotifier {
   Future<void> updateSettings(GameSettings newSettings) async {
     _settings = newSettings;
     await StorageService.saveSettings(newSettings);
+    notifyListeners();
+  }
+
+  /// 更新主題模式
+  Future<void> updateThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    await StorageService.saveThemeMode(_themeModeToString(mode));
     notifyListeners();
   }
 

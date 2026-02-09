@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../services/calculation_service.dart';
+import '../widgets/animation_helpers.dart';
 import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
 import 'game_detail_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -20,7 +22,10 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: 打開設定頁面
+              Navigator.push(
+                context,
+                FadeSlidePageRoute(page: const SettingsScreen()),
+              );
             },
           ),
         ],
@@ -69,9 +74,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const GamePlayScreen(),
-                  ),
+                  FadeSlidePageRoute(page: const GamePlayScreen()),
                 );
               },
               icon: const Icon(Icons.play_arrow),
@@ -125,9 +128,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const GameSetupScreen(),
-                  ),
+                  FadeSlidePageRoute(page: const GameSetupScreen()),
                 );
               },
               icon: const Icon(Icons.add_circle_outline, size: 28),
@@ -203,9 +204,7 @@ class HomeScreen extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => GameDetailScreen(game: game),
-            ),
+            FadeSlidePageRoute(page: GameDetailScreen(game: game)),
           );
         },
         borderRadius: BorderRadius.circular(16),

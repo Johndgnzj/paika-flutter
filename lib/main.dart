@@ -22,7 +22,7 @@ class MahjongScorerApp extends StatelessWidget {
             title: '麻將記分',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.system,
+            themeMode: provider.themeMode,
             home: const HomeScreen(),
             debugShowCheckedModeBanner: false,
           );
