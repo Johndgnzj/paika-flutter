@@ -9,6 +9,7 @@ import '../utils/constants.dart';
 import '../widgets/multi_win_dialog.dart';
 import '../widgets/swap_position_dialog.dart';
 import '../widgets/draw_dialog.dart';
+import '../widgets/quick_score_dialog.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -285,48 +286,17 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   void _showPlayerActionDialog(Player player) {
-    showModalBottomSheet(
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+    
+    if (game == null) return;
+    
+    showDialog(
       context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('${player.emoji} ${player.name}'),
-                subtitle: const Text('選擇操作'),
-                dense: true,
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.emoji_events, color: Colors.amber),
-                title: const Text('胡牌（放槍）'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showWinDialog(player);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.star, color: Colors.green),
-                title: const Text('自摸'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showSelfDrawDialog(player);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.warning, color: Colors.red),
-                title: const Text('詐胡'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showFalseWinDialog(player);
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
+      builder: (context) => QuickScoreDialog(
+        game: game,
+        selectedPlayer: player,
+      ),
     );
   }
 
