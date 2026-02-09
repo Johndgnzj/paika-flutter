@@ -146,13 +146,13 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   const SizedBox(height: 8),
                   _buildCenterButton(
                     icon: Icons.whatshot,
-                    label: '多響',
+                    label: '一炮多響',
                     onTap: _showMultiWinDialog,
                   ),
                   const SizedBox(height: 8),
                   _buildCenterButton(
                     icon: Icons.casino,
-                    label: '骰子',
+                    label: '數位骰子',
                     onTap: _showDiceDialog,
                   ),
                 ],
@@ -176,9 +176,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     final centerX = constraints.maxWidth / 2;
     final centerY = constraints.maxHeight / 2;
     // 使用不同的水平/垂直半徑以適應不同螢幕方向（減小半徑讓玩家更靠中間）
-    final radiusX = constraints.maxWidth * 0.28;
-    final radiusY = constraints.maxHeight * 0.28;
-    const halfCard = 60.0;
+    final radiusX = AppConstants.playerCardWidth * 0.6;
+    final radiusY = constraints.maxHeight * 0.33 * 0.6;
+    const halfCard = AppConstants.playerCardWidth * 0.5;
+    const cardHeight = AppConstants.playerCardWidth * 1.2;
 
     return List.generate(4, (index) {
       final player = players[index];
@@ -189,20 +190,20 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       double left, top;
       switch (index) {
         case 0: // 東（右）
-          left = centerX + radiusX - halfCard;
+          left = centerX + radiusX;
           top = centerY - halfCard;
           break;
         case 1: // 南（原為下，現改為上 = 北的位置）
           left = centerX - halfCard;
-          top = centerY - radiusY - halfCard;
+          top = centerY - radiusY - cardHeight;
           break;
         case 2: // 西（左）
-          left = centerX - radiusX - halfCard;
+          left = centerX - AppConstants.playerCardWidth - radiusX;
           top = centerY - halfCard;
           break;
         case 3: // 北（原為上，現改為下 = 南的位置）
           left = centerX - halfCard;
-          top = centerY + radiusY - halfCard;
+          top = centerY + radiusY - cardHeight * 0.1;
           break;
         default:
           left = centerX;
@@ -210,8 +211,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       }
 
       // 確保卡片不超出邊界
-      left = left.clamp(4, constraints.maxWidth - 124);
-      top = top.clamp(4, constraints.maxHeight - 160);
+      left = left.clamp(4, constraints.maxWidth - AppConstants.playerCardWidth - 4);
+      top = top.clamp(4, constraints.maxHeight - cardHeight - 4);
 
       return Positioned(
         left: left,
@@ -248,7 +249,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               : BorderSide.none,
         ),
         child: Container(
-          width: 120,
+          width: AppConstants.playerCardWidth,
           padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,

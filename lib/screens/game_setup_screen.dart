@@ -24,8 +24,8 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   // 設定
   int _baseScore = 50;
   int _maxTai = 20;
-  bool _dealerTai = false;
-  bool _consecutiveTai = false;
+  bool _dealerTai = true;
+  bool _consecutiveTai = true;
   
   @override
   void initState() {
@@ -157,7 +157,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
           children: [
             const Expanded(
               flex: 2,
-              child: Text('上限：', style: TextStyle(fontSize: 16)),
+              child: Text('台：', style: TextStyle(fontSize: 16)),
             ),
             Expanded(
               flex: 3,

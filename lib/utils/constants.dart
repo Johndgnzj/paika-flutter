@@ -12,16 +12,16 @@ class AppConstants {
   static const List<String> windNames = ['東', '南', '西', '北'];
   
   // 常用台數
-  static const List<int> commonTai = [2, 4, 6, 8, 10, 12, 16];
+  static const List<int> commonTai = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 16];
   
   // 顏色
   static const Color mahjongGreen = Color(0xFF0B6623);
   static const Color winColor = Color(0xFF4CAF50);
   static const Color loseColor = Color(0xFFE57373);
-  static const Color dealerColor = Color(0xFFFF5722);
+  static const Color dealerColor = Color(0xFFFFC022);
   
   // 尺寸
-  static const double playerCardSize = 120.0;
+  static const double playerCardWidth = 150.0;
   static const double playerCardBorderRadius = 16.0;
   static const double spacingSmall = 8.0;
   static const double spacingMedium = 16.0;
