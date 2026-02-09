@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "paika",
+    "default": "paika-13250",
     "release": "paika-13250"
   },
   "targets": {},
