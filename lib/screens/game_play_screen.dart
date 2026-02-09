@@ -202,22 +202,22 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       // 莊家永遠是東(0)，其他玩家相對推算
       final windPos = (index - game.dealerIndex + 4) % 4;
 
-      // 用 windPos 決定螢幕位置（東=右, 南=上, 西=左, 北=下）
+      // 用 index（固定座位）決定螢幕位置，風位標籤由 windPos 控制
       double left, top;
-      switch (windPos) {
-        case 0: // 東（右）
+      switch (index) {
+        case 0: // 座位0（右）
           left = centerX + radiusX;
           top = centerY - halfCard;
           break;
-        case 1: // 南（上）
+        case 1: // 座位1（上）
           left = centerX - halfCard;
           top = centerY - radiusY - cardHeight;
           break;
-        case 2: // 西（左）
+        case 2: // 座位2（左）
           left = centerX - cardWidth - radiusX;
           top = centerY - halfCard;
           break;
-        case 3: // 北（下）
+        case 3: // 座位3（下）
           left = centerX - halfCard;
           top = centerY + radiusY - cardHeight * 0.1;
           break;
