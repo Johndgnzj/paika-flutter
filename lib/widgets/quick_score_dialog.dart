@@ -25,7 +25,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
   String _scoreType = 'win'; // win, selfDraw, falseWin
   
   // 台數
-  int _tai = 4;
+  int _tai = 0;
   
   // 放槍者（胡牌時需要）
   Player? _loser;

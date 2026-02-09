@@ -276,6 +276,34 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 指定莊家
+  Future<void> setDealer({
+    required int dealerIndex,
+    required bool resetConsecutiveWins,
+    required bool recalculateWind,
+  }) async {
+    if (_currentGame == null) return;
+    if (dealerIndex < 0 || dealerIndex >= 4) return;
+
+    Wind newWind = _currentGame!.currentWind;
+    if (recalculateWind) {
+      // 根據目前已完成的圈數重新計算風圈
+      // 簡化：直接根據 dealerIndex 回推風位
+      // 如果已打過的局數足以推算，就保持當前風圈
+      // 否則重置為東風
+      newWind = Wind.east;
+    }
+
+    _currentGame = _currentGame!.copyWith(
+      dealerIndex: dealerIndex,
+      consecutiveWins: resetConsecutiveWins ? 0 : _currentGame!.consecutiveWins,
+      currentWind: recalculateWind ? newWind : _currentGame!.currentWind,
+    );
+
+    await StorageService.saveCurrentGame(_currentGame!);
+    notifyListeners();
+  }
+
   /// 更新設定
   Future<void> updateSettings(GameSettings newSettings) async {
     _settings = newSettings;

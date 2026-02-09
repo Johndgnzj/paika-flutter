@@ -24,6 +24,8 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   // 設定
   int _baseScore = 50;
   int _maxTai = 20;
+  bool _dealerTai = false;
+  bool _consecutiveTai = false;
   
   @override
   void initState() {

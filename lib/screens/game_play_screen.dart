@@ -35,20 +35,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.casino),
-            onPressed: _showDiceDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.whatshot),
-            onPressed: _showMultiWinDialog,
-            tooltip: '一炮多響',
-          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
-                case 'draw':
-                  _showDrawDialog();
+                case 'dealer':
+                  _showSetDealerDialog();
                   break;
                 case 'swap':
                   _showSwapDialog();
@@ -63,12 +54,12 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'draw',
+                value: 'dealer',
                 child: Row(
                   children: [
-                    Icon(Icons.nature, color: Colors.grey),
+                    Icon(Icons.person_pin),
                     SizedBox(width: 8),
-                    Text('流局'),
+                    Text('指定莊家'),
                   ],
                 ),
               ),
@@ -142,33 +133,34 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               ),
             ),
 
-            // 中央流局按鈕
+            // 中央快速功能按鈕
             Center(
-              child: TapScaleWrapper(
-                onTap: _showDrawDialog,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                  child: const Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.nature, size: 20, color: Colors.grey),
-                      SizedBox(width: 6),
-                      Text(
-                        '流局',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
+                      _buildCenterButton(
+                        icon: Icons.nature,
+                        label: '流局',
+                        onTap: _showDrawDialog,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCenterButton(
+                        icon: Icons.whatshot,
+                        label: '多響',
+                        onTap: _showMultiWinDialog,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCenterButton(
+                        icon: Icons.casino,
+                        label: '骰子',
+                        onTap: _showDiceDialog,
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
             ),
 
@@ -337,6 +329,39 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     );
   }
 
+  Widget _buildCenterButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return TapScaleWrapper(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: Colors.grey.shade700),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showPlayerActionDialog(Player player) {
     final provider = context.read<GameProvider>();
     final game = provider.currentGame;
@@ -380,6 +405,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     showDialog(
       context: context,
       builder: (context) => const _DiceDialog(),
+    );
+  }
+
+  void _showSetDealerDialog() {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+
+    if (game == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => _SetDealerDialog(game: game),
     );
   }
 
@@ -470,7 +507,7 @@ class _WinDialog extends StatefulWidget {
 
 class _WinDialogState extends State<_WinDialog> {
   Player? _loser;
-  int _tai = 4;
+  int _tai = 0;
   int _flowers = 0;
 
   @override
@@ -621,7 +658,7 @@ class _SelfDrawDialog extends StatefulWidget {
 }
 
 class _SelfDrawDialogState extends State<_SelfDrawDialog> {
-  int _tai = 4;
+  int _tai = 0;
   int _flowers = 0;
 
   @override
@@ -874,6 +911,115 @@ class _DiceDialogState extends State<_DiceDialog>
           ),
         );
       },
+    );
+  }
+}
+
+// 指定莊家對話框
+class _SetDealerDialog extends StatefulWidget {
+  final Game game;
+
+  const _SetDealerDialog({required this.game});
+
+  @override
+  State<_SetDealerDialog> createState() => _SetDealerDialogState();
+}
+
+class _SetDealerDialogState extends State<_SetDealerDialog> {
+  late int _selectedDealer;
+  bool _resetConsecutiveWins = true;
+  bool _recalculateWind = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDealer = widget.game.dealerIndex;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('指定莊家'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('選擇新莊家：', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(4, (index) {
+                final player = widget.game.players[index];
+                final isSelected = _selectedDealer == index;
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 4),
+                      Text(player.name),
+                      Text(' (${AppConstants.windNames[index]})',
+                          style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedDealer = index;
+                    });
+                  },
+                );
+              }),
+            ),
+
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 12),
+
+            SwitchListTile(
+              title: const Text('重置連莊數'),
+              subtitle: const Text('連莊數歸零'),
+              value: _resetConsecutiveWins,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (value) {
+                setState(() => _resetConsecutiveWins = value);
+              },
+            ),
+
+            SwitchListTile(
+              title: const Text('重新計算圈風'),
+              subtitle: const Text('風圈重置為東風'),
+              value: _recalculateWind,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (value) {
+                setState(() => _recalculateWind = value);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            final provider = context.read<GameProvider>();
+            await provider.setDealer(
+              dealerIndex: _selectedDealer,
+              resetConsecutiveWins: _resetConsecutiveWins,
+              recalculateWind: _recalculateWind,
+            );
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('確認'),
+        ),
+      ],
     );
   }
 }
