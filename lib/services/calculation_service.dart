@@ -13,7 +13,16 @@ class CalculationService {
   }) {
     final settings = game.settings;
     final totalTai = tai + flowers;
-    final score = settings.calculateScore(totalTai);
+    
+    // 檢查是否涉及莊家（莊家胡或莊家被胡）
+    final dealer = game.dealer;
+    final isDealerInvolved = (winnerId == dealer.id || loserId == dealer.id);
+    
+    final score = settings.calculateScore(
+      totalTai,
+      isDealer: isDealerInvolved,
+      consecutiveWins: game.consecutiveWins,
+    );
     
     final changes = <String, int>{};
     for (var player in game.players) {
@@ -38,7 +47,17 @@ class CalculationService {
   }) {
     final settings = game.settings;
     final totalTai = tai + flowers;
-    final score = settings.calculateScore(totalTai, isSelfDraw: true);
+    
+    // 檢查是否莊家自摸
+    final dealer = game.dealer;
+    final isDealer = (winnerId == dealer.id);
+    
+    final score = settings.calculateScore(
+      totalTai,
+      isSelfDraw: true,
+      isDealer: isDealer,
+      consecutiveWins: game.consecutiveWins,
+    );
     
     final changes = <String, int>{};
     for (var player in game.players) {
@@ -100,6 +119,7 @@ class CalculationService {
   }) {
     final settings = game.settings;
     final changes = <String, int>{};
+    final dealer = game.dealer;
     
     // 初始化所有玩家分數為 0
     for (var player in game.players) {
@@ -111,7 +131,15 @@ class CalculationService {
     for (var winnerId in winnerIds) {
       final tai = taiMap[winnerId] ?? 0;
       final flowers = flowerMap[winnerId] ?? 0;
-      final score = settings.calculateScore(tai + flowers);
+      
+      // 檢查是否涉及莊家（贏家是莊家或放槍者是莊家）
+      final isDealerInvolved = (winnerId == dealer.id || loserId == dealer.id);
+      
+      final score = settings.calculateScore(
+        tai + flowers,
+        isDealer: isDealerInvolved,
+        consecutiveWins: game.consecutiveWins,
+      );
       
       changes[winnerId] = (changes[winnerId] ?? 0) + score;
       totalLoss += score;

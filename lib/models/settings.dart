@@ -86,13 +86,30 @@ class GameSettings {
   /// 計算分數
   /// [tai] 台數
   /// [isSelfDraw] 是否自摸
+  /// [isDealer] 是否莊家參與（莊家胡或被胡）
+  /// [consecutiveWins] 連莊數
   /// 回傳單一玩家應付或應得的分數
-  int calculateScore(int tai, {bool isSelfDraw = false}) {
+  int calculateScore(
+    int tai, {
+    bool isSelfDraw = false,
+    bool isDealer = false,
+    int consecutiveWins = 0,
+  }) {
     int effectiveTai = tai;
     
     // 自摸加台
     if (isSelfDraw && selfDrawAddTai) {
       effectiveTai += 1;
+    }
+    
+    // 莊家加台（莊家胡或被胡時）
+    if (isDealer && dealerTai) {
+      effectiveTai += 1;
+    }
+    
+    // 連莊加台（連莊數 × 2）
+    if (consecutiveTai && consecutiveWins > 0) {
+      effectiveTai += consecutiveWins * 2;
     }
     
     // 計算：底 + (台數 × 每台分數)
