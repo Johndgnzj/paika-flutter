@@ -18,12 +18,11 @@ enum Wind {
 /// 單局結果
 class Round {
   final String id;
+  final String bigRoundId;  // 關聯到 BigRound
   final DateTime timestamp;
-  final Wind wind;          // 當局風位（東一、東二等）
-  final int sequence;       // 局數序號
   final RoundType type;     // 類型
   
-  // 胡牌資訊
+  // 勝負資訊（純事實，用 playerId）
   final String? winnerId;   // 胡牌者 ID
   final List<String> winnerIds; // 一炮多響時多個胡牌者
   final String? loserId;    // 放槍者 ID（詐胡時也是輸家）
@@ -33,18 +32,17 @@ class Round {
   final int flowers;        // 花牌台數
   final Map<String, int> scoreChanges; // 各玩家分數變化 {playerId: change}
   
-  // 莊家資訊（v1.3.0 新增）
-  final String? dealerPlayerId; // 當局莊家 ID
-  final int? consecutiveWins;   // 當局連莊數
-  final int? jiangStartDealerIndex; // 當將起莊位置（v1.3.1 新增）
+  // 該局的狀態快照（用於歷史查詢）
+  final Wind wind;          // 該局的風圈
+  final int dealerPos;      // 該局的莊家位置（0-3，對應 BigRound.seatOrder）
+  final int consecutiveWins; // 該局的連莊數
   
   final String? notes;      // 備註
 
   Round({
     required this.id,
+    required this.bigRoundId,
     required this.timestamp,
-    required this.wind,
-    required this.sequence,
     required this.type,
     this.winnerId,
     this.winnerIds = const [],
@@ -52,9 +50,9 @@ class Round {
     required this.tai,
     this.flowers = 0,
     required this.scoreChanges,
-    this.dealerPlayerId,
-    this.consecutiveWins,
-    this.jiangStartDealerIndex,
+    required this.wind,
+    required this.dealerPos,
+    this.consecutiveWins = 0,
     this.notes,
   });
 
@@ -65,9 +63,8 @@ class Round {
   factory Round.fromJson(Map<String, dynamic> json) {
     return Round(
       id: json['id'] as String,
+      bigRoundId: json['bigRoundId'] as String? ?? '', // 向後相容
       timestamp: DateTime.parse(json['timestamp'] as String),
-      wind: Wind.values[json['wind'] as int],
-      sequence: json['sequence'] as int,
       type: RoundType.values[json['type'] as int],
       winnerId: json['winnerId'] as String?,
       winnerIds: (json['winnerIds'] as List<dynamic>?)?.cast<String>() ?? [],
@@ -75,9 +72,9 @@ class Round {
       tai: json['tai'] as int,
       flowers: json['flowers'] as int? ?? 0,
       scoreChanges: Map<String, int>.from(json['scoreChanges'] as Map),
-      dealerPlayerId: json['dealerPlayerId'] as String?,
-      consecutiveWins: json['consecutiveWins'] as int?,
-      jiangStartDealerIndex: json['jiangStartDealerIndex'] as int?,
+      wind: Wind.values[json['wind'] as int? ?? 0],
+      dealerPos: json['dealerPos'] as int? ?? 0,
+      consecutiveWins: json['consecutiveWins'] as int? ?? 0,
       notes: json['notes'] as String?,
     );
   }
@@ -86,9 +83,8 @@ class Round {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'bigRoundId': bigRoundId,
       'timestamp': timestamp.toIso8601String(),
-      'wind': wind.index,
-      'sequence': sequence,
       'type': type.index,
       'winnerId': winnerId,
       'winnerIds': winnerIds,
@@ -96,9 +92,9 @@ class Round {
       'tai': tai,
       'flowers': flowers,
       'scoreChanges': scoreChanges,
-      'dealerPlayerId': dealerPlayerId,
+      'wind': wind.index,
+      'dealerPos': dealerPos,
       'consecutiveWins': consecutiveWins,
-      'jiangStartDealerIndex': jiangStartDealerIndex,
       'notes': notes,
     };
   }
@@ -107,7 +103,7 @@ class Round {
   String get windDisplay {
     const windNames = ['東', '南', '西', '北'];
     final roundWind = windNames[wind.index]; // 圈
-    final dealerWind = windNames[sequence.clamp(0, 3)]; // 局（sequence 存 dealerIndex）
+    final dealerWind = windNames[dealerPos.clamp(0, 3)]; // 局
     return '$roundWind風$dealerWind局';
   }
 }

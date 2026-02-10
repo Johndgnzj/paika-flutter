@@ -521,9 +521,10 @@ class GameDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             child: Column(
               children: rounds.reversed.map((round) {
-                final dealer = _getPlayerById(round.dealerPlayerId);
-                final consecutiveWins = round.consecutiveWins ?? 0;
-                final dealerWasLost = (dealer != null && round.loserId == dealer.id);
+                // 根據 dealerPos 找到莊家
+                final dealer = game.players[round.dealerPos.clamp(0, 3)];
+                final consecutiveWins = round.consecutiveWins;
+                final dealerWasLost = (round.loserId == dealer.id);
 
                 return Container(
                   padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
