@@ -172,15 +172,13 @@ class Game {
       newDealerIndex = (dealerIndex + 1) % 4;
       newSequence = 1;
       
-      // 如果回到東家，進入下一圈
-      if (newDealerIndex == 0) {
+      // 如果回到這一將的起始莊家，進入下一圈
+      if (newDealerIndex == jiangStartDealerIndex) {
         // 循環風圈：東 -> 南 -> 西 -> 北 -> 東 (無限循環，不自動結束)
         newWind = Wind.values[(currentWind.index + 1) % Wind.values.length];
         
-        // 進入新的一將（東風東），更新將的起莊位置
-        if (newWind == Wind.east) {
-          newJiangStartDealerIndex = newDealerIndex;
-        }
+        // 進入新的一將，更新將的起莊位置為當前莊家
+        newJiangStartDealerIndex = newDealerIndex;
       }
     }
     
