@@ -1,5 +1,24 @@
 # Paika 麻將記分系統 - 版本記錄
 
+## v1.3.0 (2026-02-10)
+**變更內容**：
+1. 牌局詳情頁面改用 TabBar 三分頁結構
+2. 新增「數據統計」頁面（胡牌、自摸、放炮次數統計）
+3. 局數詳情新增顯示：莊家、連莊數、莊家是否被胡
+4. Round 模型新增 dealerPlayerId 和 consecutiveWins 欄位
+
+**修改檔案**：
+- `lib/models/round.dart` - 新增莊家資訊欄位
+- `lib/providers/game_provider.dart` - 記錄時儲存莊家資訊
+- `lib/screens/game_detail_screen.dart` - 重構為三分頁結構
+- `pubspec.yaml` - 更新版本號為 1.3.0+4
+
+**向後相容**：
+- 舊資料沒有 dealerPlayerId 時顯示「未記錄」
+- 舊資料沒有 consecutiveWins 時預設為 0
+
+---
+
 ## v1.2.1 (2026-02-10)
 **變更內容**：
 1. 將「自摸加台」設定從設定頁面移到新局設定畫面

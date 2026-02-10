@@ -33,6 +33,10 @@ class Round {
   final int flowers;        // 花牌台數
   final Map<String, int> scoreChanges; // 各玩家分數變化 {playerId: change}
   
+  // 莊家資訊（v1.3.0 新增）
+  final String? dealerPlayerId; // 當局莊家 ID
+  final int? consecutiveWins;   // 當局連莊數
+  
   final String? notes;      // 備註
 
   Round({
@@ -47,6 +51,8 @@ class Round {
     required this.tai,
     this.flowers = 0,
     required this.scoreChanges,
+    this.dealerPlayerId,
+    this.consecutiveWins,
     this.notes,
   });
 
@@ -67,6 +73,8 @@ class Round {
       tai: json['tai'] as int,
       flowers: json['flowers'] as int? ?? 0,
       scoreChanges: Map<String, int>.from(json['scoreChanges'] as Map),
+      dealerPlayerId: json['dealerPlayerId'] as String?,
+      consecutiveWins: json['consecutiveWins'] as int?,
       notes: json['notes'] as String?,
     );
   }
@@ -85,6 +93,8 @@ class Round {
       'tai': tai,
       'flowers': flowers,
       'scoreChanges': scoreChanges,
+      'dealerPlayerId': dealerPlayerId,
+      'consecutiveWins': consecutiveWins,
       'notes': notes,
     };
   }

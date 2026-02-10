@@ -124,6 +124,8 @@ class GameProvider with ChangeNotifier {
         tai: tai,
         flowers: flowers,
         scoreChanges: scoreChanges,
+        dealerPlayerId: _currentGame!.dealer.id,
+        consecutiveWins: _currentGame!.consecutiveWins,
       );
 
       _currentGame = _currentGame!.addRound(round);
@@ -161,6 +163,8 @@ class GameProvider with ChangeNotifier {
       tai: tai,
       flowers: flowers,
       scoreChanges: scoreChanges,
+      dealerPlayerId: _currentGame!.dealer.id,
+      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -188,6 +192,8 @@ class GameProvider with ChangeNotifier {
       loserId: falserId,
       tai: _currentGame!.settings.falseWinTai,
       scoreChanges: scoreChanges,
+      dealerPlayerId: _currentGame!.dealer.id,
+      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -225,6 +231,8 @@ class GameProvider with ChangeNotifier {
       loserId: loserId,
       tai: primaryTai,
       scoreChanges: scoreChanges,
+      dealerPlayerId: _currentGame!.dealer.id,
+      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
