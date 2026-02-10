@@ -24,6 +24,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   // 設定
   int _baseScore = 50;
   int _maxTai = 20;
+  bool _selfDrawAddTai = true;
   bool _dealerTai = true;
   bool _consecutiveTai = true;
   
@@ -196,6 +197,18 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
         const SizedBox(height: 16),
         
         SwitchListTile(
+          title: const Text('自摸加台', style: TextStyle(fontSize: 16)),
+          subtitle: const Text('自摸時額外加 1 台', style: TextStyle(fontSize: 14)),
+          value: _selfDrawAddTai,
+          onChanged: (value) {
+            setState(() {
+              _selfDrawAddTai = value;
+            });
+          },
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+        ),
+        
+        SwitchListTile(
           title: const Text('自動計算莊家台數', style: TextStyle(fontSize: 16)),
           subtitle: const Text('莊家胡牌自動多算 1 台', style: TextStyle(fontSize: 14)),
           value: _dealerTai,
@@ -362,6 +375,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     final settings = GameSettings(
       baseScore: _baseScore,
       maxTai: _maxTai,
+      selfDrawAddTai: _selfDrawAddTai,
       dealerTai: _dealerTai,
       consecutiveTai: _consecutiveTai,
     );

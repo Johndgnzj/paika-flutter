@@ -10,7 +10,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late bool _selfDrawAddTai;
   late bool _falseWinPayAll;
   late int _falseWinTai;
 
@@ -18,7 +17,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     final settings = context.read<GameProvider>().settings;
-    _selfDrawAddTai = settings.selfDrawAddTai;
     _falseWinPayAll = settings.falseWinPayAll;
     _falseWinTai = settings.falseWinTai;
   }
@@ -27,7 +25,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final provider = context.read<GameProvider>();
     final current = provider.settings;
     await provider.updateSettings(current.copyWith(
-      selfDrawAddTai: _selfDrawAddTai,
       falseWinPayAll: _falseWinPayAll,
       falseWinTai: _falseWinTai,
     ));
@@ -45,18 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               // 遊戲規則
               _buildSectionHeader('遊戲規則'),
-
-              SwitchListTile(
-                title: const Text('自摸加台'),
-                subtitle: const Text('自摸時額外加 1 台'),
-                value: _selfDrawAddTai,
-                onChanged: (value) {
-                  setState(() => _selfDrawAddTai = value);
-                  _saveSettings();
-                },
-              ),
-
-              const Divider(height: 1),
 
               SwitchListTile(
                 title: const Text('詐胡賠三家'),
@@ -157,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const ListTile(
                 title: Text('版本'),
-                subtitle: Text('v1.2.0-alpha'),
+                subtitle: Text('v1.2.1'),
               ),
             ],
           );

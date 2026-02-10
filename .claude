@@ -1,0 +1,42 @@
+# Paika 麻將記分系統 - 版本記錄
+
+## v1.2.1 (2026-02-10)
+**變更內容**：
+1. 將「自摸加台」設定從設定頁面移到新局設定畫面
+2. 修正分數超過4位數時換行的問題（使用 FittedBox 自動縮小）
+3. 建立版本記錄檔案 (.claude)
+
+**修改檔案**：
+- `lib/screens/settings_screen.dart` - 移除自摸加台設定
+- `lib/screens/game_setup_screen.dart` - 新增自摸加台選項到進階設定
+- `lib/widgets/animation_helpers.dart` - 修正 AnimatedScoreText 顯示邏輯
+- `pubspec.yaml` - 更新版本號為 1.2.1+3
+
+---
+
+## v1.2.0 (2026-02-10)
+**變更內容**：
+1. 新增莊家自動加台功能（莊家胡/被胡時自動 +1 台）
+2. 新增連莊自動加台功能（連莊數 × 2 台）
+3. 修正預覽顯示邏輯，顯示詳細台數分解
+
+**修改檔案**：
+- `lib/models/settings.dart` - 擴充 calculateScore 函數
+- `lib/services/calculation_service.dart` - 更新所有計算函數
+- `lib/widgets/quick_score_dialog.dart` - 修正預覽邏輯
+- `lib/screens/game_play_screen.dart` - 修正預覽調用
+
+---
+
+## v1.1.0 (2026-02-09)
+**初始功能**：
+- 四人麻將記分系統
+- 胡牌、自摸、詐胡、一炮多響、流局
+- 莊家、連莊、風位管理
+- 底台設定、進階規則設定
+- 歷史紀錄、換位置、還原上局
+- 深色模式支援
+
+---
+
+*此檔案記錄 Paika 專案的版本歷史，每次更新都應該更新此檔案。*

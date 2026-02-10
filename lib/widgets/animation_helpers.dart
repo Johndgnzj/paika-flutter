@@ -90,9 +90,13 @@ class _AnimatedScoreTextState extends State<AnimatedScoreText>
             color: flashColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            CalculationService.formatScore(displayScore),
-            style: widget.style,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              CalculationService.formatScore(displayScore),
+              style: widget.style,
+              maxLines: 1,
+            ),
           ),
         );
       },
