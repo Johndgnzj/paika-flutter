@@ -126,6 +126,7 @@ class GameProvider with ChangeNotifier {
         scoreChanges: scoreChanges,
         dealerPlayerId: _currentGame!.dealer.id,
         consecutiveWins: _currentGame!.consecutiveWins,
+        jiangStartDealerIndex: _currentGame!.jiangStartDealerIndex,
       );
 
       _currentGame = _currentGame!.addRound(round);
@@ -165,6 +166,7 @@ class GameProvider with ChangeNotifier {
       scoreChanges: scoreChanges,
       dealerPlayerId: _currentGame!.dealer.id,
       consecutiveWins: _currentGame!.consecutiveWins,
+      jiangStartDealerIndex: _currentGame!.jiangStartDealerIndex,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -194,6 +196,7 @@ class GameProvider with ChangeNotifier {
       scoreChanges: scoreChanges,
       dealerPlayerId: _currentGame!.dealer.id,
       consecutiveWins: _currentGame!.consecutiveWins,
+      jiangStartDealerIndex: _currentGame!.jiangStartDealerIndex,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -233,6 +236,7 @@ class GameProvider with ChangeNotifier {
       scoreChanges: scoreChanges,
       dealerPlayerId: _currentGame!.dealer.id,
       consecutiveWins: _currentGame!.consecutiveWins,
+      jiangStartDealerIndex: _currentGame!.jiangStartDealerIndex,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -294,18 +298,20 @@ class GameProvider with ChangeNotifier {
     if (dealerIndex < 0 || dealerIndex >= 4) return;
 
     Wind newWind = _currentGame!.currentWind;
+    int newJiangStartDealerIndex = _currentGame!.jiangStartDealerIndex;
+    
     if (recalculateWind) {
-      // 根據目前已完成的圈數重新計算風圈
-      // 簡化：直接根據 dealerIndex 回推風位
-      // 如果已打過的局數足以推算，就保持當前風圈
-      // 否則重置為東風
+      // 重新計算風圈，重置為東風
+      // 這表示進入新的一將，更新將的起莊位置
       newWind = Wind.east;
+      newJiangStartDealerIndex = dealerIndex;
     }
 
     _currentGame = _currentGame!.copyWith(
       dealerIndex: dealerIndex,
       consecutiveWins: resetConsecutiveWins ? 0 : _currentGame!.consecutiveWins,
       currentWind: recalculateWind ? newWind : _currentGame!.currentWind,
+      jiangStartDealerIndex: newJiangStartDealerIndex,
     );
 
     await StorageService.saveCurrentGame(_currentGame!);

@@ -211,9 +211,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       final score = scores[player.id] ?? 0;
       final isDealer = game.dealerIndex == index;
 
-      // 固定座位風位（不隨莊家輪換改變）
-      // 座位0=東, 座位1=南, 座位2=西, 座位3=北
-      final windPos = index;
+      // 風位根據當前將的起莊位置計算
+      // 起莊的人=東，順時針為南西北
+      // 同一將內固定不變
+      final windPos = (index - game.jiangStartDealerIndex + 4) % 4;
 
       // 用 index（固定座位）決定螢幕位置，風位標籤由 windPos 控制
       double left, top;

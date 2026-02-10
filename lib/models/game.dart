@@ -23,6 +23,7 @@ class Game {
   final int currentSequence;  // 當前局數
   final int dealerIndex;      // 莊家位置（0-3）
   final int consecutiveWins;  // 連莊數
+  final int jiangStartDealerIndex; // 當前將的起莊位置（0-3）
   
   Game({
     required this.id,
@@ -35,7 +36,8 @@ class Game {
     this.currentSequence = 1,
     this.dealerIndex = 0,
     this.consecutiveWins = 0,
-  });
+    int? jiangStartDealerIndex,
+  }) : jiangStartDealerIndex = jiangStartDealerIndex ?? dealerIndex;
 
   /// 獲取當前分數
   Map<String, int> get currentScores {
@@ -76,6 +78,7 @@ class Game {
 
   /// 從 JSON 反序列化
   factory Game.fromJson(Map<String, dynamic> json) {
+    final dealerIdx = json['dealerIndex'] as int;
     return Game(
       id: json['id'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -89,8 +92,9 @@ class Game {
       status: GameStatus.values[json['status'] as int],
       currentWind: Wind.values[json['currentWind'] as int],
       currentSequence: json['currentSequence'] as int,
-      dealerIndex: json['dealerIndex'] as int,
+      dealerIndex: dealerIdx,
       consecutiveWins: json['consecutiveWins'] as int,
+      jiangStartDealerIndex: json['jiangStartDealerIndex'] as int? ?? dealerIdx,
     );
   }
 
@@ -107,6 +111,7 @@ class Game {
       'currentSequence': currentSequence,
       'dealerIndex': dealerIndex,
       'consecutiveWins': consecutiveWins,
+      'jiangStartDealerIndex': jiangStartDealerIndex,
     };
   }
 
@@ -122,6 +127,7 @@ class Game {
     int? currentSequence,
     int? dealerIndex,
     int? consecutiveWins,
+    int? jiangStartDealerIndex,
   }) {
     return Game(
       id: id ?? this.id,
@@ -134,6 +140,7 @@ class Game {
       currentSequence: currentSequence ?? this.currentSequence,
       dealerIndex: dealerIndex ?? this.dealerIndex,
       consecutiveWins: consecutiveWins ?? this.consecutiveWins,
+      jiangStartDealerIndex: jiangStartDealerIndex ?? this.jiangStartDealerIndex,
     );
   }
 
@@ -155,6 +162,7 @@ class Game {
     int newSequence = currentSequence;
     Wind newWind = currentWind;
     int newDealerIndex = dealerIndex;
+    int newJiangStartDealerIndex = jiangStartDealerIndex;
     
     if (shouldContinueDealer) {
       // 連莊，局數+1
@@ -168,6 +176,11 @@ class Game {
       if (newDealerIndex == 0) {
         // 循環風圈：東 -> 南 -> 西 -> 北 -> 東 (無限循環，不自動結束)
         newWind = Wind.values[(currentWind.index + 1) % Wind.values.length];
+        
+        // 進入新的一將（東風東），更新將的起莊位置
+        if (newWind == Wind.east) {
+          newJiangStartDealerIndex = newDealerIndex;
+        }
       }
     }
     
@@ -177,6 +190,7 @@ class Game {
       currentSequence: newSequence,
       dealerIndex: newDealerIndex,
       consecutiveWins: newConsecutiveWins,
+      jiangStartDealerIndex: newJiangStartDealerIndex,
     );
   }
 
@@ -194,6 +208,7 @@ class Game {
       currentSequence: 1,
       dealerIndex: 0,
       consecutiveWins: 0,
+      jiangStartDealerIndex: 0,
     );
     
     for (var round in newRounds) {

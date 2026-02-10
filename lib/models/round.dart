@@ -36,6 +36,7 @@ class Round {
   // 莊家資訊（v1.3.0 新增）
   final String? dealerPlayerId; // 當局莊家 ID
   final int? consecutiveWins;   // 當局連莊數
+  final int? jiangStartDealerIndex; // 當將起莊位置（v1.3.1 新增）
   
   final String? notes;      // 備註
 
@@ -53,6 +54,7 @@ class Round {
     required this.scoreChanges,
     this.dealerPlayerId,
     this.consecutiveWins,
+    this.jiangStartDealerIndex,
     this.notes,
   });
 
@@ -75,6 +77,7 @@ class Round {
       scoreChanges: Map<String, int>.from(json['scoreChanges'] as Map),
       dealerPlayerId: json['dealerPlayerId'] as String?,
       consecutiveWins: json['consecutiveWins'] as int?,
+      jiangStartDealerIndex: json['jiangStartDealerIndex'] as int?,
       notes: json['notes'] as String?,
     );
   }
@@ -95,6 +98,7 @@ class Round {
       'scoreChanges': scoreChanges,
       'dealerPlayerId': dealerPlayerId,
       'consecutiveWins': consecutiveWins,
+      'jiangStartDealerIndex': jiangStartDealerIndex,
       'notes': notes,
     };
   }
