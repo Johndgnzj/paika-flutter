@@ -166,15 +166,8 @@ class Game {
       
       // 如果回到東家，進入下一圈
       if (newDealerIndex == 0) {
-        if (currentWind.index < Wind.values.length - 1) {
-          newWind = Wind.values[currentWind.index + 1];
-        } else {
-          // 完成四圈，遊戲結束
-          return copyWith(
-            rounds: newRounds,
-            status: GameStatus.finished,
-          );
-        }
+        // 循環風圈：東 -> 南 -> 西 -> 北 -> 東 (無限循環，不自動結束)
+        newWind = Wind.values[(currentWind.index + 1) % Wind.values.length];
       }
     }
     
