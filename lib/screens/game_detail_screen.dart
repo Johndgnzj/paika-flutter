@@ -201,57 +201,103 @@ class GameDetailScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         
-        ...game.players.map((player) {
-          final playerStats = stats[player.id]!;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(player.emoji, style: const TextStyle(fontSize: 32)),
-                      const SizedBox(width: 12),
-                      Text(
-                        player.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+        // 統計表格
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // 表頭
+                Row(
+                  children: [
+                    const Expanded(
+                      flex: 2,
+                      child: Text(
+                        '玩家',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
-                    ],
-                  ),
-                  const Divider(),
-                  _buildStatRow('🏆 胡牌次數', playerStats['wins']!),
-                  _buildStatRow('🎯 自摸次數', playerStats['selfDraws']!),
-                  _buildStatRow('💥 放炮次數', playerStats['losses']!),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildStatRow(String label, int value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 16)),
-          Text(
-            '$value',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+                    ),
+                    Expanded(
+                      child: Text(
+                        '🏆 胡牌',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '🎯 自摸',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '💥 放槍',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(thickness: 2),
+                
+                // 各玩家數據
+                ...game.players.map((player) {
+                  final playerStats = stats[player.id]!;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Row(
+                            children: [
+                              Text(player.emoji, style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  player.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${playerStats['wins']}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${playerStats['selfDraws']}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${playerStats['losses']}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -305,185 +351,293 @@ class GameDetailScreen extends StatelessWidget {
 
   // ===== 第三頁：局數詳情 =====
   Widget _buildRoundsTab() {
-    final reversedRounds = game.rounds.reversed.toList();
+    // 按圈分組
+    final roundsByWind = <Wind, List<Round>>{
+      Wind.east: [],
+      Wind.south: [],
+      Wind.west: [],
+      Wind.north: [],
+    };
+    
+    for (var round in game.rounds) {
+      roundsByWind[round.wind]!.add(round);
+    }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.history, size: 24),
-            const SizedBox(width: 8),
-            Text(
-              '局數詳情 (${game.rounds.length} 局)',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+    final widgets = <Widget>[];
+    
+    // 標題
+    widgets.add(
+      Row(
+        children: [
+          const Icon(Icons.history, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            '局數詳情 (${game.rounds.length} 局)',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+    widgets.add(const SizedBox(height: 16));
+
+    // 表頭
+    widgets.add(
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 80,
+                      child: Text(
+                        '局',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    ...game.players.map((player) {
+                      return Expanded(
+                        child: Column(
+                          children: [
+                            Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                            Text(
+                              player.name,
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 16),
+      ),
+    );
+
+    // 按圈顯示資料（倒序：從最新的圈開始顯示）
+    // 東南西北 = 4圈 = 1將
+    final windOrderForDisplay = [Wind.north, Wind.west, Wind.south, Wind.east];
+    final hasWinds = windOrderForDisplay.where((w) => roundsByWind[w]!.isNotEmpty).toList();
+    
+    for (int i = 0; i < hasWinds.length; i++) {
+      final wind = hasWinds[i];
+      final rounds = roundsByWind[wind]!;
+      
+      // 計算是第幾圈（東=1, 南=2, 西=3, 北=4）
+      final quanNumber = wind.index + 1;
+      // 計算是第幾將（每4圈一將）
+      final jiangNumber = ((quanNumber - 1) ~/ 4) + 1;
+      
+      // 每4圈（新的一將）插入分隔線
+      if (i > 0) {
+        final prevWind = hasWinds[i - 1];
+        final prevQuanNumber = prevWind.index + 1;
+        final prevJiangNumber = ((prevQuanNumber - 1) ~/ 4) + 1;
         
-        // 表格
+        if (jiangNumber != prevJiangNumber) {
+          widgets.add(const SizedBox(height: 16));
+          widgets.add(
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(
+                    thickness: 3,
+                    color: Colors.orange.shade400,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    '第 $prevJiangNumber 將',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Divider(
+                    thickness: 3,
+                    color: Colors.orange.shade400,
+                  ),
+                ),
+              ],
+            ),
+          );
+          widgets.add(const SizedBox(height: 16));
+        }
+      }
+      
+      // 顯示圈名
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade300),
+                ),
+                child: Text(
+                  '${_getWindName(wind)}風圈 (第$quanNumber圈)',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      
+      // 顯示該圈的所有局（倒序）
+      widgets.add(
         Card(
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: Column(
-              children: [
-                // 表頭
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              children: rounds.reversed.map((round) {
+                final dealer = _getPlayerById(round.dealerPlayerId);
+                final consecutiveWins = round.consecutiveWins ?? 0;
+                final dealerWasLost = (dealer != null && round.loserId == dealer.id);
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+                      bottom: BorderSide(color: Colors.grey.shade200),
                     ),
                   ),
                   child: Row(
                     children: [
-                      const SizedBox(
+                      // 第一欄：局 + 結果 + 莊家資訊
+                      SizedBox(
                         width: 80,
-                        child: Text(
-                          '局',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      ...game.players.map((player) {
-                        return Expanded(
-                          child: Column(
-                            children: [
-                              Text(player.emoji, style: const TextStyle(fontSize: 18)),
-                              Text(
-                                player.name,
-                                style: const TextStyle(
-                                    fontSize: 11, fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-
-                // 每局資料
-                ...reversedRounds.map((round) {
-                  final dealer = _getPlayerById(round.dealerPlayerId);
-                  final consecutiveWins = round.consecutiveWins ?? 0;
-                  final dealerWasLost = (dealer != null && round.loserId == dealer.id);
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
+                        child: Column(
                           children: [
-                            // 第一欄：局 + 結果 + 莊家資訊
-                            SizedBox(
-                              width: 80,
-                              child: Column(
+                            Text(
+                              round.windDisplay,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getRoundColor(round).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _getRoundTypeText(round),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getRoundColor(round),
+                                ),
+                              ),
+                            ),
+                            if (dealer != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    round.windDisplay,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey,
-                                    ),
-                                    textAlign: TextAlign.center,
+                                    '莊:${dealer.emoji}',
+                                    style: const TextStyle(fontSize: 10),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: _getRoundColor(round).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _getRoundTypeText(round),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: _getRoundColor(round),
-                                      ),
-                                    ),
-                                  ),
-                                  if (dealer != null) ...[
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          '莊:${dealer.emoji}',
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                        if (consecutiveWins > 0)
-                                          Text(
-                                            ' 連$consecutiveWins',
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                  if (dealerWasLost)
-                                    const Text(
-                                      '莊被胡',
-                                      style: TextStyle(
+                                  if (consecutiveWins > 0)
+                                    Text(
+                                      ' 連$consecutiveWins',
+                                      style: const TextStyle(
                                         fontSize: 10,
-                                        color: Colors.red,
+                                        color: Colors.orange,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                 ],
                               ),
-                            ),
-
-                            // 四欄：各玩家分數增減
-                            ...game.players.map((player) {
-                              final change = round.scoreChanges[player.id] ?? 0;
-                              return Expanded(
-                                child: Text(
-                                  change == 0 ? '-' : CalculationService.formatScore(change),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: change != 0
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: change > 0
-                                        ? Colors.green
-                                        : change < 0
-                                            ? Colors.red
-                                            : Colors.grey,
-                                  ),
+                            ],
+                            if (dealerWasLost)
+                              const Text(
+                                '莊被胡',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              );
-                            }),
+                              ),
                           ],
                         ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+                      ),
+
+                      // 四欄：各玩家分數增減
+                      ...game.players.map((player) {
+                        final change = round.scoreChanges[player.id] ?? 0;
+                        return Expanded(
+                          child: Text(
+                            change == 0 ? '-' : CalculationService.formatScore(change),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: change != 0
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: change > 0
+                                  ? Colors.green
+                                  : change < 0
+                                      ? Colors.red
+                                      : Colors.grey,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
-      ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: widgets,
     );
+  }
+
+  String _getWindName(Wind wind) {
+    const windNames = ['東', '南', '西', '北'];
+    return windNames[wind.index];
   }
 
   Player? _getPlayerById(String? playerId) {
