@@ -22,7 +22,7 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedDealerIndex = widget.game.dealerIndex;
+    _selectedDealerIndex = widget.game.dealerSeat;
   }
 
   @override
@@ -67,7 +67,7 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
               final player = widget.game.players[index];
               final windName = AppConstants.windNames[index];
               final isSelected = _selectedDealerIndex == index;
-              final isCurrentDealer = widget.game.dealerIndex == index;
+              final isCurrentDealer = widget.game.dealerSeat == index;
               
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -195,8 +195,8 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  await provider.changeDealer(
-                    _selectedDealerIndex,
+                  await provider.setDealer(
+                    dealerSeat: _selectedDealerIndex,
                     resetConsecutiveWins: _resetConsecutiveWins,
                     recalculateWind: _recalculateWind,
                   );

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game.dart';
+import '../models/game_event.dart';
 import '../models/player.dart';
 import '../models/round.dart';
-import '../models/big_round.dart';
 import '../models/settings.dart';
 import '../services/calculation_service.dart';
 import '../services/storage_service.dart';
@@ -80,24 +80,16 @@ class GameProvider with ChangeNotifier {
     }
 
     try {
-      // 創建第一個 BigRound（第一將）
-      final firstBigRound = BigRound(
-        id: 'br_${DateTime.now().millisecondsSinceEpoch}',
-        jiangNumber: 1,
-        seatOrder: players.map((p) => p.id).toList(),
-        startDealerPos: startDealerPos,
-        startTime: DateTime.now(),
-      );
-
       _currentGame = Game(
         id: _uuid.v4(),
         createdAt: DateTime.now(),
         settings: customSettings ?? _settings,
         players: players,
-        bigRounds: [firstBigRound],
-        currentBigRoundId: firstBigRound.id,
         status: GameStatus.playing,
-        dealerIndex: startDealerPos,
+        dealerSeat: startDealerPos,
+        dealerPassCount: 0,
+        consecutiveWins: 0,
+        initialDealerSeat: startDealerPos,
       );
 
       await StorageService.saveCurrentGame(_currentGame!);
@@ -107,6 +99,34 @@ class GameProvider with ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// 建立 Round 快照（共用邏輯）
+  Round _createRound({
+    required RoundType type,
+    String? winnerId,
+    List<String> winnerIds = const [],
+    String? loserId,
+    required int tai,
+    int flowers = 0,
+    required Map<String, int> scoreChanges,
+    String? notes,
+  }) {
+    return Round(
+      id: _uuid.v4(),
+      timestamp: DateTime.now(),
+      type: type,
+      winnerId: winnerId,
+      winnerIds: winnerIds,
+      loserId: loserId,
+      tai: tai,
+      flowers: flowers,
+      scoreChanges: scoreChanges,
+      dealerPassCount: _currentGame!.dealerPassCount,
+      dealerSeat: _currentGame!.dealerSeat,
+      consecutiveWins: _currentGame!.consecutiveWins,
+      notes: notes,
+    );
   }
 
   /// 記錄胡牌（放槍）
@@ -127,19 +147,13 @@ class GameProvider with ChangeNotifier {
         flowers: flowers,
       );
 
-      final round = Round(
-        id: _uuid.v4(),
-        bigRoundId: _currentGame!.currentBigRoundId,
-        timestamp: DateTime.now(),
+      final round = _createRound(
         type: RoundType.win,
         winnerId: winnerId,
         loserId: loserId,
         tai: tai,
         flowers: flowers,
         scoreChanges: scoreChanges,
-        wind: _currentGame!.currentWind,
-        dealerPos: _currentGame!.dealerIndex,
-        consecutiveWins: _currentGame!.consecutiveWins,
       );
 
       _currentGame = _currentGame!.addRound(round);
@@ -167,18 +181,12 @@ class GameProvider with ChangeNotifier {
       flowers: flowers,
     );
 
-    final round = Round(
-      id: _uuid.v4(),
-      bigRoundId: _currentGame!.currentBigRoundId,
-      timestamp: DateTime.now(),
+    final round = _createRound(
       type: RoundType.selfDraw,
       winnerId: winnerId,
       tai: tai,
       flowers: flowers,
       scoreChanges: scoreChanges,
-      wind: _currentGame!.currentWind,
-      dealerPos: _currentGame!.dealerIndex,
-      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -197,17 +205,11 @@ class GameProvider with ChangeNotifier {
       falserId: falserId,
     );
 
-    final round = Round(
-      id: _uuid.v4(),
-      bigRoundId: _currentGame!.currentBigRoundId,
-      timestamp: DateTime.now(),
+    final round = _createRound(
       type: RoundType.falseWin,
       loserId: falserId,
       tai: _currentGame!.settings.falseWinTai,
       scoreChanges: scoreChanges,
-      wind: _currentGame!.currentWind,
-      dealerPos: _currentGame!.dealerIndex,
-      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -232,21 +234,15 @@ class GameProvider with ChangeNotifier {
       flowerMap: flowerMap,
     );
 
-    // 使用第一個贏家的台數作為代表（實際可以改進）
+    // 使用第一個贏家的台數作為代表
     final primaryTai = taiMap[winnerIds.first] ?? 0;
 
-    final round = Round(
-      id: _uuid.v4(),
-      bigRoundId: _currentGame!.currentBigRoundId,
-      timestamp: DateTime.now(),
+    final round = _createRound(
       type: RoundType.multiWin,
       winnerIds: winnerIds,
       loserId: loserId,
       tai: primaryTai,
       scoreChanges: scoreChanges,
-      wind: _currentGame!.currentWind,
-      dealerPos: _currentGame!.dealerIndex,
-      consecutiveWins: _currentGame!.consecutiveWins,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -283,63 +279,78 @@ class GameProvider with ChangeNotifier {
     }
   }
 
-  /// 更換玩家位置
-  Future<void> swapPlayers(int index1, int index2) async {
+  /// 更換玩家位置（記錄事件，供 undo 使用）
+  Future<void> swapPlayers(int seat1, int seat2) async {
     if (_currentGame == null) return;
-    if (index1 < 0 || index1 >= 4 || index2 < 0 || index2 >= 4) return;
+    if (seat1 < 0 || seat1 >= 4 || seat2 < 0 || seat2 >= 4) return;
+
+    // 記錄事件
+    final event = GameEvent(
+      id: _uuid.v4(),
+      timestamp: DateTime.now(),
+      type: GameEventType.swapPlayers,
+      data: {'seat1': seat1, 'seat2': seat2},
+      afterRoundIndex: _currentGame!.rounds.length - 1,
+    );
 
     final players = List<Player>.from(_currentGame!.players);
-    final temp = players[index1];
-    players[index1] = players[index2];
-    players[index2] = temp;
+    final temp = players[seat1];
+    players[seat1] = players[seat2];
+    players[seat2] = temp;
 
-    _currentGame = _currentGame!.copyWith(players: players);
+    // 如果莊家在被交換的座位上，dealerSeat 跟著動
+    int newDealerSeat = _currentGame!.dealerSeat;
+    if (newDealerSeat == seat1) {
+      newDealerSeat = seat2;
+    } else if (newDealerSeat == seat2) {
+      newDealerSeat = seat1;
+    }
+
+    _currentGame = _currentGame!.copyWith(
+      players: players,
+      dealerSeat: newDealerSeat,
+      events: [..._currentGame!.events, event],
+    );
+
     await StorageService.saveCurrentGame(_currentGame!);
     notifyListeners();
   }
 
-  /// 指定莊家
+  /// 指定莊家（記錄事件，供 undo 使用）
   Future<void> setDealer({
-    required int dealerIndex,
+    required int dealerSeat,
     required bool resetConsecutiveWins,
     required bool recalculateWind,
   }) async {
     if (_currentGame == null) return;
-    if (dealerIndex < 0 || dealerIndex >= 4) return;
+    if (dealerSeat < 0 || dealerSeat >= 4) return;
 
-    Wind newWind = _currentGame!.currentWind;
-    List<BigRound> newBigRounds = _currentGame!.bigRounds;
-    String newBigRoundId = _currentGame!.currentBigRoundId;
-    
+    // 記錄事件
+    final event = GameEvent(
+      id: _uuid.v4(),
+      timestamp: DateTime.now(),
+      type: GameEventType.setDealer,
+      data: {
+        'oldDealerSeat': _currentGame!.dealerSeat,
+        'oldDealerPassCount': _currentGame!.dealerPassCount,
+        'oldConsecutiveWins': _currentGame!.consecutiveWins,
+        'newDealerSeat': dealerSeat,
+        'recalculateWind': recalculateWind,
+      },
+      afterRoundIndex: _currentGame!.rounds.length - 1,
+    );
+
+    int passCount = _currentGame!.dealerPassCount;
     if (recalculateWind) {
-      // 重新計算風圈，重置為東風
-      // 這表示進入新的一將，創建新的 BigRound
-      newWind = Wind.east;
-      final currentBR = _currentGame!.currentBigRound;
-      final newBR = BigRound(
-        id: 'br_${DateTime.now().millisecondsSinceEpoch}',
-        jiangNumber: (currentBR?.jiangNumber ?? 0) + 1,
-        seatOrder: _currentGame!.players.map((p) => p.id).toList(),
-        startDealerPos: dealerIndex,
-        startTime: DateTime.now(),
-      );
-      
-      // 結束當前 BigRound
-      newBigRounds = [
-        ..._currentGame!.bigRounds.map((br) => br.id == newBigRoundId 
-            ? br.copyWith(endTime: DateTime.now()) 
-            : br),
-        newBR,
-      ];
-      newBigRoundId = newBR.id;
+      // 進入下一將的東風東局（不是回到第一將）
+      passCount = ((passCount ~/ 16) + 1) * 16;
     }
 
     _currentGame = _currentGame!.copyWith(
-      dealerIndex: dealerIndex,
+      dealerSeat: dealerSeat,
+      dealerPassCount: passCount,
       consecutiveWins: resetConsecutiveWins ? 0 : _currentGame!.consecutiveWins,
-      currentWind: recalculateWind ? newWind : _currentGame!.currentWind,
-      bigRounds: newBigRounds,
-      currentBigRoundId: newBigRoundId,
+      events: [..._currentGame!.events, event],
     );
 
     await StorageService.saveCurrentGame(_currentGame!);
@@ -379,25 +390,6 @@ class GameProvider with ChangeNotifier {
     if (_currentGame == null) return;
 
     _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
-    notifyListeners();
-  }
-
-  /// 更換莊家
-  Future<void> changeDealer(
-    int newDealerIndex, {
-    bool resetConsecutiveWins = true,
-    bool recalculateWind = false,
-  }) async {
-    if (_currentGame == null) return;
-    if (newDealerIndex < 0 || newDealerIndex >= 4) return;
-
-    // 更新莊家
-    _currentGame = _currentGame!.copyWith(
-      dealerIndex: newDealerIndex,
-      consecutiveWins: resetConsecutiveWins ? 0 : _currentGame!.consecutiveWins,
-    );
-
     await StorageService.saveCurrentGame(_currentGame!);
     notifyListeners();
   }

@@ -209,10 +209,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     return List.generate(4, (index) {
       final player = players[index];
       final score = scores[player.id] ?? 0;
-      final isDealer = game.dealerIndex == index;
+      final isDealer = game.dealerSeat == index;
 
-      // 座位固定：index 0=東 1=南 2=西 3=北（不隨莊家旋轉）
-      final windPos = index;
+      // 風位標籤：莊家顯示「東」，其餘依序「南」「西」「北」
+      final windPos = (index - game.dealerSeat + 4) % 4;
 
       // 用 index（固定座位）決定螢幕位置和風位標籤
       double left, top;
@@ -988,7 +988,7 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedDealer = widget.game.dealerIndex;
+    _selectedDealer = widget.game.dealerSeat;
   }
 
   @override
@@ -1094,7 +1094,7 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
           onPressed: () async {
             final provider = context.read<GameProvider>();
             await provider.setDealer(
-              dealerIndex: _selectedDealer,
+              dealerSeat: _selectedDealer,
               resetConsecutiveWins: _resetConsecutiveWins,
               recalculateWind: _recalculateWind,
             );

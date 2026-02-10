@@ -7,7 +7,7 @@ enum RoundType {
   draw,       // 流局
 }
 
-/// 風位
+/// 風位（保留 enum，用於向後相容）
 enum Wind {
   east,   // 東
   south,  // 南
@@ -18,30 +18,28 @@ enum Wind {
 /// 單局結果
 class Round {
   final String id;
-  final String bigRoundId;  // 關聯到 BigRound
   final DateTime timestamp;
   final RoundType type;     // 類型
-  
+
   // 勝負資訊（純事實，用 playerId）
   final String? winnerId;   // 胡牌者 ID
   final List<String> winnerIds; // 一炮多響時多個胡牌者
   final String? loserId;    // 放槍者 ID（詐胡時也是輸家）
-  
+
   // 計分資訊
   final int tai;            // 台數
   final int flowers;        // 花牌台數
   final Map<String, int> scoreChanges; // 各玩家分數變化 {playerId: change}
-  
-  // 該局的狀態快照（用於歷史查詢）
-  final Wind wind;          // 該局的風圈
-  final int dealerPos;      // 該局的莊家位置（0-3，對應 BigRound.seatOrder）
-  final int consecutiveWins; // 該局的連莊數
-  
+
+  // ★ 狀態快照（用計數器追蹤遊戲進度）
+  final int dealerPassCount;  // 該局時的莊家輪轉計數器
+  final int dealerSeat;       // 該局的莊家座位 (0-3)
+  final int consecutiveWins;  // 該局的連莊數
+
   final String? notes;      // 備註
 
   Round({
     required this.id,
-    required this.bigRoundId,
     required this.timestamp,
     required this.type,
     this.winnerId,
@@ -50,8 +48,8 @@ class Round {
     required this.tai,
     this.flowers = 0,
     required this.scoreChanges,
-    required this.wind,
-    required this.dealerPos,
+    required this.dealerPassCount,
+    required this.dealerSeat,
     this.consecutiveWins = 0,
     this.notes,
   });
@@ -59,11 +57,41 @@ class Round {
   /// 計算實際台數（包含花牌）
   int get totalTai => tai + flowers;
 
-  /// 從 JSON 反序列化
+  /// ★ 衍生計算：第幾將
+  int get jiangNumber => (dealerPassCount ~/ 16) + 1;
+
+  /// ★ 衍生計算：風圈 (0=東 1=南 2=西 3=北)
+  int get windCircle => (dealerPassCount ~/ 4) % 4;
+
+  /// ★ 衍生計算：風圈內的第幾局 (0=東局 1=南局 2=西局 3=北局)
+  int get juInCircle => dealerPassCount % 4;
+
+  /// ★ 風位顯示文字（圈+局）
+  String get windDisplay {
+    const names = ['東', '南', '西', '北'];
+    return '${names[windCircle]}風${names[juInCircle]}局';
+  }
+
+  /// 從 JSON 反序列化（支援舊格式向後相容）
   factory Round.fromJson(Map<String, dynamic> json) {
+    // 向後相容：舊格式有 wind/dealerPos，新格式有 dealerPassCount/dealerSeat
+    int dealerPassCount;
+    int dealerSeat;
+
+    if (json.containsKey('dealerPassCount')) {
+      // 新格式
+      dealerPassCount = json['dealerPassCount'] as int;
+      dealerSeat = json['dealerSeat'] as int;
+    } else {
+      // 舊格式：從 wind + dealerPos 近似推算
+      final windIndex = json['wind'] as int? ?? 0;
+      final dealerPos = json['dealerPos'] as int? ?? 0;
+      dealerPassCount = windIndex * 4 + dealerPos;
+      dealerSeat = dealerPos;
+    }
+
     return Round(
       id: json['id'] as String,
-      bigRoundId: json['bigRoundId'] as String? ?? '', // 向後相容
       timestamp: DateTime.parse(json['timestamp'] as String),
       type: RoundType.values[json['type'] as int],
       winnerId: json['winnerId'] as String?,
@@ -72,8 +100,8 @@ class Round {
       tai: json['tai'] as int,
       flowers: json['flowers'] as int? ?? 0,
       scoreChanges: Map<String, int>.from(json['scoreChanges'] as Map),
-      wind: Wind.values[json['wind'] as int? ?? 0],
-      dealerPos: json['dealerPos'] as int? ?? 0,
+      dealerPassCount: dealerPassCount,
+      dealerSeat: dealerSeat,
       consecutiveWins: json['consecutiveWins'] as int? ?? 0,
       notes: json['notes'] as String?,
     );
@@ -83,7 +111,6 @@ class Round {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'bigRoundId': bigRoundId,
       'timestamp': timestamp.toIso8601String(),
       'type': type.index,
       'winnerId': winnerId,
@@ -92,18 +119,10 @@ class Round {
       'tai': tai,
       'flowers': flowers,
       'scoreChanges': scoreChanges,
-      'wind': wind.index,
-      'dealerPos': dealerPos,
+      'dealerPassCount': dealerPassCount,
+      'dealerSeat': dealerSeat,
       'consecutiveWins': consecutiveWins,
       'notes': notes,
     };
-  }
-
-  /// 獲取風位顯示文字（圈+風制）
-  String get windDisplay {
-    const windNames = ['東', '南', '西', '北'];
-    final roundWind = windNames[wind.index]; // 圈
-    final dealerWind = windNames[dealerPos.clamp(0, 3)]; // 局
-    return '$roundWind風$dealerWind局';
   }
 }

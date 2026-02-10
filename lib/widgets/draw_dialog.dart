@@ -46,13 +46,12 @@ class DrawDialog extends StatelessWidget {
     const uuid = Uuid();
     final round = Round(
       id: uuid.v4(),
-      bigRoundId: game.currentBigRoundId,
       timestamp: DateTime.now(),
       type: RoundType.draw,
       tai: 0,
       scoreChanges: scoreChanges,
-      wind: game.currentWind,
-      dealerPos: game.dealerIndex,
+      dealerPassCount: game.dealerPassCount,
+      dealerSeat: game.dealerSeat,
       consecutiveWins: game.consecutiveWins,
       notes: '流局',
     );

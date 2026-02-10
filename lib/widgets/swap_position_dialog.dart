@@ -136,7 +136,7 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
   List<Widget> _buildPlayerPositions() {
     return List.generate(4, (index) {
       final player = _players[index];
-      final windPos = (index - widget.game.dealerIndex + 4) % 4;
+      final windPos = (index - widget.game.dealerSeat + 4) % 4;
       final windName = AppConstants.windNames[windPos];
       final isSelected = _selectedIndex == index;
       
