@@ -279,24 +279,37 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
 
   Widget _buildPreview(GameProvider provider) {
     final settings = widget.game.settings;
+    final dealer = widget.game.dealer;
+    final consecutiveWins = widget.game.consecutiveWins;
     String previewText = '';
     
     if (_scoreType == 'selfDraw') {
+      final isDealer = (widget.selectedPlayer.id == dealer.id);
       previewText = CalculationService.getScorePreview(
         settings: settings,
         tai: _tai,
         flowers: 0,
         isSelfDraw: true,
+        isDealer: isDealer,
+        consecutiveWins: consecutiveWins,
       );
     } else if (_scoreType == 'win' && _loser != null) {
+      final isDealerInvolved = (widget.selectedPlayer.id == dealer.id || _loser!.id == dealer.id);
+      final score = settings.calculateScore(
+        _tai,
+        isDealer: isDealerInvolved,
+        consecutiveWins: consecutiveWins,
+      );
       previewText = CalculationService.getScorePreview(
         settings: settings,
         tai: _tai,
         flowers: 0,
         isSelfDraw: false,
+        isDealer: isDealerInvolved,
+        consecutiveWins: consecutiveWins,
       );
-      previewText = '$previewText\n${widget.selectedPlayer.name} +${settings.calculateScore(_tai)}\n'
-                    '${_loser!.name} -${settings.calculateScore(_tai)}';
+      previewText = '$previewText\n${widget.selectedPlayer.name} +$score\n'
+                    '${_loser!.name} -$score';
     } else if (_scoreType == 'falseWin') {
       final penalty = settings.calculateScore(settings.falseWinTai);
       if (settings.falseWinPayAll) {

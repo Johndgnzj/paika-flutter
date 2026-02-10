@@ -180,15 +180,53 @@ class CalculationService {
     required int tai,
     required int flowers,
     required bool isSelfDraw,
+    required bool isDealer,
+    required int consecutiveWins,
   }) {
-    final totalTai = tai + flowers;
-    final score = settings.calculateScore(totalTai, isSelfDraw: isSelfDraw);
+    final baseTai = tai + flowers;
+    int effectiveTai = baseTai;
+    
+    // 計算有效台數
+    if (isSelfDraw && settings.selfDrawAddTai) {
+      effectiveTai += 1;
+    }
+    if (isDealer && settings.dealerTai) {
+      effectiveTai += 1;
+    }
+    if (settings.consecutiveTai && consecutiveWins > 0) {
+      effectiveTai += consecutiveWins * 2;
+    }
+    
+    final score = settings.calculateScore(
+      baseTai,
+      isSelfDraw: isSelfDraw,
+      isDealer: isDealer,
+      consecutiveWins: consecutiveWins,
+    );
+    
+    // 組合說明文字
+    String taiBreakdown = '$baseTai台';
+    if (isSelfDraw && settings.selfDrawAddTai) {
+      taiBreakdown += ' + 1台(自摸)';
+    }
+    if (isDealer && settings.dealerTai) {
+      taiBreakdown += ' + 1台(莊家)';
+    }
+    if (settings.consecutiveTai && consecutiveWins > 0) {
+      taiBreakdown += ' + ${consecutiveWins * 2}台(連莊×$consecutiveWins)';
+    }
+    
+    if (baseTai != effectiveTai) {
+      taiBreakdown += ' = $effectiveTai台';
+    }
     
     if (isSelfDraw) {
-      return '三家各付 ${settings.baseScore} × 2^$totalTai = $score\n'
-             '贏家共得 ${score * 3}';
+      return '$taiBreakdown\n'
+             '${settings.baseScore} + ($effectiveTai × ${settings.perTai}) = $score\n'
+             '三家各付 $score，贏家共得 ${score * 3}';
     } else {
-      return '${settings.baseScore} × 2^$totalTai = $score';
+      return '$taiBreakdown\n'
+             '${settings.baseScore} + ($effectiveTai × ${settings.perTai}) = $score';
     }
   }
 }
