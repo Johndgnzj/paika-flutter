@@ -11,6 +11,7 @@ import '../widgets/multi_win_dialog.dart';
 import '../widgets/swap_position_dialog.dart';
 import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
+import 'game_detail_screen.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -38,6 +39,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
+                case 'detail':
+                  _showGameDetail();
+                  break;
                 case 'dealer':
                   _showSetDealerDialog();
                   break;
@@ -53,6 +57,16 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'detail',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 8),
+                    Text('查看詳情'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'dealer',
                 child: Row(
@@ -389,6 +403,20 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showGameDetail() {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+    
+    if (game == null) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GameDetailScreen(game: game),
       ),
     );
   }
