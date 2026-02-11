@@ -53,6 +53,7 @@ class DrawDialog extends StatelessWidget {
       dealerPassCount: game.dealerPassCount,
       dealerSeat: game.dealerSeat,
       consecutiveWins: game.consecutiveWins,
+      jiangNumber: game.jiangNumber,
       notes: '流局',
     );
 

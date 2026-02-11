@@ -2,6 +2,7 @@ import 'player.dart';
 import 'round.dart';
 import 'settings.dart';
 import 'game_event.dart';
+import 'jiang.dart';
 
 /// 遊戲狀態
 enum GameStatus {
@@ -28,6 +29,9 @@ class Game {
   // ★ 事件日誌（記錄 setDealer / swapPlayers 等操作）
   final List<GameEvent> events;
 
+  // ★ 將記錄（每一將的資訊）
+  final List<Jiang> jiangs;
+
   Game({
     required this.id,
     required this.createdAt,
@@ -40,11 +44,15 @@ class Game {
     this.consecutiveWins = 0,
     this.initialDealerSeat = 0,
     this.events = const [],
+    this.jiangs = const [],
   });
 
   // ★ 衍生計算
-  /// 第幾將
-  int get jiangNumber => (dealerPassCount ~/ 16) + 1;
+  /// 當前進行中的將
+  Jiang? get currentJiang => jiangs.isNotEmpty ? jiangs.last : null;
+
+  /// 第幾將（從 currentJiang 取得，沒有則推論）
+  int get jiangNumber => currentJiang?.jiangNumber ?? ((dealerPassCount ~/ 16) + 1);
 
   /// 風圈 (0=東 1=南 2=西 3=北)
   int get windCircle => (dealerPassCount ~/ 4) % 4;
@@ -124,6 +132,9 @@ class Game {
       consecutiveWins: json['consecutiveWins'] as int? ?? 0,
       initialDealerSeat: initialDealerSeat,
       events: events,
+      jiangs: (json['jiangs'] as List?)
+          ?.map((j) => Jiang.fromJson(j as Map<String, dynamic>))
+          .toList() ?? [],
     );
   }
 
@@ -141,6 +152,7 @@ class Game {
       'consecutiveWins': consecutiveWins,
       'initialDealerSeat': initialDealerSeat,
       'events': events.map((e) => e.toJson()).toList(),
+      'jiangs': jiangs.map((j) => j.toJson()).toList(),
     };
   }
 
@@ -157,6 +169,7 @@ class Game {
     int? consecutiveWins,
     int? initialDealerSeat,
     List<GameEvent>? events,
+    List<Jiang>? jiangs,
   }) {
     return Game(
       id: id ?? this.id,
@@ -170,6 +183,7 @@ class Game {
       consecutiveWins: consecutiveWins ?? this.consecutiveWins,
       initialDealerSeat: initialDealerSeat ?? this.initialDealerSeat,
       events: events ?? this.events,
+      jiangs: jiangs ?? this.jiangs,
     );
   }
 

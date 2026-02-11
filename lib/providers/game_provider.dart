@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
+import '../models/jiang.dart';
 import '../models/player.dart';
 import '../models/round.dart';
 import '../models/settings.dart';
@@ -101,6 +102,43 @@ class GameProvider with ChangeNotifier {
     }
   }
 
+  /// 確保當前將存在（自動建立邏輯）
+  void _ensureCurrentJiang() {
+    if (_currentGame == null) return;
+
+    // 推論應該是第幾將
+    final expectedJiangNumber = (_currentGame!.dealerPassCount ~/ 16) + 1;
+
+    // 檢查是否需要建立新的 Jiang
+    if (_currentGame!.currentJiang == null ||
+        _currentGame!.currentJiang!.jiangNumber != expectedJiangNumber) {
+      // 自動建立新的 Jiang
+      final newJiang = Jiang(
+        id: _uuid.v4(),
+        gameId: _currentGame!.id,
+        jiangNumber: expectedJiangNumber,
+        seatOrder: _currentGame!.players.map((p) => p.id).toList(),
+        startDealerSeat: _currentGame!.dealerSeat,
+        startDealerPassCount: _currentGame!.dealerPassCount,
+        startTime: DateTime.now(),
+      );
+
+      // 如果有前一將，標記為已結束
+      final updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
+      if (updatedJiangs.isNotEmpty) {
+        final lastIndex = updatedJiangs.length - 1;
+        updatedJiangs[lastIndex] = updatedJiangs[lastIndex].copyWith(
+          endTime: DateTime.now(),
+        );
+      }
+
+      // 加入新將
+      updatedJiangs.add(newJiang);
+
+      _currentGame = _currentGame!.copyWith(jiangs: updatedJiangs);
+    }
+  }
+
   /// 建立 Round 快照（共用邏輯）
   Round _createRound({
     required RoundType type,
@@ -125,6 +163,7 @@ class GameProvider with ChangeNotifier {
       dealerPassCount: _currentGame!.dealerPassCount,
       dealerSeat: _currentGame!.dealerSeat,
       consecutiveWins: _currentGame!.consecutiveWins,
+      jiangNumber: _currentGame!.jiangNumber,
       notes: notes,
     );
   }
@@ -139,6 +178,9 @@ class GameProvider with ChangeNotifier {
     if (_currentGame == null) return;
 
     try {
+      // 確保當前將存在
+      _ensureCurrentJiang();
+
       final scoreChanges = CalculationService.calculateWin(
         game: _currentGame!,
         winnerId: winnerId,
@@ -174,6 +216,9 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
+    // 確保當前將存在
+    _ensureCurrentJiang();
+
     final scoreChanges = CalculationService.calculateSelfDraw(
       game: _currentGame!,
       winnerId: winnerId,
@@ -200,6 +245,9 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
+    // 確保當前將存在
+    _ensureCurrentJiang();
+
     final scoreChanges = CalculationService.calculateFalseWin(
       game: _currentGame!,
       falserId: falserId,
@@ -225,6 +273,9 @@ class GameProvider with ChangeNotifier {
     required Map<String, int> flowerMap,
   }) async {
     if (_currentGame == null) return;
+
+    // 確保當前將存在
+    _ensureCurrentJiang();
 
     final scoreChanges = CalculationService.calculateMultiWin(
       game: _currentGame!,

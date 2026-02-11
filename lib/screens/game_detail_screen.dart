@@ -497,7 +497,7 @@ class GameDetailScreen extends StatelessWidget {
                     border: Border.all(color: Colors.blue.shade300),
                   ),
                   child: Text(
-                    '${windNames[circle]}風圈${jiangKeys.length > 1 ? " (第$jiang將)" : ""}',
+                    '${windNames[circle]}風圈${jiang > 1 ? " (第$jiang將)" : ""}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

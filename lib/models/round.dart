@@ -35,6 +35,7 @@ class Round {
   final int dealerPassCount;  // 該局時的莊家輪轉計數器
   final int dealerSeat;       // 該局的莊家座位 (0-3)
   final int consecutiveWins;  // 該局的連莊數
+  final int jiangNumber;      // 該局的將號（實際值，不是計算）
 
   final String? notes;      // 備註
 
@@ -51,14 +52,12 @@ class Round {
     required this.dealerPassCount,
     required this.dealerSeat,
     this.consecutiveWins = 0,
+    required this.jiangNumber,
     this.notes,
   });
 
   /// 計算實際台數（包含花牌）
   int get totalTai => tai + flowers;
-
-  /// ★ 衍生計算：第幾將
-  int get jiangNumber => (dealerPassCount ~/ 16) + 1;
 
   /// ★ 衍生計算：風圈 (0=東 1=南 2=西 3=北)
   int get windCircle => (dealerPassCount ~/ 4) % 4;
@@ -77,17 +76,21 @@ class Round {
     // 向後相容：舊格式有 wind/dealerPos，新格式有 dealerPassCount/dealerSeat
     int dealerPassCount;
     int dealerSeat;
+    int jiangNumber;
 
     if (json.containsKey('dealerPassCount')) {
       // 新格式
       dealerPassCount = json['dealerPassCount'] as int;
       dealerSeat = json['dealerSeat'] as int;
+      // 向後相容：如果沒有 jiangNumber，用公式推算
+      jiangNumber = json['jiangNumber'] as int? ?? ((dealerPassCount ~/ 16) + 1);
     } else {
       // 舊格式：從 wind + dealerPos 近似推算
       final windIndex = json['wind'] as int? ?? 0;
       final dealerPos = json['dealerPos'] as int? ?? 0;
       dealerPassCount = windIndex * 4 + dealerPos;
       dealerSeat = dealerPos;
+      jiangNumber = (dealerPassCount ~/ 16) + 1;
     }
 
     return Round(
@@ -103,6 +106,7 @@ class Round {
       dealerPassCount: dealerPassCount,
       dealerSeat: dealerSeat,
       consecutiveWins: json['consecutiveWins'] as int? ?? 0,
+      jiangNumber: jiangNumber,
       notes: json['notes'] as String?,
     );
   }
@@ -122,6 +126,7 @@ class Round {
       'dealerPassCount': dealerPassCount,
       'dealerSeat': dealerSeat,
       'consecutiveWins': consecutiveWins,
+      'jiangNumber': jiangNumber,
       'notes': notes,
     };
   }
