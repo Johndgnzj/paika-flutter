@@ -43,6 +43,12 @@ dependencies:
   
   # UUID generation
   uuid: ^4.5.1
+
+  # Crypto (SHA-256 for password hashing)
+  crypto: ^3.0.6
+
+  # Charts
+  fl_chart: ^0.69.2
   
   # Routing
   go_router: ^14.6.2

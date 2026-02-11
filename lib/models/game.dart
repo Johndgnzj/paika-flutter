@@ -14,6 +14,7 @@ enum GameStatus {
 /// 牌局
 class Game {
   final String id;
+  final String? accountId;      // 所屬帳號 ID
   final DateTime createdAt;
   final GameSettings settings;
   final List<Player> players; // 4位玩家（index = 固定座位）
@@ -34,6 +35,7 @@ class Game {
 
   Game({
     required this.id,
+    this.accountId,
     required this.createdAt,
     required this.settings,
     required this.players,
@@ -128,6 +130,7 @@ class Game {
 
     return Game(
       id: json['id'] as String,
+      accountId: json['accountId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       settings: GameSettings.fromJson(json['settings'] as Map<String, dynamic>),
       players: (json['players'] as List)
@@ -152,6 +155,7 @@ class Game {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'accountId': accountId,
       'createdAt': createdAt.toIso8601String(),
       'settings': settings.toJson(),
       'players': players.map((p) => p.toJson()).toList(),
@@ -169,6 +173,7 @@ class Game {
   /// 複製並修改
   Game copyWith({
     String? id,
+    String? accountId,
     DateTime? createdAt,
     GameSettings? settings,
     List<Player>? players,
@@ -183,6 +188,7 @@ class Game {
   }) {
     return Game(
       id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
       createdAt: createdAt ?? this.createdAt,
       settings: settings ?? this.settings,
       players: players ?? this.players,

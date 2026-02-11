@@ -4,8 +4,10 @@ import '../models/game.dart';
 import '../models/game_event.dart';
 import '../models/jiang.dart';
 import '../models/player.dart';
+import '../models/player_profile.dart';
 import '../models/round.dart';
 import '../models/settings.dart';
+import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../services/storage_service.dart';
 
@@ -15,9 +17,11 @@ class GameProvider with ChangeNotifier {
   List<Game> _gameHistory = [];
   GameSettings _settings = const GameSettings();
   List<Player> _savedPlayers = [];
+  List<PlayerProfile> _playerProfiles = [];
   ThemeMode _themeMode = ThemeMode.system;
   bool _isLoading = true;
   String? _error;
+  String? _currentAccountId;
 
   final _uuid = const Uuid();
 
@@ -28,16 +32,69 @@ class GameProvider with ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get currentAccountId => _currentAccountId;
 
-  /// 初始化（載入資料）
+  /// PlayerProfile getter（依 lastPlayedAt 降序排列）
+  List<PlayerProfile> get playerProfiles {
+    final sorted = List<PlayerProfile>.from(_playerProfiles);
+    sorted.sort((a, b) => b.lastPlayedAt.compareTo(a.lastPlayedAt));
+    return sorted;
+  }
+
+  /// 當 AuthService 狀態變化時呼叫
+  void onAuthChanged(AuthService authService) {
+    final newAccountId = authService.currentAccount?.id;
+    if (newAccountId != _currentAccountId) {
+      _currentAccountId = newAccountId;
+      if (newAccountId != null) {
+        _initializeForAccount(newAccountId);
+      } else {
+        _clearState();
+      }
+    }
+  }
+
+  /// 為指定帳號初始化資料
+  Future<void> _initializeForAccount(String accountId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // 遷移舊資料
+      await StorageService.migrateOrphanGames(accountId);
+
+      _settings = await StorageService.loadSettings(accountId: accountId);
+      _savedPlayers = await StorageService.loadPlayers(accountId: accountId);
+      _gameHistory = await StorageService.loadGames(accountId: accountId);
+      _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
+      _playerProfiles = await StorageService.loadPlayerProfiles(accountId: accountId);
+      final themeModeStr = await StorageService.loadThemeMode();
+      _themeMode = _parseThemeMode(themeModeStr);
+    } catch (e) {
+      _error = '載入資料失敗：$e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _clearState() {
+    _currentGame = null;
+    _gameHistory = [];
+    _settings = const GameSettings();
+    _savedPlayers = [];
+    _playerProfiles = [];
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
+  }
+
+  /// 初始化（載入資料）— 保留向後相容（無帳號時也能載入主題）
   Future<void> initialize() async {
     _isLoading = true;
     _error = null;
     try {
-      _settings = await StorageService.loadSettings();
-      _savedPlayers = await StorageService.loadPlayers();
-      _gameHistory = await StorageService.loadGames();
-      _currentGame = await StorageService.loadCurrentGame();
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
     } catch (e) {
@@ -70,6 +127,71 @@ class GameProvider with ChangeNotifier {
     }
   }
 
+  // --- PlayerProfile 管理 ---
+
+  /// 新增玩家檔案
+  Future<void> addPlayerProfile(String name, String emoji) async {
+    if (_currentAccountId == null) return;
+    final now = DateTime.now();
+    final profile = PlayerProfile(
+      id: _uuid.v4(),
+      accountId: _currentAccountId!,
+      name: name,
+      emoji: emoji,
+      createdAt: now,
+      lastPlayedAt: now,
+    );
+    _playerProfiles.add(profile);
+    await StorageService.savePlayerProfile(profile, accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
+  /// 更新玩家檔案
+  Future<void> updatePlayerProfile(String id, {String? name, String? emoji}) async {
+    if (_currentAccountId == null) return;
+    final index = _playerProfiles.indexWhere((p) => p.id == id);
+    if (index < 0) return;
+
+    _playerProfiles[index] = _playerProfiles[index].copyWith(
+      name: name,
+      emoji: emoji,
+    );
+    await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
+  /// 刪除玩家檔案
+  Future<void> deletePlayerProfile(String id) async {
+    if (_currentAccountId == null) return;
+    _playerProfiles.removeWhere((p) => p.id == id);
+    await StorageService.deletePlayerProfile(id, accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
+  /// 載入玩家檔案
+  Future<void> loadPlayerProfiles() async {
+    if (_currentAccountId == null) return;
+    _playerProfiles = await StorageService.loadPlayerProfiles(accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
+  /// 更新玩家檔案的 lastPlayedAt
+  Future<void> _updateProfileLastPlayed(List<Player> players) async {
+    if (_currentAccountId == null) return;
+    final now = DateTime.now();
+    for (final player in players) {
+      if (player.userId != null) {
+        final index = _playerProfiles.indexWhere((p) => p.id == player.userId);
+        if (index >= 0) {
+          _playerProfiles[index] = _playerProfiles[index].copyWith(lastPlayedAt: now);
+          await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
+        }
+      }
+    }
+  }
+
+  // --- 遊戲操作 ---
+
   /// 建立新遊戲
   Future<void> createGame({
     required List<Player> players,
@@ -83,6 +205,7 @@ class GameProvider with ChangeNotifier {
     try {
       _currentGame = Game(
         id: _uuid.v4(),
+        accountId: _currentAccountId,
         createdAt: DateTime.now(),
         settings: customSettings ?? _settings,
         players: players,
@@ -93,7 +216,8 @@ class GameProvider with ChangeNotifier {
         initialDealerSeat: startDealerPos,
       );
 
-      await StorageService.saveCurrentGame(_currentGame!);
+      await _saveCurrentGame();
+      await _updateProfileLastPlayed(players);
       notifyListeners();
     } catch (e) {
       _error = '建立遊戲失敗：$e';
@@ -108,7 +232,6 @@ class GameProvider with ChangeNotifier {
 
     final updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
 
-    // 情況1：沒有任何將，建立第一將
     if (updatedJiangs.isEmpty) {
       final firstJiang = Jiang(
         id: _uuid.v4(),
@@ -124,19 +247,15 @@ class GameProvider with ChangeNotifier {
       return;
     }
 
-    // 情況2：檢查是否需要進入下一將
     final currentJiang = updatedJiangs.last;
     final passCountInJiang = _currentGame!.dealerPassCount - currentJiang.startDealerPassCount;
 
-    // 如果換莊次數達到 16 次（完成一將），建立下一將
     if (passCountInJiang >= 16) {
-      // 標記前一將為已結束
       final lastIndex = updatedJiangs.length - 1;
       updatedJiangs[lastIndex] = updatedJiangs[lastIndex].copyWith(
         endTime: DateTime.now(),
       );
 
-      // 建立新將
       final newJiang = Jiang(
         id: _uuid.v4(),
         gameId: _currentGame!.id,
@@ -192,7 +311,6 @@ class GameProvider with ChangeNotifier {
     if (_currentGame == null) return;
 
     try {
-      // 確保當前將存在
       _ensureCurrentJiang();
 
       final scoreChanges = CalculationService.calculateWin(
@@ -213,7 +331,7 @@ class GameProvider with ChangeNotifier {
       );
 
       _currentGame = _currentGame!.addRound(round);
-      await StorageService.saveCurrentGame(_currentGame!);
+      await _saveCurrentGame();
       notifyListeners();
     } catch (e) {
       _error = '記錄失敗：$e';
@@ -230,7 +348,6 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
-    // 確保當前將存在
     _ensureCurrentJiang();
 
     final scoreChanges = CalculationService.calculateSelfDraw(
@@ -249,7 +366,7 @@ class GameProvider with ChangeNotifier {
     );
 
     _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
@@ -259,7 +376,6 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
-    // 確保當前將存在
     _ensureCurrentJiang();
 
     final scoreChanges = CalculationService.calculateFalseWin(
@@ -275,7 +391,7 @@ class GameProvider with ChangeNotifier {
     );
 
     _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
@@ -288,7 +404,6 @@ class GameProvider with ChangeNotifier {
   }) async {
     if (_currentGame == null) return;
 
-    // 確保當前將存在
     _ensureCurrentJiang();
 
     final scoreChanges = CalculationService.calculateMultiWin(
@@ -299,7 +414,6 @@ class GameProvider with ChangeNotifier {
       flowerMap: flowerMap,
     );
 
-    // 使用第一個贏家的台數作為代表
     final primaryTai = taiMap[winnerIds.first] ?? 0;
 
     final round = _createRound(
@@ -311,7 +425,7 @@ class GameProvider with ChangeNotifier {
     );
 
     _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
@@ -320,7 +434,7 @@ class GameProvider with ChangeNotifier {
     if (_currentGame == null || _currentGame!.rounds.isEmpty) return;
 
     _currentGame = _currentGame!.undoLastRound();
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
@@ -330,8 +444,10 @@ class GameProvider with ChangeNotifier {
 
     try {
       _currentGame = _currentGame!.copyWith(status: GameStatus.finished);
-      await StorageService.saveCurrentGame(_currentGame!);
-      await StorageService.clearCurrentGame();
+      await _saveCurrentGame();
+      if (_currentAccountId != null) {
+        await StorageService.clearCurrentGame(accountId: _currentAccountId!);
+      }
 
       _gameHistory.insert(0, _currentGame!);
       _currentGame = null;
@@ -344,12 +460,11 @@ class GameProvider with ChangeNotifier {
     }
   }
 
-  /// 更換玩家位置（記錄事件，供 undo 使用）
+  /// 更換玩家位置
   Future<void> swapPlayers(int seat1, int seat2) async {
     if (_currentGame == null) return;
     if (seat1 < 0 || seat1 >= 4 || seat2 < 0 || seat2 >= 4) return;
 
-    // 記錄事件
     final event = GameEvent(
       id: _uuid.v4(),
       timestamp: DateTime.now(),
@@ -363,7 +478,6 @@ class GameProvider with ChangeNotifier {
     players[seat1] = players[seat2];
     players[seat2] = temp;
 
-    // 如果莊家在被交換的座位上，dealerSeat 跟著動
     int newDealerSeat = _currentGame!.dealerSeat;
     if (newDealerSeat == seat1) {
       newDealerSeat = seat2;
@@ -377,11 +491,11 @@ class GameProvider with ChangeNotifier {
       events: [..._currentGame!.events, event],
     );
 
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
-  /// 指定莊家（記錄事件，供 undo 使用）
+  /// 指定莊家
   Future<void> setDealer({
     required int dealerSeat,
     required bool resetConsecutiveWins,
@@ -390,7 +504,6 @@ class GameProvider with ChangeNotifier {
     if (_currentGame == null) return;
     if (dealerSeat < 0 || dealerSeat >= 4) return;
 
-    // 記錄事件
     final event = GameEvent(
       id: _uuid.v4(),
       timestamp: DateTime.now(),
@@ -407,7 +520,6 @@ class GameProvider with ChangeNotifier {
 
     int passCount = _currentGame!.dealerPassCount;
     if (recalculateWind) {
-      // 進入下一將的東風東局（不是回到第一將）
       passCount = ((passCount ~/ 16) + 1) * 16;
     }
 
@@ -418,14 +530,16 @@ class GameProvider with ChangeNotifier {
       events: [..._currentGame!.events, event],
     );
 
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
   }
 
   /// 更新設定
   Future<void> updateSettings(GameSettings newSettings) async {
     _settings = newSettings;
-    await StorageService.saveSettings(newSettings);
+    if (_currentAccountId != null) {
+      await StorageService.saveSettings(newSettings, accountId: _currentAccountId!);
+    }
     notifyListeners();
   }
 
@@ -439,23 +553,36 @@ class GameProvider with ChangeNotifier {
   /// 儲存常用玩家
   Future<void> savePlayers(List<Player> players) async {
     _savedPlayers = players;
-    await StorageService.savePlayers(players);
+    if (_currentAccountId != null) {
+      await StorageService.savePlayers(players, accountId: _currentAccountId!);
+    }
     notifyListeners();
   }
 
   /// 清除當前遊戲
   Future<void> clearCurrentGame() async {
     _currentGame = null;
-    await StorageService.clearCurrentGame();
+    if (_currentAccountId != null) {
+      await StorageService.clearCurrentGame(accountId: _currentAccountId!);
+    }
     notifyListeners();
   }
 
-  /// 記錄自訂 Round（用於流局等特殊情況）
+  /// 記錄自訂 Round
   Future<void> recordCustomRound(Round round) async {
     if (_currentGame == null) return;
 
     _currentGame = _currentGame!.addRound(round);
-    await StorageService.saveCurrentGame(_currentGame!);
+    await _saveCurrentGame();
     notifyListeners();
+  }
+
+  // --- Private helpers ---
+
+  Future<void> _saveCurrentGame() async {
+    if (_currentGame == null) return;
+    if (_currentAccountId != null) {
+      await StorageService.saveCurrentGame(_currentGame!, accountId: _currentAccountId!);
+    }
   }
 }

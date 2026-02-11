@@ -258,7 +258,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   Widget _buildPlayerCard(int index) {
     final player = _players[index];
     final windName = AppConstants.windNames[index];
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -283,9 +283,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 ),
               ),
             ),
-            
-            const SizedBox(width: 16),
-            
+
+            const SizedBox(width: 12),
+
             // Emoji
             InkWell(
               onTap: () => _editEmoji(index),
@@ -301,9 +301,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 ),
               ),
             ),
-            
-            const SizedBox(width: 16),
-            
+
+            const SizedBox(width: 12),
+
             // 名稱
             Expanded(
               child: TextField(
@@ -320,9 +320,69 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                 },
               ),
             ),
+
+            const SizedBox(width: 8),
+
+            // 選擇已有玩家
+            IconButton(
+              icon: const Icon(Icons.person_search, size: 24),
+              tooltip: '選擇已有玩家',
+              onPressed: () => _showProfilePicker(index),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showProfilePicker(int index) {
+    final profiles = context.read<GameProvider>().playerProfiles;
+    if (profiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('尚未登錄任何玩家，請先到「玩家管理」新增')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('選擇已有玩家', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: profiles.length,
+                  itemBuilder: (context, i) {
+                    final profile = profiles[i];
+                    return ListTile(
+                      leading: Text(profile.emoji, style: const TextStyle(fontSize: 28)),
+                      title: Text(profile.name),
+                      onTap: () {
+                        setState(() {
+                          _players[index] = _players[index].copyWith(
+                            userId: profile.id,
+                            name: profile.name,
+                            emoji: profile.emoji,
+                          );
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

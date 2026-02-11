@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
+import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../widgets/animation_helpers.dart';
+import 'auth_screen.dart';
 import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
 import 'game_detail_screen.dart';
+import 'player_list_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -17,8 +20,23 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🀄 牌咖'),
+        title: Consumer<AuthService>(
+          builder: (context, auth, _) {
+            final name = auth.currentAccount?.name;
+            return Text(name != null ? '🀄 $name' : '🀄 牌咖');
+          },
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people),
+            tooltip: '玩家管理',
+            onPressed: () {
+              Navigator.push(
+                context,
+                FadeSlidePageRoute(page: const PlayerListScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -26,6 +44,39 @@ class HomeScreen extends StatelessWidget {
                 context,
                 FadeSlidePageRoute(page: const SettingsScreen()),
               );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: '登出',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('登出'),
+                  content: const Text('確定要登出嗎？'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('確定'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && context.mounted) {
+                await context.read<AuthService>().logout();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    FadeSlidePageRoute(page: const AuthScreen()),
+                    (route) => false,
+                  );
+                }
+              }
             },
           ),
         ],

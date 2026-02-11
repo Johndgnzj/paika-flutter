@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
+import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/auth_screen.dart';
 import 'utils/theme.dart';
 
 void main() async {
@@ -14,16 +16,24 @@ class MahjongScorerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => GameProvider()..initialize(),
-      child: Consumer<GameProvider>(
-        builder: (context, provider, _) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
+        ChangeNotifierProxyProvider<AuthService, GameProvider>(
+          create: (_) => GameProvider(),
+          update: (_, authService, gameProvider) {
+            return gameProvider!..onAuthChanged(authService);
+          },
+        ),
+      ],
+      child: Consumer2<AuthService, GameProvider>(
+        builder: (context, authService, gameProvider, _) {
           return MaterialApp(
             title: '牌咖 Paika',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: provider.themeMode,
-            home: const HomeScreen(),
+            themeMode: gameProvider.themeMode,
+            home: authService.isLoggedIn ? const HomeScreen() : const AuthScreen(),
             debugShowCheckedModeBanner: false,
           );
         },
