@@ -37,7 +37,7 @@
 3. **執行自動部署腳本**
    ```bash
    cd ~/Documents/vibe_projects/paika
-   ./deploy.sh
+   ./scripts/deploy.sh
    ```
    
    腳本會自動：
@@ -75,7 +75,7 @@ firebase deploy --only hosting
 
 ```bash
 cd ~/Documents/vibe_projects/paika
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 或
@@ -188,4 +188,4 @@ firebase login --reauth
 
 ---
 
-**準備好了嗎？執行 `./deploy.sh` 開始部署！** 🚀
+**準備好了嗎？執行 `./scripts/deploy.sh` 開始部署！** 🚀

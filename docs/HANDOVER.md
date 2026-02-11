@@ -15,14 +15,19 @@
 ~/Documents/vibe_projects/paika/
 ├── lib/                    # 原始碼
 ├── build/web/              # 編譯後的網頁版（可直接部署）
-├── deploy.sh               # 自動部署腳本
+├── scripts/                # 腳本
+│   ├── deploy.sh           # 自動部署腳本
+│   └── sync_version.sh     # 版本同步腳本
+├── docs/                   # 文件
+│   ├── FIREBASE_SETUP.md   # Firebase 設定指南
+│   ├── DEPLOY_CHECKLIST.md # 部署檢查清單
+│   ├── CHANGELOG.md        # 更新日誌
+│   ├── QUICKSTART.md       # 快速開始指南
+│   ├── HANDOVER.md         # 交接文件（本文件）
+│   └── ...                 # 其他開發文件
 ├── firebase.json           # Firebase 配置
 ├── .firebaserc             # Firebase 專案設定
-├── README.md               # 完整說明文件
-├── FIREBASE_SETUP.md       # Firebase 設定指南
-├── DEPLOY_CHECKLIST.md     # 部署檢查清單
-├── CHANGELOG.md            # 更新日誌
-└── QUICKSTART.md           # 快速開始指南
+└── README.md               # 完整說明文件
 ```
 
 ---
@@ -73,7 +78,7 @@ firebase use --add
 
 #### 步驟 4：首次部署
 ```bash
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 等待完成後，會顯示網址（例如：https://paika.web.app）
@@ -122,7 +127,7 @@ firebase login:ci
 |------|------|
 | `firebase.json` | Firebase Hosting 配置 |
 | `.firebaserc` | Firebase 專案連結 |
-| `deploy.sh` | 一鍵部署腳本 |
+| `scripts/deploy.sh` | 一鍵部署腳本 |
 | `.gitignore` | Git 忽略清單 |
 
 ---
@@ -166,7 +171,7 @@ flutter run -d chrome
 flutter build web --release
 
 # 部署
-./deploy.sh
+./scripts/deploy.sh
 
 # 測試
 flutter test

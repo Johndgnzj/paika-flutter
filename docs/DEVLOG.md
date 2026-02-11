@@ -200,7 +200,7 @@ flutter run -d chrome
 - [ ] 建立 Firebase 專案（https://console.firebase.google.com/）
 - [ ] Firebase CLI 登入
 - [ ] 連結專案：`firebase use --add`
-- [ ] 首次部署：`./deploy.sh`
+- [ ] 首次部署：`./scripts/deploy.sh`
 
 #### Neo 自主更新能力
 完成授權後，Neo 可以：

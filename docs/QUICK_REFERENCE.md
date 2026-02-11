@@ -19,14 +19,14 @@ firebase use --add
 
 ### 3. 部署
 ```bash
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ## 🔄 後續更新
 
 ```bash
 cd ~/Documents/vibe_projects/paika
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ## 📱 本地測試
@@ -43,7 +43,7 @@ flutter run -d chrome
 
 | 指令 | 用途 |
 |------|------|
-| `./deploy.sh` | 完整部署流程 |
+| `./scripts/deploy.sh` | 完整部署流程 |
 | `flutter build web --release` | 只編譯 |
 | `firebase deploy` | 只部署 |
 | `flutter test` | 執行測試 |

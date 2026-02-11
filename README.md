@@ -143,12 +143,11 @@ flutter pub outdated
 
 ## 🚀 部署到 Firebase
 
-詳細步驟請參考 [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+詳細步驟請參考 [FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
 
 快速部署：
 ```bash
-cd ~/Documents/vibe_projects/paika
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ## 🛠️ 開發筆記
@@ -182,7 +181,7 @@ cd ~/Documents/vibe_projects/paika
 
 ## 📄 授權
 
-*(請補充授權資訊)*
+MIT
 
 ## 👥 貢獻
 

@@ -26,7 +26,7 @@ firebase use --add
 
 ### 4. 首次部署
 ```bash
-./deploy.sh
+./scripts/deploy.sh
 ```
 - [ ] 等待編譯完成（約 20-30 秒）
 - [ ] 確認部署成功
@@ -37,7 +37,7 @@ firebase use --add
 ### 自動化更新流程
 ```bash
 cd ~/Documents/vibe_projects/paika
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 ### 手動更新步驟
@@ -122,6 +122,6 @@ firebase hosting:clone paika:live paika:live --only-live
 - 專案名稱：Paika（牌咖）
 - 專案路徑：`~/Documents/vibe_projects/paika/`
 - 編譯產物：`build/web/`
-- 部署腳本：`./deploy.sh`
+- 部署腳本：`./scripts/deploy.sh`
 
 **第一次部署請依照順序執行，完成後 Neo 可接手後續更新！** 🚀
