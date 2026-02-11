@@ -27,10 +27,30 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // 響應式佈局計算
+    final screenSize = MediaQuery.of(context).size;
+    final availableWidth = screenSize.width - 48; // 扣除 padding
+    final availableHeight = screenSize.height - 300; // 扣除標題、按鈕等
+    
+    // 容器大小（取較小值，確保正方形）
+    final containerSize = (availableWidth < availableHeight 
+        ? availableWidth 
+        : availableHeight).clamp(300.0, 500.0);
+    
+    // 桌面大小（容器的 75%）
+    final tableSize = containerSize * 0.75;
+    
+    // 卡片大小（根據容器大小動態計算）
+    final cardWidth = (containerSize * 0.22).clamp(70.0, 100.0);
+    final cardHeight = cardWidth * 1.3;
+    
+    // 邊距
+    final margin = (containerSize - tableSize) / 2;
+
     return Dialog(
       child: Container(
         padding: const EdgeInsets.all(24),
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: BoxConstraints(maxWidth: containerSize + 48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -63,15 +83,15 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
             
             // 麻將桌視圖
             SizedBox(
-              height: 400,
-              width: 400,
+              height: containerSize,
+              width: containerSize,
               child: Stack(
                 children: [
                   // 桌面
                   Center(
                     child: Container(
-                      width: 300,
-                      height: 300,
+                      width: tableSize,
+                      height: tableSize,
                       decoration: BoxDecoration(
                         color: AppConstants.mahjongGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(24),
@@ -84,7 +104,12 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
                   ),
                   
                   // 四個玩家位置
-                  ..._buildPlayerPositions(),
+                  ..._buildPlayerPositions(
+                    containerSize: containerSize,
+                    cardWidth: cardWidth,
+                    cardHeight: cardHeight,
+                    margin: margin,
+                  ),
                 ],
               ),
             ),
@@ -133,36 +158,50 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
     );
   }
 
-  List<Widget> _buildPlayerPositions() {
+  List<Widget> _buildPlayerPositions({
+    required double containerSize,
+    required double cardWidth,
+    required double cardHeight,
+    required double margin,
+  }) {
     return List.generate(4, (index) {
       final player = _players[index];
       final windPos = (index - widget.game.dealerSeat + 4) % 4;
       final windName = AppConstants.windNames[windPos];
       final isSelected = _selectedIndex == index;
       
-      // 計算位置：上下置中，左右兩側
+      // 計算位置：上下置中，左右兩側（根據容器大小動態計算）
       double left, top;
+      final centerX = (containerSize - cardWidth) / 2;
+      final centerY = (containerSize - cardHeight) / 2;
+      
       switch (index) {
         case 0: // 右家
-          left = 280;
-          top = 160;
+          left = containerSize - cardWidth - margin;
+          top = centerY;
           break;
         case 1: // 上家（置中）
-          left = 150;
-          top = 20;
+          left = centerX;
+          top = margin;
           break;
         case 2: // 左家
-          left = 20;
-          top = 160;
+          left = margin;
+          top = centerY;
           break;
         case 3: // 下家（置中）
-          left = 150;
-          top = 300;
+          left = centerX;
+          top = containerSize - cardHeight - margin;
           break;
         default:
-          left = 150;
-          top = 160;
+          left = centerX;
+          top = centerY;
       }
+
+      // 根據卡片大小計算字體
+      final scaleFactor = cardWidth / 100;
+      final fontSize = (12 * scaleFactor).clamp(10.0, 14.0);
+      final emojiSize = (32 * scaleFactor).clamp(24.0, 40.0);
+      final padding = (12 * scaleFactor).clamp(8.0, 16.0);
 
       return Positioned(
         left: left,
@@ -171,7 +210,9 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
           onTap: () => _onPlayerTap(index),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(12),
+            width: cardWidth,
+            height: cardHeight,
+            padding: EdgeInsets.all(padding),
             decoration: BoxDecoration(
               color: isSelected
                   ? Colors.blue.shade100
@@ -193,39 +234,44 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // 風位
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 6 * scaleFactor,
+                    vertical: 2 * scaleFactor,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     windName,
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: fontSize,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 
-                const SizedBox(height: 4),
+                SizedBox(height: 4 * scaleFactor),
                 
                 // Emoji
                 Text(
                   player.emoji,
-                  style: const TextStyle(fontSize: 32),
+                  style: TextStyle(fontSize: emojiSize),
                 ),
                 
-                const SizedBox(height: 4),
+                SizedBox(height: 4 * scaleFactor),
                 
                 // 名稱
                 Text(
                   player.name,
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: fontSize),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
