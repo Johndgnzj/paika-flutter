@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/game_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late bool _falseWinPayAll;
   late int _falseWinTai;
+  String _version = '載入中...';
 
   @override
   void initState() {
@@ -19,6 +21,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = context.read<GameProvider>().settings;
     _falseWinPayAll = settings.falseWinPayAll;
     _falseWinTai = settings.falseWinTai;
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = 'v${packageInfo.version}+${packageInfo.buildNumber}';
+    });
   }
 
   Future<void> _saveSettings() async {
@@ -140,9 +150,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // 關於
               _buildSectionHeader('關於'),
 
-              const ListTile(
-                title: Text('版本'),
-                subtitle: Text('v1.4.0'),
+              ListTile(
+                title: const Text('版本'),
+                subtitle: Text(_version),
               ),
             ],
           );
