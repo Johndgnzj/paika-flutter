@@ -55,10 +55,20 @@ class Game {
   int get jiangNumber => currentJiang?.jiangNumber ?? ((dealerPassCount ~/ 16) + 1);
 
   /// 風圈 (0=東 1=南 2=西 3=北)
-  int get windCircle => (dealerPassCount ~/ 4) % 4;
+  int get windCircle {
+    // 使用相對於當前將的進度
+    final startCount = currentJiang?.startDealerPassCount ?? 0;
+    final relativeCount = dealerPassCount - startCount;
+    return (relativeCount ~/ 4) % 4;
+  }
 
   /// 風圈內的第幾局 (0=東局 1=南局 2=西局 3=北局)
-  int get juInCircle => dealerPassCount % 4;
+  int get juInCircle {
+    // 使用相對於當前將的進度
+    final startCount = currentJiang?.startDealerPassCount ?? 0;
+    final relativeCount = dealerPassCount - startCount;
+    return relativeCount % 4;
+  }
 
   /// 獲取當前分數
   Map<String, int> get currentScores {

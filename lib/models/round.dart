@@ -36,6 +36,7 @@ class Round {
   final int dealerSeat;       // 該局的莊家座位 (0-3)
   final int consecutiveWins;  // 該局的連莊數
   final int jiangNumber;      // 該局的將號（實際值，不是計算）
+  final int jiangStartDealerPassCount; // 該將的起始 dealerPassCount
 
   final String? notes;      // 備註
 
@@ -53,6 +54,7 @@ class Round {
     required this.dealerSeat,
     this.consecutiveWins = 0,
     required this.jiangNumber,
+    required this.jiangStartDealerPassCount,
     this.notes,
   });
 
@@ -60,10 +62,16 @@ class Round {
   int get totalTai => tai + flowers;
 
   /// ★ 衍生計算：風圈 (0=東 1=南 2=西 3=北)
-  int get windCircle => (dealerPassCount ~/ 4) % 4;
+  int get windCircle {
+    final relativeCount = dealerPassCount - jiangStartDealerPassCount;
+    return (relativeCount ~/ 4) % 4;
+  }
 
   /// ★ 衍生計算：風圈內的第幾局 (0=東局 1=南局 2=西局 3=北局)
-  int get juInCircle => dealerPassCount % 4;
+  int get juInCircle {
+    final relativeCount = dealerPassCount - jiangStartDealerPassCount;
+    return relativeCount % 4;
+  }
 
   /// ★ 風位顯示文字（圈+局）
   String get windDisplay {
@@ -77,6 +85,7 @@ class Round {
     int dealerPassCount;
     int dealerSeat;
     int jiangNumber;
+    int jiangStartDealerPassCount;
 
     if (json.containsKey('dealerPassCount')) {
       // 新格式
@@ -84,6 +93,8 @@ class Round {
       dealerSeat = json['dealerSeat'] as int;
       // 向後相容：如果沒有 jiangNumber，用公式推算
       jiangNumber = json['jiangNumber'] as int? ?? ((dealerPassCount ~/ 16) + 1);
+      // 向後相容：如果沒有 jiangStartDealerPassCount，用公式推算
+      jiangStartDealerPassCount = json['jiangStartDealerPassCount'] as int? ?? ((jiangNumber - 1) * 16);
     } else {
       // 舊格式：從 wind + dealerPos 近似推算
       final windIndex = json['wind'] as int? ?? 0;
@@ -91,6 +102,7 @@ class Round {
       dealerPassCount = windIndex * 4 + dealerPos;
       dealerSeat = dealerPos;
       jiangNumber = (dealerPassCount ~/ 16) + 1;
+      jiangStartDealerPassCount = (jiangNumber - 1) * 16;
     }
 
     return Round(
@@ -107,6 +119,7 @@ class Round {
       dealerSeat: dealerSeat,
       consecutiveWins: json['consecutiveWins'] as int? ?? 0,
       jiangNumber: jiangNumber,
+      jiangStartDealerPassCount: jiangStartDealerPassCount,
       notes: json['notes'] as String?,
     );
   }
@@ -127,6 +140,7 @@ class Round {
       'dealerSeat': dealerSeat,
       'consecutiveWins': consecutiveWins,
       'jiangNumber': jiangNumber,
+      'jiangStartDealerPassCount': jiangStartDealerPassCount,
       'notes': notes,
     };
   }

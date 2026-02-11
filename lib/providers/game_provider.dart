@@ -106,35 +106,48 @@ class GameProvider with ChangeNotifier {
   void _ensureCurrentJiang() {
     if (_currentGame == null) return;
 
-    // 推論應該是第幾將
-    final expectedJiangNumber = (_currentGame!.dealerPassCount ~/ 16) + 1;
+    final updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
 
-    // 檢查是否需要建立新的 Jiang
-    if (_currentGame!.currentJiang == null ||
-        _currentGame!.currentJiang!.jiangNumber != expectedJiangNumber) {
-      // 自動建立新的 Jiang
+    // 情況1：沒有任何將，建立第一將
+    if (updatedJiangs.isEmpty) {
+      final firstJiang = Jiang(
+        id: _uuid.v4(),
+        gameId: _currentGame!.id,
+        jiangNumber: 1,
+        seatOrder: _currentGame!.players.map((p) => p.id).toList(),
+        startDealerSeat: _currentGame!.dealerSeat,
+        startDealerPassCount: _currentGame!.dealerPassCount,
+        startTime: DateTime.now(),
+      );
+      updatedJiangs.add(firstJiang);
+      _currentGame = _currentGame!.copyWith(jiangs: updatedJiangs);
+      return;
+    }
+
+    // 情況2：檢查是否需要進入下一將
+    final currentJiang = updatedJiangs.last;
+    final passCountInJiang = _currentGame!.dealerPassCount - currentJiang.startDealerPassCount;
+
+    // 如果換莊次數達到 16 次（完成一將），建立下一將
+    if (passCountInJiang >= 16) {
+      // 標記前一將為已結束
+      final lastIndex = updatedJiangs.length - 1;
+      updatedJiangs[lastIndex] = updatedJiangs[lastIndex].copyWith(
+        endTime: DateTime.now(),
+      );
+
+      // 建立新將
       final newJiang = Jiang(
         id: _uuid.v4(),
         gameId: _currentGame!.id,
-        jiangNumber: expectedJiangNumber,
+        jiangNumber: currentJiang.jiangNumber + 1,
         seatOrder: _currentGame!.players.map((p) => p.id).toList(),
         startDealerSeat: _currentGame!.dealerSeat,
         startDealerPassCount: _currentGame!.dealerPassCount,
         startTime: DateTime.now(),
       );
 
-      // 如果有前一將，標記為已結束
-      final updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
-      if (updatedJiangs.isNotEmpty) {
-        final lastIndex = updatedJiangs.length - 1;
-        updatedJiangs[lastIndex] = updatedJiangs[lastIndex].copyWith(
-          endTime: DateTime.now(),
-        );
-      }
-
-      // 加入新將
       updatedJiangs.add(newJiang);
-
       _currentGame = _currentGame!.copyWith(jiangs: updatedJiangs);
     }
   }
@@ -164,6 +177,7 @@ class GameProvider with ChangeNotifier {
       dealerSeat: _currentGame!.dealerSeat,
       consecutiveWins: _currentGame!.consecutiveWins,
       jiangNumber: _currentGame!.jiangNumber,
+      jiangStartDealerPassCount: _currentGame!.currentJiang?.startDealerPassCount ?? 0,
       notes: notes,
     );
   }
