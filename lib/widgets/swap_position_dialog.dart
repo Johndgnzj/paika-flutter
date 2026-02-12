@@ -29,30 +29,30 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
   Widget build(BuildContext context) {
     // 響應式佈局計算
     final screenSize = MediaQuery.of(context).size;
-    final dialogPadding = 24.0 * 2; // Dialog 內部 padding
-    final dialogMargin = 48.0; // Dialog 外部預留空間
+    final dialogPadding = 12.0 * 2; // Dialog 內部 padding
+    final dialogMargin = 6.0 * 2; // Dialog 外部最小 6px 邊距
     final availableWidth = screenSize.width - dialogMargin - dialogPadding;
-    final availableHeight = screenSize.height - 300; // 扣除標題、按鈕等
+    final availableHeight = screenSize.height - 280; // 扣除標題、按鈕等
 
     // 容器大小（取較小值，確保正方形，不設最小值以免溢出）
     final containerSize = (availableWidth < availableHeight
         ? availableWidth
         : availableHeight).clamp(200.0, 500.0);
-    
-    // 桌面大小（容器的 75%）
-    final tableSize = containerSize * 0.75;
-    
+
+    // 桌面大小（容器的 85%）
+    final tableSize = containerSize * 0.85;
+
     // 卡片大小（根據容器大小動態計算）
-    final cardWidth = (containerSize * 0.22).clamp(50.0, 100.0);
+    final cardWidth = (containerSize * 0.24).clamp(55.0, 110.0);
     final cardHeight = cardWidth * 1.3;
-    
+
     // 邊距
     final margin = (containerSize - tableSize) / 2;
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 24),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(maxWidth: containerSize + dialogPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -202,8 +202,8 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
 
       // 根據卡片大小計算字體
       final scaleFactor = cardWidth / 100;
-      final fontSize = (12 * scaleFactor).clamp(8.0, 14.0);
-      final emojiSize = (32 * scaleFactor).clamp(18.0, 40.0);
+      final fontSize = (14 * scaleFactor).clamp(10.0, 16.0);
+      final emojiSize = (36 * scaleFactor).clamp(20.0, 44.0);
       final padding = (12 * scaleFactor).clamp(6.0, 16.0);
 
       return Positioned(
