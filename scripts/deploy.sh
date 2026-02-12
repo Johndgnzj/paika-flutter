@@ -1,6 +1,8 @@
 #!/bin/bash
 # Paika 自動部署腳本
 
+nvm use 22.14.0
+
 set -e
 
 echo "🀄 開始部署 Paika..."
