@@ -205,6 +205,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     final radiusY = constraints.maxHeight * 0.33 * 0.6;
     final halfCard = cardWidth * 0.5;
     final cardHeight = cardWidth * 1.2;
+    
+    // 最小邊距 6px（手機版最小值）
+    const minMargin = 6.0;
 
     return List.generate(4, (index) {
       final player = players[index];
@@ -239,9 +242,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           top = centerY;
       }
 
-      // 確保卡片不超出邊界
-      left = left.clamp(4.0, constraints.maxWidth - cardWidth - 4);
-      top = top.clamp(4.0, constraints.maxHeight - cardHeight - 4);
+      // 確保卡片不超出邊界（使用最小邊距）
+      left = left.clamp(minMargin, constraints.maxWidth - cardWidth - minMargin);
+      top = top.clamp(minMargin, constraints.maxHeight - cardHeight - minMargin);
 
       return Positioned(
         left: left,
@@ -271,6 +274,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     double scaleFactor = 1.0,
   }) {
     final s = scaleFactor;
+    // 手機上文字需要更大，加入補償係數
+    final textScale = math.max(1.0, 1.2 - scaleFactor * 0.3);
+    
     return TapScaleWrapper(
       onTap: onTap,
       child: Card(
@@ -295,7 +301,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   Text(
                     AppConstants.windNames[windIndex],
                     style: TextStyle(
-                      fontSize: 16 * s,
+                      fontSize: 18 * s * textScale,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
@@ -305,7 +311,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     Text(
                       '莊',
                       style: TextStyle(
-                        fontSize: 14 * s,
+                        fontSize: 16 * s * textScale,
                         fontWeight: FontWeight.bold,
                         color: AppConstants.dealerColor,
                       ),
@@ -314,7 +320,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                       Text(
                         ' 連$consecutiveWins',
                         style: TextStyle(
-                          fontSize: 14 * s,
+                          fontSize: 16 * s * textScale,
                           fontWeight: FontWeight.bold,
                           color: AppConstants.dealerColor,
                         ),
@@ -328,7 +334,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               // Emoji
               Text(
                 player.emoji,
-                style: TextStyle(fontSize: 36 * s),
+                style: TextStyle(fontSize: 38 * s * textScale),
               ),
 
               SizedBox(height: 4 * s),
@@ -336,18 +342,21 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               // 名稱
               Text(
                 player.name,
-                style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 18 * s * textScale,
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
 
               SizedBox(height: 8 * s),
 
-              // 分數（動畫，字體放大2倍）
+              // 分數（動畫）
               AnimatedScoreText(
                 score: score,
                 style: TextStyle(
-                  fontSize: 44 * s,
+                  fontSize: 48 * s * textScale,
                   fontWeight: FontWeight.bold,
                   color: score > 0
                       ? AppConstants.winColor
