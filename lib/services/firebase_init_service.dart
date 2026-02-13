@@ -32,7 +32,7 @@ class FirebaseInitService {
 
     // 3. App Check（各平台 provider）
     await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('placeholder'),
+      webProvider: ReCaptchaV3Provider('6LeogWosAAAAAEFzWSR96IPNxtPuw-UzJo2xO4Sa'),
       appleProvider: AppleProvider.appAttest,
       androidProvider: AndroidProvider.playIntegrity,
     );
