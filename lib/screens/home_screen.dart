@@ -13,77 +13,105 @@ import 'game_detail_screen.dart';
 import 'player_list_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _searchQuery = '';
+  bool _isSearching = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Consumer<AuthService>(
-          builder: (context, auth, _) {
-            final name = auth.currentAccount?.name;
-            return Text(name != null ? '🀄 $name' : '🀄 牌咖');
-          },
-        ),
+        title: _isSearching
+            ? TextField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜尋牌局...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              )
+            : Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  final name = auth.currentAccount?.name;
+                  return Text(name != null ? '🀄 $name' : '🀄 牌咖');
+                },
+              ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.people),
-            tooltip: '玩家管理',
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            tooltip: _isSearching ? '關閉搜尋' : '搜尋牌局',
             onPressed: () {
-              Navigator.push(
-                context,
-                FadeSlidePageRoute(page: const PlayerListScreen()),
-              );
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) _searchQuery = '';
+              });
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                FadeSlidePageRoute(page: const SettingsScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '登出',
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('登出'),
-                  content: const Text('確定要登出嗎？'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('取消'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('確定'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true && context.mounted) {
-                await context.read<AuthService>().logout();
-                if (context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    FadeSlidePageRoute(page: const AuthScreen()),
-                    (route) => false,
-                  );
+          if (!_isSearching) ...[
+            IconButton(
+              icon: const Icon(Icons.people),
+              tooltip: '玩家管理',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  FadeSlidePageRoute(page: const PlayerListScreen()),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  FadeSlidePageRoute(page: const SettingsScreen()),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: '登出',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('登出'),
+                    content: const Text('確定要登出嗎？'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('取消'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('確定'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  await context.read<AuthService>().logout();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      FadeSlidePageRoute(page: const AuthScreen()),
+                      (route) => false,
+                    );
+                  }
                 }
-              }
-            },
-          ),
+              },
+            ),
+          ],
         ],
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
-          // Loading 狀態
           if (provider.isLoading) {
             return const Center(
               child: Column(
@@ -97,7 +125,6 @@ class HomeScreen extends StatelessWidget {
             );
           }
 
-          // 錯誤狀態
           if (provider.error != null) {
             return Center(
               child: Padding(
@@ -123,12 +150,10 @@ class HomeScreen extends StatelessWidget {
             );
           }
 
-          // 如果有進行中的遊戲，顯示繼續按鈕
           if (provider.currentGame != null) {
             return _buildContinueGameView(context, provider);
           }
 
-          // 否則顯示新局和歷史紀錄
           return _buildHomeView(context, provider);
         },
       ),
@@ -208,62 +233,71 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildHomeView(BuildContext context, GameProvider provider) {
+    final games = _searchQuery.isEmpty
+        ? provider.gameHistory
+        : provider.searchGames(_searchQuery);
+
     return Column(
       children: [
         // 開始新局按鈕
-        Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  FadeSlidePageRoute(page: const GameSetupScreen()),
-                );
-              },
-              icon: const Icon(Icons.add_circle_outline, size: 28),
-              label: const Text('開始新局', style: TextStyle(fontSize: 22)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 20),
+        if (!_isSearching)
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    FadeSlidePageRoute(page: const GameSetupScreen()),
+                  );
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 28),
+                label: const Text('開始新局', style: TextStyle(fontSize: 22)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                ),
               ),
             ),
           ),
-        ),
 
         // 歷史紀錄
-        if (provider.gameHistory.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+        if (games.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '最近牌局',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                _isSearching ? '搜尋結果 (${games.length})' : '最近牌局',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
           ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: provider.gameHistory.length,
+              itemCount: games.length,
               itemBuilder: (context, index) {
-                final game = provider.gameHistory[index];
-                return _buildGameHistoryCard(context, game);
+                final game = games[index];
+                return _buildGameHistoryCard(context, game, provider);
               },
             ),
           ),
         ] else ...[
-          const Expanded(
+          Expanded(
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
+                  Icon(
+                    _isSearching ? Icons.search_off : Icons.history,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    '尚無牌局紀錄',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    _isSearching ? '找不到符合的牌局' : '尚無牌局紀錄',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
               ),
@@ -274,10 +308,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGameHistoryCard(BuildContext context, Game game) {
+  Widget _buildGameHistoryCard(BuildContext context, Game game, GameProvider provider) {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final scores = game.currentScores;
-    
+
     // 找出最高分玩家
     String topPlayerId = game.players[0].id;
     int topScore = scores[topPlayerId] ?? 0;
@@ -307,28 +341,79 @@ class HomeScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    dateFormat.format(game.createdAt),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (game.name != null && game.name!.isNotEmpty)
+                          Text(
+                            game.name!,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        Text(
+                          dateFormat.format(game.createdAt),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: game.status == GameStatus.finished
-                          ? Colors.grey
-                          : Colors.green,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      game.status == GameStatus.finished ? '已結束' : '進行中',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: game.status == GameStatus.finished
+                              ? Colors.grey
+                              : Colors.green,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          game.status == GameStatus.finished ? '已結束' : '進行中',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'rename') {
+                            _showRenameDialog(context, game, provider);
+                          } else if (value == 'delete') {
+                            _showDeleteDialog(context, game, provider);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'rename',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 20),
+                                SizedBox(width: 8),
+                                Text('重新命名'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('刪除', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -342,7 +427,7 @@ class HomeScreen extends StatelessWidget {
               ...game.players.map((player) {
                 final score = scores[player.id] ?? 0;
                 final isTop = player.id == topPlayerId && topScore > 0;
-                
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -373,6 +458,61 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showRenameDialog(BuildContext context, Game game, GameProvider provider) {
+    final controller = TextEditingController(text: game.name ?? '');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重新命名牌局'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '輸入牌局名稱',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.renameGame(game.id, controller.text.trim());
+              Navigator.pop(context);
+            },
+            child: const Text('確定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, Game game, GameProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('刪除牌局'),
+        content: const Text('確定要刪除這場牌局嗎？此操作無法復原。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.deleteGameFromHistory(game.id);
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('刪除'),
+          ),
+        ],
       ),
     );
   }

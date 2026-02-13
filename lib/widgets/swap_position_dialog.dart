@@ -43,7 +43,7 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
     final tableSize = containerSize * 0.85;
 
     // 卡片大小（根據容器大小動態計算）
-    final cardWidth = (containerSize * 0.24).clamp(55.0, 110.0);
+    final cardWidth = (containerSize * 0.31).clamp(55.0, 110.0);
     final cardHeight = cardWidth * 1.3;
 
     // 邊距

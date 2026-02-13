@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
 import 'services/auth_service.dart';
+import 'services/firebase_init_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
 import 'utils/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseInitService.initialize();
   runApp(const MahjongScorerApp());
 }
 

@@ -9,6 +9,8 @@ import '../models/round.dart';
 import '../models/settings.dart';
 import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
+import '../services/firestore_service.dart';
+import '../services/firebase_init_service.dart';
 import '../services/storage_service.dart';
 
 /// 遊戲狀態管理
@@ -63,6 +65,13 @@ class GameProvider with ChangeNotifier {
     try {
       // 遷移舊資料
       await StorageService.migrateOrphanGames(accountId);
+
+      // 啟用雲端同步並從 Firestore 拉取最新資料
+      if (FirebaseInitService.isInitialized) {
+        StorageService.enableCloud();
+        await FirestoreService.saveUserProfile(accountId, '');
+        await StorageService.syncFromCloud(accountId: accountId);
+      }
 
       _settings = await StorageService.loadSettings(accountId: accountId);
       _savedPlayers = await StorageService.loadPlayers(accountId: accountId);
@@ -575,6 +584,43 @@ class GameProvider with ChangeNotifier {
     _currentGame = _currentGame!.addRound(round);
     await _saveCurrentGame();
     notifyListeners();
+  }
+
+  // --- 多場次管理 ---
+
+  /// 重新命名牌局
+  Future<void> renameGame(String gameId, String name) async {
+    final index = _gameHistory.indexWhere((g) => g.id == gameId);
+    if (index < 0) return;
+
+    _gameHistory[index] = _gameHistory[index].copyWith(name: name);
+    await StorageService.saveGame(_gameHistory[index]);
+    notifyListeners();
+  }
+
+  /// 刪除歷史牌局
+  Future<void> deleteGameFromHistory(String gameId) async {
+    _gameHistory.removeWhere((g) => g.id == gameId);
+    await StorageService.deleteGame(gameId);
+    notifyListeners();
+  }
+
+  /// 搜尋牌局
+  List<Game> searchGames(String query) {
+    if (query.isEmpty) return _gameHistory;
+    final q = query.toLowerCase();
+    return _gameHistory.where((g) {
+      // 搜尋牌局名稱
+      if (g.name != null && g.name!.toLowerCase().contains(q)) return true;
+      // 搜尋玩家名稱
+      for (final p in g.players) {
+        if (p.name.toLowerCase().contains(q)) return true;
+      }
+      // 搜尋日期
+      final dateStr = g.createdAt.toString();
+      if (dateStr.contains(q)) return true;
+      return false;
+    }).toList();
   }
 
   // --- Private helpers ---

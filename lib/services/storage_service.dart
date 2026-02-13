@@ -1,14 +1,34 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../models/player_profile.dart';
 import '../models/settings.dart';
+import 'firestore_service.dart';
 
-/// 本地儲存服務
+/// 本地儲存服務（含 Write-Through 雲端同步）
 class StorageService {
   static const String _keyGames = 'games';
   static const String _keyThemeMode = 'theme_mode';
+
+  /// 雲端同步開關
+  static bool _cloudEnabled = false;
+
+  /// 啟用雲端同步
+  static void enableCloud() {
+    _cloudEnabled = true;
+  }
+
+  /// 非同步雲端寫入（fire-and-forget，錯誤只 log）
+  static void _syncToCloudAsync(Future<void> Function() action) {
+    if (!_cloudEnabled) return;
+    action().catchError((e) {
+      if (kDebugMode) {
+        print('[Cloud Sync] Error: $e');
+      }
+    });
+  }
 
   // 帳號隔離 key 生成
   static String _currentGameKey(String accountId) => 'current_game_$accountId';
@@ -35,6 +55,7 @@ class StorageService {
     }
 
     await prefs.setStringList(_keyGames, gamesJson);
+    _syncToCloudAsync(() => FirestoreService.saveGame(game));
   }
 
   /// 載入所有遊戲（可選 accountId 過濾）
@@ -74,6 +95,7 @@ class StorageService {
     });
 
     await prefs.setStringList(_keyGames, gamesJson);
+    _syncToCloudAsync(() => FirestoreService.deleteGame(gameId));
   }
 
   /// 儲存當前進行中的遊戲（帳號隔離）
@@ -109,6 +131,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final playersJson = players.map((p) => jsonEncode(p.toJson())).toList();
     await prefs.setStringList(_playersKey(accountId), playersJson);
+    _syncToCloudAsync(() => FirestoreService.saveSavedPlayers(players));
   }
 
   /// 載入玩家列表（帳號隔離）
@@ -126,6 +149,7 @@ class StorageService {
   static Future<void> saveSettings(GameSettings settings, {required String accountId}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_settingsKey(accountId), jsonEncode(settings.toJson()));
+    _syncToCloudAsync(() => FirestoreService.saveSettings(settings));
   }
 
   /// 載入遊戲設定（帳號隔離）
@@ -157,6 +181,7 @@ class StorageService {
       profiles.add(profile);
     }
     await _savePlayerProfiles(profiles, accountId: accountId);
+    _syncToCloudAsync(() => FirestoreService.savePlayerProfile(profile));
   }
 
   /// 載入所有 PlayerProfile
@@ -174,6 +199,7 @@ class StorageService {
     final profiles = await loadPlayerProfiles(accountId: accountId);
     profiles.removeWhere((p) => p.id == id);
     await _savePlayerProfiles(profiles, accountId: accountId);
+    _syncToCloudAsync(() => FirestoreService.deletePlayerProfile(id));
   }
 
   static Future<void> _savePlayerProfiles(List<PlayerProfile> profiles, {required String accountId}) async {
@@ -200,6 +226,67 @@ class StorageService {
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+  }
+
+  // --- 雲端同步 ---
+
+  /// 從 Firestore 拉取資料覆蓋本地
+  static Future<void> syncFromCloud({required String accountId}) async {
+    if (!_cloudEnabled) return;
+
+    try {
+      final result = await FirestoreService.syncFromCloud();
+      if (result == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // 合併牌局（雲端有的覆蓋本地，本地獨有的保留）
+      if (result.games.isNotEmpty) {
+        final localGamesJson = prefs.getStringList(_keyGames) ?? [];
+        final localGames = <String, String>{};
+        for (final json in localGamesJson) {
+          final data = jsonDecode(json) as Map<String, dynamic>;
+          localGames[data['id'] as String] = json;
+        }
+        for (final game in result.games) {
+          localGames[game.id] = jsonEncode(game.toJson());
+        }
+        await prefs.setStringList(_keyGames, localGames.values.toList());
+      }
+
+      // 設定（雲端覆蓋）
+      if (result.settings != null) {
+        await prefs.setString(
+          _settingsKey(accountId),
+          jsonEncode(result.settings!.toJson()),
+        );
+      }
+
+      // 玩家檔案（雲端覆蓋）
+      if (result.playerProfiles.isNotEmpty) {
+        final list = result.playerProfiles
+            .map((p) => jsonEncode(p.toJson()))
+            .toList();
+        await prefs.setStringList(_playerProfilesKey(accountId), list);
+      }
+
+      // 快速選擇列表（雲端覆蓋）
+      if (result.savedPlayers.isNotEmpty) {
+        final list = result.savedPlayers
+            .map((p) => jsonEncode(p.toJson()))
+            .toList();
+        await prefs.setStringList(_playersKey(accountId), list);
+      }
+
+      if (kDebugMode) {
+        print('[Cloud Sync] Synced: ${result.games.length} games, '
+            '${result.playerProfiles.length} profiles');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[Cloud Sync] syncFromCloud failed: $e');
+      }
+    }
   }
 
   // --- 資料遷移 ---

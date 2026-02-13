@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/game_provider.dart';
+import '../services/export_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -143,6 +144,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: const Text('即將推出'),
                 value: false,
                 onChanged: null,
+              ),
+
+              const SizedBox(height: 16),
+
+              // 資料管理
+              _buildSectionHeader('資料管理'),
+
+              ListTile(
+                leading: const Icon(Icons.file_download),
+                title: const Text('匯出所有牌局'),
+                subtitle: const Text('JSON 格式'),
+                onTap: () {
+                  final games = provider.gameHistory;
+                  if (games.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('沒有牌局可匯出')),
+                    );
+                    return;
+                  }
+                  final json = ExportService.exportAllGamesToJson(games);
+                  ExportService.shareText(json, 'paika_all_games.json');
+                },
               ),
 
               const SizedBox(height: 32),

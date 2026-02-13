@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 預設拒絕所有
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      // 用戶 profile
+      allow read: if isOwner();
+      allow create: if isOwner()
+        && request.resource.data.keys().hasAll(['localAccountId', 'createdAt'])
+        && request.resource.data.size() <= 10;
+      allow update: if isOwner()
+        && request.resource.data.size() <= 10;
+      allow delete: if false;
+
+      // 設定
+      match /settings/{doc} {
+        allow read, write: if isOwner()
+          && request.resource.data.size() <= 20;
+      }
+
+      // 玩家檔案
+      match /playerProfiles/{profileId} {
+        allow read: if isOwner();
+        allow create, update: if isOwner()
+          && request.resource.data.keys().hasAll(['name', 'emoji'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 50
+          && request.resource.data.size() <= 15;
+        allow delete: if isOwner();
+      }
+
+      // 牌局
+      match /games/{gameId} {
+        allow read: if isOwner();
+        allow create, update: if isOwner()
+          && request.resource.data.keys().hasAll(['id', 'status', 'players'])
+          && request.resource.data.size() <= 500;
+        allow delete: if isOwner();
+      }
+
+      // 已存玩家
+      match /savedPlayers/{doc} {
+        allow read, write: if isOwner()
+          && request.resource.data.size() <= 100;
+      }
+    }
+  }
+}

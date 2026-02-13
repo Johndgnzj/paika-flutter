@@ -4,6 +4,7 @@ import '../models/game.dart';
 import '../models/round.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
+import '../services/export_service.dart';
 
 /// 牌局詳細頁面
 class GameDetailScreen extends StatelessWidget {
@@ -661,9 +662,53 @@ class GameDetailScreen extends StatelessWidget {
   }
 
   void _shareGame(BuildContext context) {
-    // TODO: 實作分享功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('分享功能開發中')),
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '匯出牌局',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.code),
+              title: const Text('JSON'),
+              subtitle: const Text('完整牌局資料'),
+              onTap: () {
+                Navigator.pop(context);
+                final json = ExportService.exportGameToJson(game);
+                ExportService.shareText(json, 'paika_game.json');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_chart),
+              title: const Text('CSV'),
+              subtitle: const Text('試算表格式'),
+              onTap: () {
+                Navigator.pop(context);
+                final csv = ExportService.exportGameToCsv(game);
+                ExportService.shareText(csv, 'paika_game.csv');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf),
+              title: const Text('PDF'),
+              subtitle: const Text('排版報表'),
+              onTap: () async {
+                Navigator.pop(context);
+                final bytes = await ExportService.exportGameToPdf(game);
+                await ExportService.shareFile(bytes, 'paika_game.pdf', 'application/pdf');
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 }

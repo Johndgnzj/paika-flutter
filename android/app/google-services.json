@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "945570595529",
+    "project_id": "paika-13250",
+    "storage_bucket": "paika-13250.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:945570595529:android:d42f6c2b23775b17398318",
+        "android_client_info": {
+          "package_name": "com.vibeprojects.mahjong_scorer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDr_TEina-lkEJ4U_SgJKeYFIp2c2zEn6s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -93,7 +93,6 @@ users/{firebaseUid}                         ← 用戶根文件（profile）
 
 啟動流程：
   App 啟動 → Firebase.initializeApp() → Anonymous Auth
-    → MigrationService（首次：本地資料 → Firestore）
     → StorageService.syncFromCloud()（從 Firestore 拉最新資料到本地）
     → 正常載入（從 SharedPreferences 讀取）
 
@@ -313,28 +312,7 @@ service cloud.firestore {
 
 ---
 
-### Phase 6 — 資料遷移
-
-新增 `lib/services/migration_service.dart`
-
-職責：首次啟用雲端時，將既有 SharedPreferences 資料推送到 Firestore
-
-```
-1. 檢查 SharedPreferences flag: v3_migration_done
-2. 如未遷移：
-   a. 上傳 user profile
-   b. 上傳所有 games
-   c. 上傳 settings
-   d. 上傳所有 playerProfiles
-   e. 上傳 savedPlayers
-   f. 設定 flag = true
-3. 如已遷移：跳過
-4. 失敗時：不設 flag，下次重試
-```
-
----
-
-### Phase 7 — GameProvider 更新
+### Phase 6 — GameProvider 更新
 
 修改 `lib/providers/game_provider.dart`
 
@@ -345,7 +323,6 @@ await StorageService.migrateOrphanGames(accountId);
 
 // 新增
 StorageService.enableCloud();
-await MigrationService.migrateToCloud(accountId: accountId);
 await StorageService.syncFromCloud(accountId: accountId);
 
 // 既有（此時本地資料已是最新）
@@ -360,7 +337,7 @@ _settings = await StorageService.loadSettings(accountId: accountId);
 
 ---
 
-### Phase 8 — 多場次管理 UI
+### Phase 7 — 多場次管理 UI
 
 **Task 8-1：Game model 新增 name 欄位**
 
@@ -379,7 +356,7 @@ _settings = await StorageService.loadSettings(accountId: accountId);
 
 ---
 
-### Phase 9 — 匯出報表
+### Phase 8 — 匯出報表
 
 **Task 9-1：建立 ExportService**
 
@@ -409,7 +386,7 @@ Web 平台需 conditional import（`dart:html` 的 download 機制）。
 
 ---
 
-### Phase 10 — 離線支援
+### Phase 9 — 離線支援
 
 在 `FirebaseInitService.initialize()` 中設定：
 ```dart
@@ -427,15 +404,14 @@ FirebaseFirestore.instance.settings = const Settings(
 
 ## 五、檔案影響總覽
 
-### 新增檔案（7 個 + 3 個自動產生）
+### 新增檔案（6 個 + 3 個自動產生）
 
 | 檔案 | 任務 |
 |------|------|
 | `lib/firebase_options.dart` | Phase 0（FlutterFire CLI 自動產生） |
 | `lib/services/firebase_init_service.dart` | Phase 1 |
 | `lib/services/firestore_service.dart` | Phase 4 |
-| `lib/services/migration_service.dart` | Phase 6 |
-| `lib/services/export_service.dart` | Phase 9 |
+| `lib/services/export_service.dart` | Phase 8 |
 | `firestore.rules` | Phase 2 |
 | `firestore.indexes.json` | Phase 0 |
 | `ios/Runner/GoogleService-Info.plist` | Phase 0（自動產生） |
@@ -451,7 +427,7 @@ FirebaseFirestore.instance.settings = const Settings(
 | `lib/services/storage_service.dart` | Write-through 雲端同步 |
 | `lib/providers/game_provider.dart` | 雲端初始化 + 多場次管理方法 |
 | `lib/models/game.dart` | 新增 name 欄位 |
-| `lib/screens/home_screen.dart` | 搜尋 + 重命名/刪除 UI |
+| `lib/screens/home_screen.dart` | 搜尋 + 重新命名/刪除 UI |
 | `lib/screens/game_detail_screen.dart` | 匯出 BottomSheet |
 | `lib/screens/settings_screen.dart` | 批次匯出入口 |
 | `firebase.json` | 新增 Firestore 區塊 |
@@ -474,7 +450,6 @@ FirebaseFirestore.instance.settings = const Settings(
 | Anonymous Auth UID 遺失（清除 App 資料） | 雲端資料孤立，無法存取 | 本地 SharedPreferences 仍可用；未來可加帳號恢復機制 |
 | Firestore 文件大小超限（超長牌局） | 寫入失敗 | 200 局 ≈ 60KB，遠低於 1MB；極端情況才可能超限 |
 | Web 離線快取被瀏覽器清除 | 離線資料遺失 | 提示使用者勿清除瀏覽器資料；重新上線後從雲端拉回 |
-| 首次遷移大量資料耗時 | 啟動變慢 | 顯示進度指示器；遷移失敗可重試 |
 | PDF 在 Web 的 conditional import | 編譯複雜度 | 使用 Dart conditional import 分離 web / native 實作 |
 
 ---
@@ -490,9 +465,8 @@ FirebaseFirestore.instance.settings = const Settings(
 ### 功能驗證
 1. 全新安裝 → 註冊 → 建立牌局 → 打完 → 資料出現在 Firebase Console
 2. 離線模式 → 打完一局 → 上線 → 資料自動同步
-3. 既有資料 → 升級到 v3 → 遷移完成 → Firestore 有所有舊資料
-4. 多場次管理 → 搜尋/重命名/刪除 → 本地和雲端一致
-5. 匯出 JSON/CSV/PDF → 在三個平台都可正常分享/下載
+3. 多場次管理 → 搜尋/重命名/刪除 → 本地和雲端一致
+4. 匯出 JSON/CSV/PDF → 在三個平台都可正常分享/下載
 
 ### 平台測試矩陣
 
@@ -503,7 +477,6 @@ FirebaseFirestore.instance.settings = const Settings(
 | Firestore 讀寫 | | | |
 | 離線快取 | | | |
 | App Check | | | |
-| 資料遷移 | | | |
 | 匯出 JSON/CSV/PDF | | | |
 
 ---
