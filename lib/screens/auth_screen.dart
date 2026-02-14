@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 import '../widgets/animation_helpers.dart';
@@ -16,16 +17,16 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  final _nameController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _passwordController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -38,13 +39,19 @@ class _AuthScreenState extends State<AuthScreen> {
       final authService = context.read<AuthService>();
       if (_isRegister) {
         await authService.register(
-          _nameController.text,
+          _emailController.text,
           _passwordController.text,
-          email: _emailController.text,
+          _nameController.text,
         );
+        // 註冊後自動建立自己的玩家檔案
+        if (mounted) {
+          context.read<GameProvider>().createSelfProfileAfterRegister(
+            _nameController.text,
+          );
+        }
       } else {
         await authService.login(
-          _nameController.text,
+          _emailController.text,
           _passwordController.text,
         );
       }
@@ -64,6 +71,48 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showPasswordResetDialog() {
+    final emailCtrl = TextEditingController(text: _emailController.text);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重設密碼'),
+        content: TextField(
+          controller: emailCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(this.context);
+              try {
+                await this.context.read<AuthService>().sendPasswordReset(emailCtrl.text);
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('重設密碼信已寄出，請檢查信箱')),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(e is ArgumentError ? e.message.toString() : '$e')),
+                );
+              }
+            },
+            child: const Text('寄送'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -86,16 +135,21 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  // 帳號名稱
+                  // Email
                   TextFormField(
-                    controller: _nameController,
+                    controller: _emailController,
                     decoration: const InputDecoration(
-                      labelText: '帳號名稱',
-                      prefixIcon: Icon(Icons.person),
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email),
                       border: OutlineInputBorder(),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    validator: (v) => v == null || v.trim().isEmpty ? '請輸入帳號名稱' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return '請輸入 Email';
+                      if (!v.contains('@') || !v.contains('.')) return 'Email 格式不正確';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -116,24 +170,35 @@ class _AuthScreenState extends State<AuthScreen> {
                     onFieldSubmitted: _isRegister ? null : (_) => _submit(),
                     validator: (v) {
                       if (v == null || v.isEmpty) return '請輸入密碼';
-                      if (v.length < 4) return '密碼至少需要 4 碼';
+                      if (v.length < 6) return '密碼至少需要 6 碼';
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
-                  // Email（僅註冊時顯示）
+                  // 忘記密碼（僅登入時顯示）
+                  if (!_isRegister)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading ? null : _showPasswordResetDialog,
+                        child: const Text('忘記密碼？'),
+                      ),
+                    ),
+
+                  // 顯示名稱（僅註冊時顯示）
                   if (_isRegister) ...[
+                    const SizedBox(height: 8),
                     TextFormField(
-                      controller: _emailController,
+                      controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Email（選填）',
-                        prefixIcon: Icon(Icons.email),
+                        labelText: '顯示名稱',
+                        prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
+                      validator: (v) => v == null || v.trim().isEmpty ? '請輸入顯示名稱' : null,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -168,7 +233,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? null
                         : () => setState(() {
                               _isRegister = !_isRegister;
-                              _emailController.clear();
+                              _nameController.clear();
                             }),
                     child: Text(
                       _isRegister ? '已有帳號？登入' : '沒有帳號？註冊',

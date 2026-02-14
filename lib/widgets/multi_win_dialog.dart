@@ -152,7 +152,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                   }
                 });
               },
-              selectedColor: Colors.red.shade100,
+              selectedColor: Colors.red.withValues(alpha: 0.2),
             );
           }).toList(),
         ),
@@ -206,7 +206,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                   }
                 });
               },
-              selectedColor: Colors.green.shade100,
+              selectedColor: Colors.green.withValues(alpha: 0.2),
             );
           }).toList(),
         ),
@@ -339,9 +339,9 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: Colors.blue.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

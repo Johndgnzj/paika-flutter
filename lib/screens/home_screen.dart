@@ -39,8 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             : Consumer<AuthService>(
                 builder: (context, auth, _) {
-                  final name = auth.currentAccount?.name;
-                  return Text(name != null ? '🀄 $name' : '🀄 牌咖');
+                  final name = auth.displayName;
+                  return Text(name != null && name.isNotEmpty ? '🀄 $name' : '🀄 牌咖');
                 },
               ),
         actions: [
@@ -54,60 +54,84 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             },
           ),
-          if (!_isSearching) ...[
-            IconButton(
-              icon: const Icon(Icons.people),
-              tooltip: '玩家管理',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  FadeSlidePageRoute(page: const PlayerListScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  FadeSlidePageRoute(page: const SettingsScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: '登出',
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('登出'),
-                    content: const Text('確定要登出嗎？'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('取消'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('確定'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true && context.mounted) {
-                  await context.read<AuthService>().logout();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
+          if (!_isSearching)
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                switch (value) {
+                  case 'players':
+                    Navigator.push(
                       context,
-                      FadeSlidePageRoute(page: const AuthScreen()),
-                      (route) => false,
+                      FadeSlidePageRoute(page: const PlayerListScreen()),
                     );
-                  }
+                  case 'settings':
+                    Navigator.push(
+                      context,
+                      FadeSlidePageRoute(page: const SettingsScreen()),
+                    );
+                  case 'logout':
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('登出'),
+                        content: const Text('確定要登出嗎？'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('取消'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('確定'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true && context.mounted) {
+                      await context.read<AuthService>().logout();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          FadeSlidePageRoute(page: const AuthScreen()),
+                          (route) => false,
+                        );
+                      }
+                    }
                 }
               },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'players',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people),
+                      SizedBox(width: 12),
+                      Text('玩家管理'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings),
+                      SizedBox(width: 12),
+                      Text('設定'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 12),
+                      Text('登出'),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
         ],
       ),
       body: Consumer<GameProvider>(

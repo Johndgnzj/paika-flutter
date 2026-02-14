@@ -269,7 +269,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                   _loser = selected ? player : null;
                 });
               },
-              selectedColor: Colors.red.shade100,
+              selectedColor: Colors.red.withValues(alpha: 0.2),
             );
           }).toList(),
         ),
@@ -322,11 +322,12 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
       }
     }
     
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.amber.shade50,
+        color: Colors.amber.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.amber.shade700, width: 2),
       ),
@@ -335,14 +336,14 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
         children: [
           Row(
             children: [
-              Icon(Icons.calculate, size: 18, color: Colors.amber.shade900),
+              Icon(Icons.calculate, size: 18, color: Colors.amber.shade700),
               const SizedBox(width: 8),
               Text(
                 '計算預覽',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade900,
+                  color: Colors.amber.shade700,
                 ),
               ),
             ],
@@ -353,7 +354,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.grey.shade900,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],

@@ -82,13 +82,13 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Colors.blue.shade50
-                          : Colors.grey.shade50,
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
-                            ? Colors.blue
-                            : Colors.grey.shade300,
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outlineVariant,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -99,15 +99,17 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
                           height: 32,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? Colors.blue
-                                : Colors.grey.shade300,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outlineVariant,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Text(
                               windName,
                               style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black,
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -135,7 +137,7 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
+                              color: Colors.orange.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(

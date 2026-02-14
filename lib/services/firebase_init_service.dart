@@ -1,5 +1,4 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -8,9 +7,6 @@ import '../firebase_options.dart';
 /// Firebase 初始化服務（靜默整合）
 class FirebaseInitService {
   static bool _initialized = false;
-
-  /// Firebase UID（Anonymous Auth）
-  static String? get firebaseUid => FirebaseAuth.instance.currentUser?.uid;
 
   /// 是否已初始化
   static bool get isInitialized => _initialized;
@@ -37,15 +33,10 @@ class FirebaseInitService {
       androidProvider: AndroidProvider.playIntegrity,
     );
 
-    // 4. Anonymous Auth（靜默登入）
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-
     _initialized = true;
 
     if (kDebugMode) {
-      print('[Firebase] Initialized. UID: $firebaseUid');
+      print('[Firebase] Initialized (auth managed by AuthService)');
     }
   }
 }

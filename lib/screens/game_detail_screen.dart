@@ -80,14 +80,21 @@ class GameDetailScreen extends StatelessWidget {
                   final player = entry.value;
                   final score = scores[player.id] ?? 0;
 
-                  return Container(
+                  return Builder(
+                    builder: (context) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: rank == 1 ? Colors.amber.shade50 : Colors.grey.shade50,
+                      color: rank == 1
+                          ? Colors.amber.withValues(alpha: 0.15)
+                          : colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: rank == 1 ? Colors.amber : Colors.grey.shade300,
+                        color: rank == 1
+                            ? Colors.amber
+                            : colorScheme.outlineVariant,
                       ),
                     ),
                     child: Row(
@@ -125,6 +132,8 @@ class GameDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                  );
+                    },
                   );
                 }),
               ],
@@ -402,7 +411,7 @@ class GameDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+                bottom: BorderSide(color: Colors.grey, width: 2),
               ),
             ),
             child: Row(
@@ -454,7 +463,7 @@ class GameDetailScreen extends StatelessWidget {
               Expanded(
                 child: Divider(
                   thickness: 3,
-                  color: Colors.orange.shade400,
+                  color: Colors.orange.shade600,
                 ),
               ),
               Padding(
@@ -471,7 +480,7 @@ class GameDetailScreen extends StatelessWidget {
               Expanded(
                 child: Divider(
                   thickness: 3,
-                  color: Colors.orange.shade400,
+                  color: Colors.orange.shade600,
                 ),
               ),
             ],
@@ -493,9 +502,9 @@ class GameDetailScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
+                    color: Colors.blue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade300),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     '${windNames[circle]}風圈${jiang > 1 ? " (第$jiang將)" : ""}',
@@ -526,7 +535,7 @@ class GameDetailScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
                     decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200),
+                        bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                       ),
                     ),
                     child: Row(

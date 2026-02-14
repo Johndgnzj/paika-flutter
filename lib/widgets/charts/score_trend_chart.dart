@@ -41,7 +41,7 @@ class ScoreTrendChart extends StatelessWidget {
             horizontalInterval: range > 0 ? range / 4 : 50,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Colors.grey.shade300,
+              color: colorScheme.outlineVariant,
               strokeWidth: 0.5,
             ),
           ),
@@ -69,7 +69,7 @@ class ScoreTrendChart extends StatelessWidget {
             horizontalLines: [
               HorizontalLine(
                 y: 0,
-                color: Colors.grey.shade400,
+                color: colorScheme.outline,
                 strokeWidth: 1,
                 dashArray: [5, 5],
               ),

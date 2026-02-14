@@ -14,7 +14,7 @@ service cloud.firestore {
       // 用戶 profile
       allow read: if isOwner();
       allow create: if isOwner()
-        && request.resource.data.keys().hasAll(['localAccountId', 'createdAt'])
+        && request.resource.data.keys().hasAll(['displayName', 'createdAt'])
         && request.resource.data.size() <= 10;
       allow update: if isOwner()
         && request.resource.data.size() <= 10;

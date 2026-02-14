@@ -268,12 +268,16 @@ class PlayerStatsScreen extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: summary.rank == 1 ? Colors.amber.shade100 : Colors.grey.shade200,
+                backgroundColor: summary.rank == 1
+                    ? Colors.amber.withValues(alpha: 0.25)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Text(
                   '#${summary.rank}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: summary.rank == 1 ? Colors.amber.shade800 : Colors.grey.shade600,
+                    color: summary.rank == 1
+                        ? Colors.amber.shade700
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

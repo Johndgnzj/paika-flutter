@@ -53,7 +53,7 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 24),
       child: Container(
         padding: const EdgeInsets.all(12),
-        constraints: BoxConstraints(maxWidth: containerSize + dialogPadding),
+        constraints: BoxConstraints(maxWidth: (containerSize + dialogPadding) * 0.97),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -89,6 +89,7 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
               height: containerSize,
               width: containerSize,
               child: Stack(
+                clipBehavior: Clip.none,
                 children: [
                   // 桌面
                   Center(
@@ -211,73 +212,82 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
         top: top,
         child: GestureDetector(
           onTap: () => _onPlayerTap(index),
-          child: AnimatedContainer(
+          child: Builder(
+            builder: (context) {
+              final theme = Theme.of(context);
+              final colorScheme = theme.colorScheme;
+              return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: cardWidth,
             height: cardHeight,
             padding: EdgeInsets.all(padding),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Colors.blue.shade100
-                  : Colors.white,
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
-                    ? Colors.blue
-                    : Colors.grey.shade300,
+                    ? colorScheme.primary
+                    : colorScheme.outlineVariant,
                 width: isSelected ? 3 : 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: theme.shadowColor.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 風位
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 6 * scaleFactor,
-                    vertical: 2 * scaleFactor,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    windName,
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 風位
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 6 * scaleFactor,
+                      vertical: 2 * scaleFactor,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      windName,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                
-                SizedBox(height: 4 * scaleFactor),
-                
-                // Emoji
-                Text(
-                  player.emoji,
-                  style: TextStyle(fontSize: emojiSize),
-                ),
-                
-                SizedBox(height: 4 * scaleFactor),
-                
-                // 名稱
-                Text(
-                  player.name,
-                  style: TextStyle(fontSize: fontSize),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ],
+
+                  SizedBox(height: 4 * scaleFactor),
+
+                  // Emoji
+                  Text(
+                    player.emoji,
+                    style: TextStyle(fontSize: emojiSize),
+                  ),
+
+                  SizedBox(height: 4 * scaleFactor),
+
+                  // 名稱
+                  Text(
+                    player.name,
+                    style: TextStyle(fontSize: fontSize),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
+          );
+            },
           ),
         ),
       );

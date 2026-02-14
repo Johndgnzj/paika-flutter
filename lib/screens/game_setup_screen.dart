@@ -20,18 +20,19 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   
   // 玩家資料
   late List<Player> _players;
-  
+  late List<TextEditingController> _nameControllers;
+
   // 設定
   int _baseScore = 50;
   int _maxTai = 20;
   bool _selfDrawAddTai = true;
   bool _dealerTai = true;
   bool _consecutiveTai = true;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     // 初始化預設玩家
     _players = List.generate(4, (index) {
       return Player(
@@ -40,6 +41,18 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
         emoji: AppConstants.defaultEmojis[index],
       );
     });
+
+    _nameControllers = List.generate(4, (index) {
+      return TextEditingController(text: _players[index].name);
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _nameControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -270,7 +283,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.orange.shade100,
+                color: Colors.orange.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -292,7 +305,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -312,11 +325,9 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                controller: TextEditingController(text: player.name),
+                controller: _nameControllers[index],
                 onChanged: (value) {
-                  setState(() {
-                    _players[index] = player.copyWith(name: value);
-                  });
+                  _players[index] = player.copyWith(name: value);
                 },
               ),
             ),
@@ -372,6 +383,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                             name: profile.name,
                             emoji: profile.emoji,
                           );
+                          _nameControllers[index].text = profile.name;
                         });
                         Navigator.pop(context);
                       },
@@ -397,10 +409,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
             child: GridView.count(
               shrinkWrap: true,
               crossAxisCount: 4,
-              children: [
-                '🦁', '🐱', '🐸', '🐼', '🐶', '🐰', '🐻', '🦊',
-                '🐯', '🐷', '🐮', '🐵', '🦅', '🦉', '🐧', '🦆',
-              ].map((emoji) {
+              children: AppConstants.availableEmojis.map((emoji) {
                 return InkWell(
                   onTap: () {
                     setState(() {

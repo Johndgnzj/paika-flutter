@@ -672,7 +672,7 @@ class _WinDialogState extends State<_WinDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: Colors.blue.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -801,7 +801,7 @@ class _SelfDrawDialogState extends State<_SelfDrawDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: Colors.green.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1050,18 +1050,18 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: Colors.amber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.amber.shade700),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                    Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '所選玩家將成為東家，風圈重置為東風',
-                        style: TextStyle(color: Colors.amber.shade900, fontSize: 13),
+                        style: TextStyle(color: Colors.amber.shade700, fontSize: 13),
                       ),
                     ),
                   ],

@@ -258,7 +258,7 @@ class PlayerListScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
@@ -320,7 +320,7 @@ class PlayerListScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
@@ -369,10 +369,7 @@ class PlayerListScreen extends StatelessWidget {
             child: GridView.count(
               shrinkWrap: true,
               crossAxisCount: 4,
-              children: [
-                '🦁', '🐱', '🐸', '🐼', '🐶', '🐰', '🐻', '🦊',
-                '🐯', '🐷', '🐮', '🐵', '🦅', '🦉', '🐧', '🦆',
-              ].map((emoji) {
+              children: AppConstants.availableEmojis.map((emoji) {
                 return InkWell(
                   onTap: () {
                     onSelected(emoji);

@@ -7,6 +7,7 @@ import '../models/player.dart';
 import '../models/player_profile.dart';
 import '../models/round.dart';
 import '../models/settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../services/firestore_service.dart';
@@ -45,7 +46,7 @@ class GameProvider with ChangeNotifier {
 
   /// 當 AuthService 狀態變化時呼叫
   void onAuthChanged(AuthService authService) {
-    final newAccountId = authService.currentAccount?.id;
+    final newAccountId = authService.uid;
     if (newAccountId != _currentAccountId) {
       _currentAccountId = newAccountId;
       if (newAccountId != null) {
@@ -69,7 +70,11 @@ class GameProvider with ChangeNotifier {
       // 啟用雲端同步並從 Firestore 拉取最新資料
       if (FirebaseInitService.isInitialized) {
         StorageService.enableCloud();
-        await FirestoreService.saveUserProfile(accountId, '');
+        final user = FirebaseAuth.instance.currentUser;
+        await FirestoreService.saveUserProfile(
+          user?.displayName ?? '',
+          user?.email ?? '',
+        );
         await StorageService.syncFromCloud(accountId: accountId);
       }
 
@@ -137,6 +142,22 @@ class GameProvider with ChangeNotifier {
   }
 
   // --- PlayerProfile 管理 ---
+
+  /// 註冊後自動建立自己的玩家檔案
+  Future<void> createSelfProfileAfterRegister(String displayName) async {
+    // 等待初始化完成
+    while (_isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    if (_currentAccountId == null) return;
+    final trimmed = displayName.trim();
+    if (trimmed.isEmpty) return;
+    // 檢查是否已存在同名檔案
+    final exists = _playerProfiles.any((p) => p.name == trimmed);
+    if (!exists) {
+      await addPlayerProfile(trimmed, '🀄');
+    }
+  }
 
   /// 新增玩家檔案
   Future<void> addPlayerProfile(String name, String emoji) async {

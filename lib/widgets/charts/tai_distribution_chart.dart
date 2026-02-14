@@ -38,7 +38,7 @@ class TaiDistributionChart extends StatelessWidget {
             show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Colors.grey.shade300,
+              color: colorScheme.outlineVariant,
               strokeWidth: 0.5,
             ),
           ),

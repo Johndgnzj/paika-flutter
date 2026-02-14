@@ -21,13 +21,13 @@ class FirestoreService {
   // --- User Profile ---
 
   /// 建立/更新用戶 profile
-  static Future<void> saveUserProfile(String localAccountId, String localAccountName) async {
+  static Future<void> saveUserProfile(String displayName, String email) async {
     final doc = _userDoc;
     if (doc == null) return;
 
     await doc.set({
-      'localAccountId': localAccountId,
-      'localAccountName': localAccountName,
+      'displayName': displayName,
+      'email': email,
       'updatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));

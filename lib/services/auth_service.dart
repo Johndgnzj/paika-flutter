@@ -1,176 +1,96 @@
-import 'dart:convert';
-import 'dart:math';
-import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
-import '../models/account.dart';
 
-/// 帳號驗證服務
+/// Firebase Email/Password 帳號驗證服務
 class AuthService with ChangeNotifier {
-  static const String _keyAccounts = 'accounts';
-  static const String _keyCurrentAccountId = 'current_account_id';
-  static const _uuid = Uuid();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Account? _currentAccount;
+  User? get currentUser => _auth.currentUser;
+  bool get isLoggedIn => _auth.currentUser != null;
+  String? get uid => _auth.currentUser?.uid;
+  String? get displayName => _auth.currentUser?.displayName;
+  String? get email => _auth.currentUser?.email;
 
-  Account? get currentAccount => _currentAccount;
-  bool get isLoggedIn => _currentAccount != null;
-
-  /// 初始化：嘗試自動登入
+  /// 初始化：監聽 auth 狀態變化
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentId = prefs.getString(_keyCurrentAccountId);
-    if (currentId != null) {
-      final accounts = await _loadAccounts();
-      try {
-        _currentAccount = accounts.firstWhere((a) => a.id == currentId);
-      } catch (_) {
-        // 找不到帳號，清除 ID
-        await prefs.remove(_keyCurrentAccountId);
-      }
-    }
-    notifyListeners();
+    _auth.authStateChanges().listen((User? user) {
+      notifyListeners();
+    });
   }
 
   /// 註冊新帳號
-  Future<Account> register(String name, String password, {String? email}) async {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) throw ArgumentError('帳號名稱不能為空');
-    if (password.length < 4) throw ArgumentError('密碼至少需要 4 碼');
-
-    final accounts = await _loadAccounts();
-
-    // 檢查重名
-    if (accounts.any((a) => a.name == trimmedName)) {
-      throw ArgumentError('帳號名稱「$trimmedName」已存在');
+  Future<User> register(String email, String password, String displayName) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      await credential.user!.updateDisplayName(displayName.trim());
+      await credential.user!.reload();
+      notifyListeners();
+      return _auth.currentUser!;
+    } on FirebaseAuthException catch (e) {
+      throw ArgumentError(_mapFirebaseError(e));
     }
-
-    final salt = _generateSalt();
-    final passwordHash = _hashPassword(password, salt);
-    final now = DateTime.now();
-
-    final account = Account(
-      id: _uuid.v4(),
-      name: trimmedName,
-      email: email?.trim().isNotEmpty == true ? email!.trim() : null,
-      passwordHash: passwordHash,
-      salt: salt,
-      createdAt: now,
-      lastLoginAt: now,
-    );
-
-    accounts.add(account);
-    await _saveAccounts(accounts);
-
-    // 自動登入
-    await _setCurrentAccount(account);
-
-    return account;
   }
 
   /// 登入
-  Future<Account> login(String name, String password) async {
-    final trimmedName = name.trim();
-    final accounts = await _loadAccounts();
-
-    Account? account;
+  Future<User> login(String email, String password) async {
     try {
-      account = accounts.firstWhere((a) => a.name == trimmedName);
-    } catch (_) {
-      throw ArgumentError('找不到帳號「$trimmedName」');
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      notifyListeners();
+      return credential.user!;
+    } on FirebaseAuthException catch (e) {
+      throw ArgumentError(_mapFirebaseError(e));
     }
-
-    final inputHash = _hashPassword(password, account.salt);
-    if (inputHash != account.passwordHash) {
-      throw ArgumentError('密碼錯誤');
-    }
-
-    // 更新最後登入時間
-    final updated = account.copyWith(lastLoginAt: DateTime.now());
-    final index = accounts.indexWhere((a) => a.id == account!.id);
-    accounts[index] = updated;
-    await _saveAccounts(accounts);
-
-    await _setCurrentAccount(updated);
-    return updated;
   }
 
   /// 登出
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyCurrentAccountId);
-    _currentAccount = null;
+    await _auth.signOut();
     notifyListeners();
   }
 
-  /// 修改帳號資料
-  Future<void> updateAccount({String? name, String? email, String? newPassword}) async {
-    if (_currentAccount == null) return;
-
-    final accounts = await _loadAccounts();
-    final index = accounts.indexWhere((a) => a.id == _currentAccount!.id);
-    if (index < 0) return;
-
-    var updated = accounts[index];
-
-    if (name != null && name.trim().isNotEmpty) {
-      final trimmedName = name.trim();
-      if (accounts.any((a) => a.name == trimmedName && a.id != updated.id)) {
-        throw ArgumentError('帳號名稱「$trimmedName」已存在');
-      }
-      updated = updated.copyWith(name: trimmedName);
-    }
-
-    if (email != null) {
-      updated = updated.copyWith(email: email.trim().isNotEmpty ? email.trim() : null);
-    }
-
-    if (newPassword != null && newPassword.length >= 4) {
-      final newSalt = _generateSalt();
-      updated = updated.copyWith(
-        passwordHash: _hashPassword(newPassword, newSalt),
-        salt: newSalt,
-      );
-    }
-
-    accounts[index] = updated;
-    await _saveAccounts(accounts);
-    await _setCurrentAccount(updated);
-  }
-
-  // --- Private helpers ---
-
-  Future<void> _setCurrentAccount(Account account) async {
-    _currentAccount = account;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyCurrentAccountId, account.id);
+  /// 修改顯示名稱
+  Future<void> updateDisplayName(String name) async {
+    await _auth.currentUser?.updateDisplayName(name.trim());
+    await _auth.currentUser?.reload();
     notifyListeners();
   }
 
-  Future<List<Account>> _loadAccounts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_keyAccounts) ?? [];
-    return list.map((json) {
-      final data = jsonDecode(json) as Map<String, dynamic>;
-      return Account.fromJson(data);
-    }).toList();
+  /// 寄送密碼重設信
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw ArgumentError(_mapFirebaseError(e));
+    }
   }
 
-  Future<void> _saveAccounts(List<Account> accounts) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = accounts.map((a) => jsonEncode(a.toJson())).toList();
-    await prefs.setStringList(_keyAccounts, list);
-  }
-
-  String _generateSalt() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
-    return base64Encode(bytes);
-  }
-
-  String _hashPassword(String password, String salt) {
-    final bytes = utf8.encode(password + salt);
-    return sha256.convert(bytes).toString();
+  /// Firebase 錯誤碼翻譯成中文
+  String _mapFirebaseError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'weak-password':
+        return '密碼強度不足（至少 6 碼）';
+      case 'email-already-in-use':
+        return '此 Email 已被註冊';
+      case 'invalid-email':
+        return 'Email 格式不正確';
+      case 'user-not-found':
+        return '找不到此帳號';
+      case 'wrong-password':
+        return '密碼錯誤';
+      case 'user-disabled':
+        return '此帳號已被停用';
+      case 'too-many-requests':
+        return '登入嘗試次數過多，請稍後再試';
+      case 'invalid-credential':
+        return 'Email 或密碼錯誤';
+      default:
+        return '驗證失敗：${e.message}';
+    }
   }
 }
