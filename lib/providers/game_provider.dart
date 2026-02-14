@@ -145,8 +145,9 @@ class GameProvider with ChangeNotifier {
 
   /// 註冊後自動建立自己的玩家檔案
   Future<void> createSelfProfileAfterRegister(String displayName) async {
-    // 等待初始化完成
-    while (_isLoading) {
+    // 等待帳號初始化完成（最多等 5 秒）
+    for (int i = 0; i < 50; i++) {
+      if (!_isLoading && _currentAccountId != null) break;
       await Future.delayed(const Duration(milliseconds: 100));
     }
     if (_currentAccountId == null) return;
@@ -205,17 +206,38 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// 更新玩家檔案的 lastPlayedAt
-  Future<void> _updateProfileLastPlayed(List<Player> players) async {
+  /// 確保牌局中的玩家都存在於玩家清單，並更新 lastPlayedAt
+  Future<void> _ensurePlayersInProfiles(List<Player> players) async {
     if (_currentAccountId == null) return;
     final now = DateTime.now();
     for (final player in players) {
+      int index = -1;
+
+      // 先用 userId 查找
       if (player.userId != null) {
-        final index = _playerProfiles.indexWhere((p) => p.id == player.userId);
-        if (index >= 0) {
-          _playerProfiles[index] = _playerProfiles[index].copyWith(lastPlayedAt: now);
-          await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
-        }
+        index = _playerProfiles.indexWhere((p) => p.id == player.userId);
+      }
+      // 再用名稱查找
+      if (index < 0) {
+        index = _playerProfiles.indexWhere((p) => p.name == player.name);
+      }
+
+      if (index >= 0) {
+        // 已存在 → 更新 lastPlayedAt
+        _playerProfiles[index] = _playerProfiles[index].copyWith(lastPlayedAt: now);
+        await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
+      } else {
+        // 不存在 → 自動新增
+        final profile = PlayerProfile(
+          id: _uuid.v4(),
+          accountId: _currentAccountId!,
+          name: player.name,
+          emoji: player.emoji,
+          createdAt: now,
+          lastPlayedAt: now,
+        );
+        _playerProfiles.add(profile);
+        await StorageService.savePlayerProfile(profile, accountId: _currentAccountId!);
       }
     }
   }
@@ -247,7 +269,7 @@ class GameProvider with ChangeNotifier {
       );
 
       await _saveCurrentGame();
-      await _updateProfileLastPlayed(players);
+      await _ensurePlayersInProfiles(players);
       notifyListeners();
     } catch (e) {
       _error = '建立遊戲失敗：$e';
