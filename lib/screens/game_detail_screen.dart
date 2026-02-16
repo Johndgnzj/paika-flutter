@@ -55,6 +55,8 @@ class GameDetailScreen extends StatelessWidget {
       final scoreB = scores[b.id] ?? 0;
       return scoreB.compareTo(scoreA);
     });
+    
+    final titles = _calculateTitles();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -110,12 +112,28 @@ class GameDetailScreen extends StatelessWidget {
                         Text(player.emoji, style: const TextStyle(fontSize: 24)),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            player.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                player.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (titles[player.id] != null && titles[player.id]!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    titles[player.id]!.join(' '),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         Text(
@@ -196,6 +214,74 @@ class GameDetailScreen extends StatelessWidget {
       default:
         return '$rank';
     }
+  }
+
+  /// 計算牌局稱號
+  Map<String, List<String>> _calculateTitles() {
+    final stats = <String, Map<String, int>>{};
+    
+    // 初始化每個玩家的統計
+    for (final player in game.players) {
+      stats[player.id] = {
+        'wins': 0,      // 胡牌次數（不含自摸）
+        'selfDraws': 0, // 自摸次數
+        'losses': 0,    // 放槍次數
+      };
+    }
+
+    // 統計每局
+    for (final round in game.rounds) {
+      if (round.type == RoundType.win && round.winnerId != null) {
+        stats[round.winnerId]!['wins'] = (stats[round.winnerId]!['wins'] ?? 0) + 1;
+        if (round.loserId != null) {
+          stats[round.loserId]!['losses'] = (stats[round.loserId]!['losses'] ?? 0) + 1;
+        }
+      } else if (round.type == RoundType.selfDraw && round.winnerId != null) {
+        stats[round.winnerId]!['selfDraws'] = (stats[round.winnerId]!['selfDraws'] ?? 0) + 1;
+      } else if (round.type == RoundType.multiWin) {
+        for (final winnerId in round.winnerIds) {
+          stats[winnerId]!['wins'] = (stats[winnerId]!['wins'] ?? 0) + 1;
+        }
+        if (round.loserId != null) {
+          stats[round.loserId]!['losses'] = (stats[round.loserId]!['losses'] ?? 0) + 1;
+        }
+      }
+    }
+
+    // 找出各項冠軍
+    final titles = <String, List<String>>{};
+    
+    // 胡牌王
+    final maxWins = stats.values.map((s) => s['wins'] ?? 0).reduce((a, b) => a > b ? a : b);
+    if (maxWins > 0) {
+      for (final entry in stats.entries) {
+        if (entry.value['wins'] == maxWins) {
+          titles.putIfAbsent(entry.key, () => []).add('🏆 胡牌王');
+        }
+      }
+    }
+
+    // 自摸王
+    final maxSelfDraws = stats.values.map((s) => s['selfDraws'] ?? 0).reduce((a, b) => a > b ? a : b);
+    if (maxSelfDraws > 0) {
+      for (final entry in stats.entries) {
+        if (entry.value['selfDraws'] == maxSelfDraws) {
+          titles.putIfAbsent(entry.key, () => []).add('🎯 自摸王');
+        }
+      }
+    }
+
+    // 放槍王
+    final maxLosses = stats.values.map((s) => s['losses'] ?? 0).reduce((a, b) => a > b ? a : b);
+    if (maxLosses > 0) {
+      for (final entry in stats.entries) {
+        if (entry.value['losses'] == maxLosses) {
+          titles.putIfAbsent(entry.key, () => []).add('💥 放槍王');
+        }
+      }
+    }
+
+    return titles;
   }
 
   // ===== 第二頁：數據統計 =====

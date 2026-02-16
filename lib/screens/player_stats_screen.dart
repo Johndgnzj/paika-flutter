@@ -11,20 +11,31 @@ import '../widgets/charts/win_rate_pie_chart.dart';
 import '../widgets/charts/tai_distribution_chart.dart';
 import 'game_detail_screen.dart';
 
-class PlayerStatsScreen extends StatelessWidget {
+class PlayerStatsScreen extends StatefulWidget {
   final PlayerProfile profile;
 
   const PlayerStatsScreen({super.key, required this.profile});
 
   @override
+  State<PlayerStatsScreen> createState() => _PlayerStatsScreenState();
+}
+
+class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
+  TimeRange _timeRange = TimeRange.all;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${profile.emoji} ${profile.name}'),
+        title: Text('${widget.profile.emoji} ${widget.profile.name}'),
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
-          final stats = StatsService.getPlayerStats(profile.id, provider.gameHistory);
+          final stats = StatsService.getPlayerStats(
+            widget.profile.id,
+            provider.gameHistory,
+            timeRange: _timeRange,
+          );
 
           if (stats.totalGames == 0) {
             return const Center(
@@ -45,11 +56,17 @@ class PlayerStatsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, stats),
+                const SizedBox(height: 16),
+                _buildTimeRangeSelector(),
                 const SizedBox(height: 24),
                 _buildStatsCards(context, stats),
                 const SizedBox(height: 24),
                 _buildTaiInfo(context, stats),
                 const SizedBox(height: 24),
+                if (stats.bestRound != null) ...[
+                  _buildBestRound(context, stats, provider),
+                  const SizedBox(height: 24),
+                ],
                 _buildCharts(context, stats),
                 const SizedBox(height: 24),
                 _buildRecentGames(context, stats, provider),
@@ -63,19 +80,44 @@ class PlayerStatsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildTimeRangeSelector() {
+    return SegmentedButton<TimeRange>(
+      segments: const [
+        ButtonSegment(
+          value: TimeRange.week,
+          label: Text('近一週'),
+        ),
+        ButtonSegment(
+          value: TimeRange.month,
+          label: Text('近一月'),
+        ),
+        ButtonSegment(
+          value: TimeRange.all,
+          label: Text('全部'),
+        ),
+      ],
+      selected: {_timeRange},
+      onSelectionChanged: (Set<TimeRange> selected) {
+        setState(() {
+          _timeRange = selected.first;
+        });
+      },
+    );
+  }
+
   Widget _buildHeader(BuildContext context, PlayerStats stats) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            Text(profile.emoji, style: const TextStyle(fontSize: 48)),
+            Text(widget.profile.emoji, style: const TextStyle(fontSize: 48)),
             const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(profile.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(widget.profile.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -321,6 +363,85 @@ class PlayerStatsScreen extends StatelessWidget {
             ),
           );
         }),
+      ],
+    );
+  }
+
+  Widget _buildBestRound(BuildContext context, PlayerStats stats, GameProvider provider) {
+    final best = stats.bestRound!;
+    final dateFormat = DateFormat('yyyy/MM/dd');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.emoji_events, color: Colors.amber, size: 20),
+            SizedBox(width: 8),
+            Text('最高單局記錄', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Card(
+          color: Colors.amber.withValues(alpha: 0.1),
+          elevation: 4,
+          child: InkWell(
+            onTap: () {
+              try {
+                final game = provider.gameHistory.firstWhere((g) => g.id == best.gameId);
+                Navigator.push(context, FadeSlidePageRoute(page: GameDetailScreen(game: game)));
+              } catch (_) {}
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          best.gameName ?? '未命名牌局',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${dateFormat.format(best.gameDate)} 第${best.roundIndex}局',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          Text(
+                            '${best.tai}',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.amber),
+                          ),
+                          const Text('台數', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            CalculationService.formatScore(best.amount),
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                          const Text('得分', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

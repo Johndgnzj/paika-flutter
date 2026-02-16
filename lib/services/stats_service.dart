@@ -18,6 +18,27 @@ class GameSummary {
   });
 }
 
+/// 最高單局記錄
+class BestRoundRecord {
+  final String gameId;
+  final String? gameName;
+  final DateTime gameDate;
+  final String roundId;
+  final int roundIndex;    // 該局在牌局中的序號（從1開始）
+  final int tai;           // 台數
+  final int amount;        // 贏得金額
+
+  BestRoundRecord({
+    required this.gameId,
+    this.gameName,
+    required this.gameDate,
+    required this.roundId,
+    required this.roundIndex,
+    required this.tai,
+    required this.amount,
+  });
+}
+
 /// 對手統計記錄
 class OpponentRecord {
   final String name;
@@ -53,6 +74,7 @@ class PlayerStats {
   final Map<int, int> taiDistribution; // 台數 → 次數
   final List<OpponentRecord> opponents;
   final List<GameSummary> recentGames;
+  final BestRoundRecord? bestRound;  // 最高單局記錄
 
   PlayerStats({
     required this.totalGames,
@@ -71,17 +93,41 @@ class PlayerStats {
     required this.taiDistribution,
     required this.opponents,
     required this.recentGames,
+    this.bestRound,
   });
+}
+
+/// 時間範圍類型
+enum TimeRange {
+  week,   // 近一週
+  month,  // 近一月
+  all,    // 全部
 }
 
 /// 統計計算服務
 class StatsService {
   /// 計算指定玩家的統計數據
-  static PlayerStats getPlayerStats(String profileId, List<Game> games) {
+  static PlayerStats getPlayerStats(
+    String profileId,
+    List<Game> games, {
+    TimeRange timeRange = TimeRange.all,
+  }) {
     // 篩選包含該玩家的牌局
-    final relevantGames = games.where((game) {
+    var relevantGames = games.where((game) {
       return game.players.any((p) => p.userId == profileId);
     }).toList();
+
+    // 根據時間範圍篩選
+    if (timeRange != TimeRange.all) {
+      final now = DateTime.now();
+      final cutoffDate = timeRange == TimeRange.week
+          ? now.subtract(const Duration(days: 7))
+          : now.subtract(const Duration(days: 30));
+      
+      relevantGames = relevantGames.where((game) {
+        return game.createdAt.isAfter(cutoffDate);
+      }).toList();
+    }
 
     if (relevantGames.isEmpty) {
       return PlayerStats(
@@ -118,6 +164,8 @@ class StatsService {
     final taiDistribution = <int, int>{};
     final opponentMap = <String, _OpponentAccumulator>{};
     final gameSummaries = <GameSummary>[];
+    BestRoundRecord? bestRound;
+    int bestRoundAmount = 0;
 
     for (final game in relevantGames) {
       // 找到該玩家在這場的 playerId
@@ -148,8 +196,24 @@ class StatsService {
       ));
 
       // 遍歷每局
-      for (final round in game.rounds) {
+      for (var i = 0; i < game.rounds.length; i++) {
+        final round = game.rounds[i];
         totalRounds++;
+
+        // 檢查該局得分（追蹤最高單局記錄）
+        final roundScore = round.scoreChanges[playerId] ?? 0;
+        if (roundScore > bestRoundAmount) {
+          bestRoundAmount = roundScore;
+          bestRound = BestRoundRecord(
+            gameId: game.id,
+            gameName: game.name,
+            gameDate: game.createdAt,
+            roundId: round.id,
+            roundIndex: i + 1,
+            tai: round.totalTai,
+            amount: roundScore,
+          );
+        }
 
         // 胡牌（放槍胡，不包含自摸）
         if (round.type == RoundType.win && round.winnerId == playerId) {
@@ -248,6 +312,7 @@ class StatsService {
       taiDistribution: taiDistribution,
       opponents: opponents.take(5).toList(),
       recentGames: gameSummaries.take(10).toList(),
+      bestRound: bestRound,
     );
   }
 
