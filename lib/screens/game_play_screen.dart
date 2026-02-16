@@ -137,10 +137,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 width: constraints.maxWidth * 0.9,
                 height: constraints.maxHeight * 0.7,
                 decoration: BoxDecoration(
-                  color: AppConstants.mahjongGreen.withValues(alpha: 0.2),
+                  color: AppConstants.tableGreen.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: AppConstants.mahjongGreen,
+                    color: AppConstants.tableGreen,
                     width: 4,
                   ),
                 ),

@@ -26,7 +26,8 @@ class AppConstants {
   static const List<int> commonTai = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 16];
   
   // 顏色
-  static const Color mahjongGreen = Color(0xFF0B6623);
+  static const Color primaryGold = Color(0xFFB8860B);
+  static const Color tableGreen = Color(0xFF0B6623);
   static const Color winColor = Color(0xFF4CAF50);
   static const Color loseColor = Color(0xFFE57373);
   static const Color dealerColor = Color(0xFFFFC022);

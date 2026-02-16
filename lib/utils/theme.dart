@@ -8,7 +8,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.mahjongGreen,
+        seedColor: AppConstants.primaryGold,
         brightness: Brightness.light,
       ),
       appBarTheme: const AppBarTheme(
@@ -55,7 +55,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.mahjongGreen,
+        seedColor: AppConstants.primaryGold,
         brightness: Brightness.dark,
       ),
       appBarTheme: const AppBarTheme(

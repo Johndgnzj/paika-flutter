@@ -97,10 +97,10 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
                       width: tableSize,
                       height: tableSize,
                       decoration: BoxDecoration(
-                        color: AppConstants.mahjongGreen.withValues(alpha: 0.2),
+                        color: AppConstants.tableGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: AppConstants.mahjongGreen,
+                          color: AppConstants.tableGreen,
                           width: 3,
                         ),
                       ),

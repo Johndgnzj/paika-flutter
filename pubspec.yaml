@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.2+15
+version: 3.1.0+16
 
 environment:
   sdk: ^3.10.8
@@ -75,6 +75,17 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/paika-logo.png"
+  web:
+    generate: true
+    image_path: "assets/images/paika-logo.png"
+    background_color: "#000000"
+    theme_color: "#B8860B"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -95,6 +106,7 @@ flutter:
     - assets/images/dice-4.png
     - assets/images/dice-5.png
     - assets/images/dice-6.png
+    - assets/images/paika-logo.png
 
   #   - images/a_dot_ham.jpeg
 

@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/game_provider.dart';
 import '../services/export_service.dart';
+import '../utils/legal_texts.dart';
+import '../widgets/animation_helpers.dart';
+import 'legal_screen.dart';
+import 'help_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -172,6 +176,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // 關於
               _buildSectionHeader('關於'),
+
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('使用手冊'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    FadeSlidePageRoute(page: const HelpScreen()),
+                  );
+                },
+              ),
+
+              const Divider(height: 1),
+
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: const Text('服務條款'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    FadeSlidePageRoute(
+                      page: const LegalScreen(
+                        title: '服務條款',
+                        content: LegalTexts.termsOfService,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const Divider(height: 1),
+
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: const Text('隱私權政策'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    FadeSlidePageRoute(
+                      page: const LegalScreen(
+                        title: '隱私權政策',
+                        content: LegalTexts.privacyPolicy,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const Divider(height: 1),
 
               ListTile(
                 title: const Text('版本'),

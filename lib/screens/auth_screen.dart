@@ -124,7 +124,11 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('🀄', style: TextStyle(fontSize: 64)),
+                  Image.asset(
+                    'assets/images/paika-logo.png',
+                    width: 120,
+                    height: 120,
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     '牌咖 Paika',
