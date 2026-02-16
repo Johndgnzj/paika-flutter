@@ -50,26 +50,26 @@
 - [x] **玩家統計頁面** ✅ - 戰績概覽、對手分析、近期牌局
 - [x] **圖表視覺化** ✅ - 分數趨勢圖、勝率圓餅圖、台數分布圖
 
-## 🎯 v3.0.0 - 雲端同步與資料管理
+## 🎯 v3.0.0 - 雲端同步與資料管理 ✅ 完成
 > 詳見 [V3_PLAN.md](./V3_PLAN.md)
 
-- [ ] **Firebase 雲端同步** - 資料雲端化
-  - [ ] Firebase Anonymous Auth（靜默安全層）
-  - [ ] Firestore Security Rules + App Check
-  - [ ] FirestoreService（CRUD）
-  - [ ] StorageService Write-Through 重構
-  - [ ] 本地資料遷移到 Firestore
-  - [ ] 離線支援（Firestore 離線快取）
+- [x] **Firebase 雲端同步** ✅ - 資料雲端化
+  - [x] Firebase Anonymous Auth（靜默安全層）
+  - [x] Firestore Security Rules
+  - [x] FirestoreService（CRUD）
+  - [x] StorageService Write-Through 重構
+  - [x] 本地資料遷移到 Firestore
+  - ~~App Check（reCAPTCHA v3）~~ — 已移除，部署後 403 問題，未來有需要再啟用
 
-- [ ] **多場次管理** - 管理多個牌局
-  - [ ] 牌局列表搜尋
-  - [ ] 刪除牌局
-  - [ ] 重命名牌局
+- [x] **多場次管理** ✅ - 管理多個牌局
+  - [x] 牌局列表搜尋
+  - [x] 刪除牌局
+  - [x] 重命名牌局
 
-- [ ] **匯出報表** - 資料匯出功能
-  - [ ] 匯出為 JSON
-  - [ ] 匯出為 CSV
-  - [ ] 匯出為 PDF
+- [x] **匯出報表** ✅ - 資料匯出功能
+  - [x] 匯出為 JSON
+  - [x] 匯出為 CSV
+  - [x] 匯出為 PDF
 
 ## 🎯 v3.1.0 - 發佈上線
 - [ ] **調整介面**
@@ -78,32 +78,28 @@
   - [ ] 在設定頁加上使用條款、隱私權政策說明
   - [ ] 在設定頁加上使用手冊
 
-- [ ] **iOS/Android App** - 原生 App
-  - [ ] 編譯 APK
-  - [ ] 上架 Google Play
-  - [ ] 編譯 iOS
-  - [ ] 上架 App Store
-
-## 🎯 v3.0.0 - 統計與分析
+## 🎯 v3.2.0 - 統計與分析
 - [ ] **玩家統計增強**
   - [ ] 最高單局記錄高亮顯示
   - [ ] 統計數據時間範圍篩選（近一週/一月/全部）
 
-## 🎯 v3.1.0 - 體驗優化
+## 🎯 v3.3.0 - 體驗優化
 
 ### 從 v1.1.0 遺留
 - [ ] **分享功能** - 歷史紀錄分享
   - [ ] 牌局結果分享（圖片或文字）
 
-- [ ] **音效** - 操作回饋聲音
-  - [ ] 胡牌音效
-  - [ ] 詐胡音效
-  - [ ] 骰子音效
-  - [ ] 按鈕點擊音效
-
 - [ ] **帳號功能增強**
   - [ ] 忘記密碼流程（本地提示或重設）
   - [ ] 帳號資料匯出/匯入
+
+## backlog-未來再做
+
+- [ ] **iOS/Android App** - 原生 App
+  - [ ] 編譯 APK
+  - [ ] 上架 Google Play
+  - [ ] 編譯 iOS
+  - [ ] 上架 App Store
 
 ## 🐛 Bug 修復與優化
 
@@ -134,12 +130,12 @@
 
 ## 📊 當前狀態
 
-**版本**：v2.0.0
+**版本**：v3.0.2
 **已部署**：✅ https://paika-13250.web.app
 **GitHub**：✅ https://github.com/Johndgnzj/paika-flutter
 
-**接下來開發**：v3.0.0 雲端同步與資料管理
+**接下來開發**：v3.1.0 發佈上線（介面調整、Logo、使用條款等）
 
 ---
 
-*最後更新：2026-02-12*
+*最後更新：2026-02-17*
