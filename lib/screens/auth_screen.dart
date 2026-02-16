@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
 import '../widgets/animation_helpers.dart';
+import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -14,7 +14,6 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   bool _isRegister = false;
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   final _emailController = TextEditingController();
@@ -33,43 +32,41 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    final authService = context.read<AuthService>();
+    final gameProvider = context.read<GameProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
     try {
-      final authService = context.read<AuthService>();
       if (_isRegister) {
+        // 先設定 pending name，確保 register 觸發 onAuthChanged 時能建立玩家檔案
+        gameProvider.createSelfProfileAfterRegister(_nameController.text);
         await authService.register(
           _emailController.text,
           _passwordController.text,
           _nameController.text,
         );
-        // 註冊後自動建立自己的玩家檔案
-        if (mounted) {
-          context.read<GameProvider>().createSelfProfileAfterRegister(
-            _nameController.text,
-          );
-        }
       } else {
         await authService.login(
           _emailController.text,
           _passwordController.text,
         );
       }
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          FadeSlidePageRoute(page: const HomeScreen()),
-        );
-      }
+      navigator.pop(); // 關閉 loading
+      navigator.pushReplacement(
+        FadeSlidePageRoute(page: const HomeScreen()),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e is ArgumentError ? e.message.toString() : '$e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      navigator.pop(); // 關閉 loading
+      messenger.showSnackBar(
+        SnackBar(content: Text(e is ArgumentError ? e.message.toString() : '$e')),
+      );
     }
   }
 
@@ -181,7 +178,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _isLoading ? null : _showPasswordResetDialog,
+                        onPressed: _showPasswordResetDialog,
                         child: const Text('忘記密碼？'),
                       ),
                     ),
@@ -209,32 +206,24 @@ class _AuthScreenState extends State<AuthScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
+                      onPressed: _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(
-                              _isRegister ? '註冊' : '登入',
-                              style: const TextStyle(fontSize: 18),
-                            ),
+                      child: Text(
+                        _isRegister ? '註冊' : '登入',
+                        style: const TextStyle(fontSize: 18),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
                   // 切換模式
                   TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => setState(() {
-                              _isRegister = !_isRegister;
-                              _nameController.clear();
-                            }),
+                    onPressed: () => setState(() {
+                          _isRegister = !_isRegister;
+                          _nameController.clear();
+                        }),
                     child: Text(
                       _isRegister ? '已有帳號？登入' : '沒有帳號？註冊',
                       style: const TextStyle(fontSize: 16),

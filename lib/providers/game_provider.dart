@@ -25,6 +25,7 @@ class GameProvider with ChangeNotifier {
   bool _isLoading = true;
   String? _error;
   String? _currentAccountId;
+  String? _pendingSelfProfileName;  // 註冊時暫存，由 _initializeForAccount 統一建立
 
   final _uuid = const Uuid();
 
@@ -83,6 +84,28 @@ class GameProvider with ChangeNotifier {
       _gameHistory = await StorageService.loadGames(accountId: accountId);
       _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
       _playerProfiles = await StorageService.loadPlayerProfiles(accountId: accountId);
+
+      // 1. 處理註冊時暫存的自己玩家檔案
+      if (_pendingSelfProfileName != null && _pendingSelfProfileName!.isNotEmpty) {
+        final name = _pendingSelfProfileName!;
+        _pendingSelfProfileName = null;
+        if (!_playerProfiles.any((p) => p.name == name)) {
+          await addPlayerProfile(name, '🀄', isSelf: true);
+        }
+      }
+
+      // 2. 舊帳號自動辨識「自己」：若沒有任何 isSelf，用 displayName 比對
+      if (_playerProfiles.isNotEmpty && !_playerProfiles.any((p) => p.isSelf)) {
+        final displayName = FirebaseAuth.instance.currentUser?.displayName ?? '';
+        if (displayName.isNotEmpty) {
+          final index = _playerProfiles.indexWhere((p) => p.name == displayName);
+          if (index >= 0) {
+            _playerProfiles[index] = _playerProfiles[index].copyWith(isSelf: true);
+            await StorageService.savePlayerProfile(_playerProfiles[index], accountId: accountId);
+          }
+        }
+      }
+
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
     } catch (e) {
@@ -143,25 +166,13 @@ class GameProvider with ChangeNotifier {
 
   // --- PlayerProfile 管理 ---
 
-  /// 註冊後自動建立自己的玩家檔案
-  Future<void> createSelfProfileAfterRegister(String displayName) async {
-    // 等待帳號初始化完成（最多等 5 秒）
-    for (int i = 0; i < 50; i++) {
-      if (!_isLoading && _currentAccountId != null) break;
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    if (_currentAccountId == null) return;
-    final trimmed = displayName.trim();
-    if (trimmed.isEmpty) return;
-    // 檢查是否已存在同名檔案
-    final exists = _playerProfiles.any((p) => p.name == trimmed);
-    if (!exists) {
-      await addPlayerProfile(trimmed, '🀄');
-    }
+  /// 註冊後標記待建立的自己玩家檔案（由 _initializeForAccount 統一執行）
+  void createSelfProfileAfterRegister(String displayName) {
+    _pendingSelfProfileName = displayName.trim();
   }
 
   /// 新增玩家檔案
-  Future<void> addPlayerProfile(String name, String emoji) async {
+  Future<void> addPlayerProfile(String name, String emoji, {bool isSelf = false}) async {
     if (_currentAccountId == null) return;
     final now = DateTime.now();
     final profile = PlayerProfile(
@@ -169,6 +180,7 @@ class GameProvider with ChangeNotifier {
       accountId: _currentAccountId!,
       name: name,
       emoji: emoji,
+      isSelf: isSelf,
       createdAt: now,
       lastPlayedAt: now,
     );

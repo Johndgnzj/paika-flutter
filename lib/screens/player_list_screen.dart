@@ -54,12 +54,43 @@ class PlayerListScreen extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
+          final selfProfile = profiles.where((p) => p.isSelf).toList();
+          final otherProfiles = profiles.where((p) => !p.isSelf).toList();
+
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: profiles.length,
-            itemBuilder: (context, index) {
-              return _buildProfileCard(context, profiles[index], provider);
-            },
+            children: [
+              // 自己的檔案置頂
+              for (final profile in selfProfile)
+                _buildProfileCard(context, profile, provider),
+
+              // 分隔線
+              if (selfProfile.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          '你的玩家 (${otherProfiles.length})',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                ),
+              ],
+
+              // 其他玩家
+              for (final profile in otherProfiles)
+                _buildProfileCard(context, profile, provider),
+            ],
           );
         },
       ),
@@ -77,6 +108,23 @@ class PlayerListScreen extends StatelessWidget {
         title: Row(
           children: [
             Flexible(child: Text(profile.name, style: const TextStyle(fontSize: 18))),
+            if (profile.isSelf) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '我',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
             if (isLinked) ...[
               const SizedBox(width: 8),
               Icon(Icons.link, size: 18, color: Colors.blue.shade400),
@@ -106,7 +154,8 @@ class PlayerListScreen extends StatelessWidget {
             const PopupMenuItem(value: 'link', child: Text('產生連結碼')),
             if (isLinked)
               const PopupMenuItem(value: 'unlink', child: Text('解除連結')),
-            const PopupMenuItem(value: 'delete', child: Text('刪除')),
+            if (!profile.isSelf)
+              const PopupMenuItem(value: 'delete', child: Text('刪除')),
           ],
         ),
         onTap: () {

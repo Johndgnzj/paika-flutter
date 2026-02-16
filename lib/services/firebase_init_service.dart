@@ -1,5 +1,4 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../firebase_options.dart';
@@ -24,13 +23,6 @@ class FirebaseInitService {
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
-
-    // 3. App Check（各平台 provider）
-    await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('6LeogWosAAAAAEFzWSR96IPNxtPuw-UzJo2xO4Sa'),
-      appleProvider: AppleProvider.appAttest,
-      androidProvider: AndroidProvider.playIntegrity,
     );
 
     _initialized = true;
