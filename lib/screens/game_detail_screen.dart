@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/game.dart';
 import '../models/round.dart';
 import '../models/player.dart';
@@ -7,10 +9,20 @@ import '../services/calculation_service.dart';
 import '../services/export_service.dart';
 
 /// 牌局詳細頁面
-class GameDetailScreen extends StatelessWidget {
+class GameDetailScreen extends StatefulWidget {
   final Game game;
 
   const GameDetailScreen({super.key, required this.game});
+
+  @override
+  State<GameDetailScreen> createState() => _GameDetailScreenState();
+}
+
+class _GameDetailScreenState extends State<GameDetailScreen> {
+  final ScreenshotController _rankingScreenshotController = ScreenshotController();
+  final ScreenshotController _statsScreenshotController = ScreenshotController();
+
+  Game get game => widget.game;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +49,14 @@ class GameDetailScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildRankingTab(),
-            _buildStatsTab(),
+            Screenshot(
+              controller: _rankingScreenshotController,
+              child: _buildRankingTab(),
+            ),
+            Screenshot(
+              controller: _statsScreenshotController,
+              child: _buildStatsTab(),
+            ),
             _buildRoundsTab(),
           ],
         ),
@@ -766,10 +784,20 @@ class GameDetailScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                '匯出牌局',
+                '分享牌局',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('截圖分享'),
+              subtitle: const Text('最終排名 + 數據統計'),
+              onTap: () {
+                Navigator.pop(context);
+                _shareScreenshots();
+              },
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.code),
               title: const Text('JSON'),
@@ -805,5 +833,57 @@ class GameDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _shareScreenshots() async {
+    try {
+      // 顯示載入提示
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('正在生成截圖...')),
+      );
+
+      // 截取兩個畫面
+      final rankingImage = await _rankingScreenshotController.capture();
+      final statsImage = await _statsScreenshotController.capture();
+
+      if (rankingImage == null || statsImage == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('截圖失敗')),
+        );
+        return;
+      }
+
+      // 分享截圖
+      final dateFormat = DateFormat('yyyyMMdd_HHmmss');
+      final timestamp = dateFormat.format(game.createdAt);
+      
+      await SharePlus.instance.share(ShareParams(
+        files: [
+          XFile.fromData(
+            rankingImage,
+            name: 'paika_${timestamp}_ranking.png',
+            mimeType: 'image/png',
+          ),
+          XFile.fromData(
+            statsImage,
+            name: 'paika_${timestamp}_stats.png',
+            mimeType: 'image/png',
+          ),
+        ],
+        subject: '${game.name ?? "牌局"} - ${DateFormat("yyyy/MM/dd").format(game.createdAt)}',
+      ));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('截圖已生成')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失敗: $e')),
+      );
+    }
   }
 }
