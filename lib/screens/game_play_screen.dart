@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
+import '../services/voice_scoring_service.dart';
 import '../utils/constants.dart';
 import '../widgets/animation_helpers.dart';
 import '../widgets/multi_win_dialog.dart';
@@ -21,6 +23,14 @@ class GamePlayScreen extends StatefulWidget {
 }
 
 class _GamePlayScreenState extends State<GamePlayScreen> {
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,6 +46,14 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           },
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _isListening ? Icons.mic : Icons.mic_none,
+              color: _isListening ? Colors.red : null,
+            ),
+            onPressed: _toggleVoiceScoring,
+            tooltip: '語音記分',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
@@ -427,6 +445,152 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         builder: (context) => GameDetailScreen(game: game),
       ),
     );
+  }
+
+  /// 切換語音記分狀態
+  void _toggleVoiceScoring() async {
+    if (_isListening) {
+      // 停止錄音
+      setState(() => _isListening = false);
+      await _speech.stop();
+    } else {
+      // 開始錄音
+      final available = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (error) {
+          setState(() => _isListening = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('語音辨識錯誤: ${error.errorMsg}')),
+            );
+          }
+        },
+      );
+
+      if (!available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('語音辨識功能不可用')),
+          );
+        }
+        return;
+      }
+
+      setState(() => _isListening = true);
+
+      await _speech.listen(
+        onResult: (result) {
+          if (result.finalResult) {
+            _processVoiceInput(result.recognizedWords);
+          }
+        },
+        localeId: 'zh_TW',
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.confirmation,
+        ),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('請說話... 例如：「小明胡阿華5台」或「莊家自摸3台」'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 處理語音輸入
+  void _processVoiceInput(String text) {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+
+    if (game == null) return;
+
+    // 解析語音指令
+    final result = VoiceScoringService.parse(text, game);
+
+    if (result.isValid) {
+      // 解析成功，開啟快速記分對話框並預填
+      showDialog(
+        context: context,
+        builder: (context) => QuickScoreDialog(
+          game: game,
+          selectedPlayer: result.winner!,
+          prefillLoser: result.loser,
+          prefillSelfDraw: result.isSelfDraw,
+          prefillTai: result.tai,
+        ),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('辨識成功：${result.recognizedText}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // 解析失敗，顯示錯誤或部分結果
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('語音辨識'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('辨識文字：${result.recognizedText}'),
+                const SizedBox(height: 8),
+                if (result.error != null)
+                  Text(
+                    '錯誤：${result.error}',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  '支援格式：',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Text('• 胡牌：「小明胡阿華5台」'),
+                const Text('• 自摸：「莊家自摸3台」'),
+                const Text('• 支援風位：東家、南家、西家、北家'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('關閉'),
+              ),
+              if (result.winner != null)
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) => QuickScoreDialog(
+                        game: game,
+                        selectedPlayer: result.winner!,
+                        prefillLoser: result.loser,
+                        prefillSelfDraw: result.isSelfDraw,
+                        prefillTai: result.tai,
+                      ),
+                    );
+                  },
+                  child: const Text('手動調整'),
+                ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _showPlayerActionDialog(Player player) {
@@ -1117,4 +1281,5 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
       ],
     );
   }
+
 }

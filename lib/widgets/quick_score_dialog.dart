@@ -9,11 +9,17 @@ import '../services/calculation_service.dart';
 class QuickScoreDialog extends StatefulWidget {
   final Game game;
   final Player selectedPlayer;
+  final Player? prefillLoser;      // 預填放槍者
+  final bool prefillSelfDraw;      // 預填是否自摸
+  final int? prefillTai;           // 預填台數
 
   const QuickScoreDialog({
     super.key,
     required this.game,
     required this.selectedPlayer,
+    this.prefillLoser,
+    this.prefillSelfDraw = false,
+    this.prefillTai,
   });
 
   @override
@@ -22,13 +28,23 @@ class QuickScoreDialog extends StatefulWidget {
 
 class _QuickScoreDialogState extends State<QuickScoreDialog> {
   // 記分類型
-  String _scoreType = 'win'; // win, selfDraw, falseWin
+  late String _scoreType;
   
   // 台數
-  int _tai = 0;
+  late int _tai;
   
   // 放槍者（胡牌時需要）
   Player? _loser;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // 初始化預填值
+    _scoreType = widget.prefillSelfDraw ? 'selfDraw' : 'win';
+    _tai = widget.prefillTai ?? 0;
+    _loser = widget.prefillLoser;
+  }
 
   // 快速台數選項
   final List<Map<String, dynamic>> _quickTaiOptions = [
