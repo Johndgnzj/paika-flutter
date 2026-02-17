@@ -205,7 +205,7 @@ class CalculationService {
     );
     
     // 組合說明文字
-    String taiBreakdown = '$baseTai台';
+    String taiBreakdown = '$baseTai 台';
     if (isSelfDraw && settings.selfDrawAddTai) {
       taiBreakdown += ' + 1台(自摸)';
     }
@@ -213,11 +213,11 @@ class CalculationService {
       taiBreakdown += ' + 1台(莊家)';
     }
     if (settings.consecutiveTai && consecutiveWins > 0) {
-      taiBreakdown += ' + ${consecutiveWins * 2}台(連莊×$consecutiveWins)';
+      taiBreakdown += ' + ${consecutiveWins * 2} 台(連莊×$consecutiveWins)';
     }
     
     if (baseTai != effectiveTai) {
-      taiBreakdown += ' = $effectiveTai台';
+      taiBreakdown += ' = $effectiveTai 台';
     }
     
     if (isSelfDraw) {

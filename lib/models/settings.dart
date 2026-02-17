@@ -12,7 +12,7 @@ class GameSettings {
   const GameSettings({
     this.baseScore = 50,
     this.maxTai = 20,  // 實際上是每台分數
-    this.selfDrawAddTai = true,
+    this.selfDrawAddTai = false,
     this.falseWinPayAll = true,
     this.falseWinTai = 8,
     this.supportMultiWin = true,
@@ -37,7 +37,7 @@ class GameSettings {
     return GameSettings(
       baseScore: json['baseScore'] as int? ?? 50,
       maxTai: json['maxTai'] as int? ?? 20,
-      selfDrawAddTai: json['selfDrawAddTai'] as bool? ?? true,
+      selfDrawAddTai: json['selfDrawAddTai'] as bool? ?? false,
       falseWinPayAll: json['falseWinPayAll'] as bool? ?? true,
       falseWinTai: json['falseWinTai'] as int? ?? 8,
       supportMultiWin: json['supportMultiWin'] as bool? ?? true,

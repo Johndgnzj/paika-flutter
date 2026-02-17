@@ -25,7 +25,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   // 設定
   int _baseScore = 50;
   int _maxTai = 20;
-  bool _selfDrawAddTai = true;
+  bool _selfDrawAddTai = false;
   bool _dealerTai = true;
   bool _consecutiveTai = true;
 

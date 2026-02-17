@@ -67,7 +67,7 @@ class TaiDistributionChart extends StatelessWidget {
                     return Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '${sortedKeys[index]}台',
+                        '${sortedKeys[index]} 台',
                         style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
                     );
@@ -106,7 +106,7 @@ class TaiDistributionChart extends StatelessWidget {
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final tai = sortedKeys[group.x];
                 return BarTooltipItem(
-                  '$tai台：${rod.toY.toInt()}次',
+                  '$tai 台：${rod.toY.toInt()} 次',
                   const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 );
               },

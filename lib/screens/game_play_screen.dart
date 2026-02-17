@@ -46,7 +46,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 if (game == null) return const Text('遊戲');
                 
                 return Text(
-                  '${game.currentWindDisplay}${game.consecutiveWins > 0 ? " 連${game.consecutiveWins}" : ""}',
+                  '${game.currentWindDisplay}${game.consecutiveWins > 0 ? " 連 ${game.consecutiveWins}" : ""}',
                 );
               },
             ),
@@ -938,7 +938,7 @@ class _WinDialogState extends State<_WinDialog> {
               spacing: 8,
               children: AppConstants.commonTai.map((tai) {
                 return ChoiceChip(
-                  label: Text('$tai台'),
+                  label: Text('$tai 台'),
                   selected: _tai == tai,
                   onSelected: (selected) {
                     setState(() {
@@ -1068,7 +1068,7 @@ class _SelfDrawDialogState extends State<_SelfDrawDialog> {
               spacing: 8,
               children: AppConstants.commonTai.map((tai) {
                 return ChoiceChip(
-                  label: Text('$tai台'),
+                  label: Text('$tai 台'),
                   selected: _tai == tai,
                   onSelected: (selected) {
                     setState(() {

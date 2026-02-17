@@ -239,7 +239,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
             final isSelected = _tai == tai;
             
             return ChoiceChip(
-              label: Text('$label ($tai台)'),
+              label: Text('$label ($tai 台)'),
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
