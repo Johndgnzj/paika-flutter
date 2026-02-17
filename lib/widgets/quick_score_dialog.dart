@@ -75,13 +75,23 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      widget.selectedPlayer.name,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.selectedPlayer.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () => _showEditPlayerNameDialog(context),
+                    tooltip: '修改名稱',
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -415,5 +425,79 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
     if (mounted) {
       Navigator.pop(context);
     }
+  }
+
+  /// 顯示修改玩家名稱對話框
+  void _showEditPlayerNameDialog(BuildContext context) {
+    final provider = context.read<GameProvider>();
+    final controller = TextEditingController(text: widget.selectedPlayer.name);
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('修改玩家名稱'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: '新名稱',
+                border: OutlineInputBorder(),
+                helperText: '建議使用繁體中文以提高語音辨識準確度',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '修改名稱只會影響此次牌局，不會改變玩家檔案。',
+                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) return;
+              
+              // 更新牌局中的玩家名稱
+              provider.updatePlayerNameInGame(
+                widget.game.id,
+                widget.selectedPlayer.id,
+                newName,
+              );
+              
+              Navigator.pop(dialogContext);
+              
+              // 重新整理父對話框
+              if (mounted) {
+                setState(() {});
+              }
+            },
+            child: const Text('確認'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -203,6 +203,37 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 更新牌局中的玩家名稱（僅影響當前牌局，不改變玩家檔案）
+  Future<void> updatePlayerNameInGame(String gameId, String playerId, String newName) async {
+    // 如果是當前牌局
+    if (_currentGame?.id == gameId) {
+      final playerIndex = _currentGame!.players.indexWhere((p) => p.id == playerId);
+      if (playerIndex >= 0) {
+        final updatedPlayers = List<Player>.from(_currentGame!.players);
+        updatedPlayers[playerIndex] = updatedPlayers[playerIndex].copyWith(name: newName);
+        
+        _currentGame = _currentGame!.copyWith(players: updatedPlayers);
+        await _saveCurrentGame();
+        notifyListeners();
+      }
+    } else {
+      // 如果是歷史牌局
+      final historyIndex = _gameHistory.indexWhere((g) => g.id == gameId);
+      if (historyIndex >= 0) {
+        final game = _gameHistory[historyIndex];
+        final playerIndex = game.players.indexWhere((p) => p.id == playerId);
+        if (playerIndex >= 0) {
+          final updatedPlayers = List<Player>.from(game.players);
+          updatedPlayers[playerIndex] = updatedPlayers[playerIndex].copyWith(name: newName);
+          
+          _gameHistory[historyIndex] = game.copyWith(players: updatedPlayers);
+          await StorageService.saveGame(_gameHistory[historyIndex]);
+          notifyListeners();
+        }
+      }
+    }
+  }
+
   /// 刪除玩家檔案
   Future<void> deletePlayerProfile(String id) async {
     if (_currentAccountId == null) return;

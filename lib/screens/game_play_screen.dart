@@ -27,6 +27,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _currentRecognizedText = '';
+  bool _hasShownVoicePermissionInfo = false;
 
   @override
   void initState() {
@@ -506,6 +507,13 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       });
       await _speech.stop();
     } else {
+      // 首次使用：顯示說明對話框
+      if (!_hasShownVoicePermissionInfo) {
+        final shouldContinue = await _showVoicePermissionInfo();
+        if (!shouldContinue) return;
+        setState(() => _hasShownVoicePermissionInfo = true);
+      }
+
       // 開始錄音
       final available = await _speech.initialize(
         onStatus: (status) {
@@ -558,6 +566,102 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         ),
       );
     }
+  }
+
+  /// 顯示語音權限說明對話框
+  Future<bool> _showVoicePermissionInfo() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.mic, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text('語音記分功能'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '📢 功能說明',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '使用語音記分可以快速記錄牌局結果，說出：\n'
+                '• 「小明胡阿華5台」\n'
+                '• 「莊家自摸3台」\n'
+                '系統會自動辨識並開啟記分視窗。',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.lightbulb, color: Colors.amber, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          '提高辨識準確度',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '建議玩家名稱使用繁體中文，可以大幅提升語音辨識的準確率。',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '🔒 隱私說明',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '語音辨識在您的裝置上進行，不會將錄音上傳到伺服器。首次使用需要授予麥克風權限。',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('開始使用'),
+          ),
+        ],
+      ),
+    );
+    
+    return result ?? false;
   }
 
   /// 處理語音輸入
