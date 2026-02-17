@@ -236,7 +236,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
   /// 計算牌局稱號
   Map<String, List<String>> _calculateTitles() {
-    final stats = <String, Map<String, int>>{};
+    final stats = <String, Map<String, dynamic>>{};
     
     // 初始化每個玩家的統計
     for (final player in game.players) {
@@ -244,58 +244,93 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         'wins': 0,      // 胡牌次數（不含自摸）
         'selfDraws': 0, // 自摸次數
         'losses': 0,    // 放槍次數
+        'lastWinTime': DateTime.fromMillisecondsSinceEpoch(0),
+        'lastSelfDrawTime': DateTime.fromMillisecondsSinceEpoch(0),
+        'lastLossTime': DateTime.fromMillisecondsSinceEpoch(0),
       };
     }
 
-    // 統計每局
+    // 統計每局並記錄最後時間
     for (final round in game.rounds) {
       if (round.type == RoundType.win && round.winnerId != null) {
         stats[round.winnerId]!['wins'] = (stats[round.winnerId]!['wins'] ?? 0) + 1;
+        stats[round.winnerId]!['lastWinTime'] = round.timestamp;
         if (round.loserId != null) {
           stats[round.loserId]!['losses'] = (stats[round.loserId]!['losses'] ?? 0) + 1;
+          stats[round.loserId]!['lastLossTime'] = round.timestamp;
         }
       } else if (round.type == RoundType.selfDraw && round.winnerId != null) {
         stats[round.winnerId]!['selfDraws'] = (stats[round.winnerId]!['selfDraws'] ?? 0) + 1;
+        stats[round.winnerId]!['lastSelfDrawTime'] = round.timestamp;
       } else if (round.type == RoundType.multiWin) {
         for (final winnerId in round.winnerIds) {
           stats[winnerId]!['wins'] = (stats[winnerId]!['wins'] ?? 0) + 1;
+          stats[winnerId]!['lastWinTime'] = round.timestamp;
         }
         if (round.loserId != null) {
           stats[round.loserId]!['losses'] = (stats[round.loserId]!['losses'] ?? 0) + 1;
+          stats[round.loserId]!['lastLossTime'] = round.timestamp;
         }
       }
     }
 
-    // 找出各項冠軍
+    // 找出各項冠軍（次數相同時，取最後發生事件的人）
     final titles = <String, List<String>>{};
     
     // 胡牌王
-    final maxWins = stats.values.map((s) => s['wins'] ?? 0).reduce((a, b) => a > b ? a : b);
+    final maxWins = stats.values.map((s) => s['wins'] as int).reduce((a, b) => a > b ? a : b);
     if (maxWins > 0) {
+      String? winKing;
+      DateTime? latestWinTime;
       for (final entry in stats.entries) {
         if (entry.value['wins'] == maxWins) {
-          titles.putIfAbsent(entry.key, () => []).add('🏆 胡牌王');
+          final winTime = entry.value['lastWinTime'] as DateTime;
+          if (latestWinTime == null || winTime.isAfter(latestWinTime)) {
+            winKing = entry.key;
+            latestWinTime = winTime;
+          }
         }
+      }
+      if (winKing != null) {
+        titles.putIfAbsent(winKing, () => []).add('🏆 胡牌王');
       }
     }
 
     // 自摸王
-    final maxSelfDraws = stats.values.map((s) => s['selfDraws'] ?? 0).reduce((a, b) => a > b ? a : b);
+    final maxSelfDraws = stats.values.map((s) => s['selfDraws'] as int).reduce((a, b) => a > b ? a : b);
     if (maxSelfDraws > 0) {
+      String? selfDrawKing;
+      DateTime? latestSelfDrawTime;
       for (final entry in stats.entries) {
         if (entry.value['selfDraws'] == maxSelfDraws) {
-          titles.putIfAbsent(entry.key, () => []).add('🎯 自摸王');
+          final selfDrawTime = entry.value['lastSelfDrawTime'] as DateTime;
+          if (latestSelfDrawTime == null || selfDrawTime.isAfter(latestSelfDrawTime)) {
+            selfDrawKing = entry.key;
+            latestSelfDrawTime = selfDrawTime;
+          }
         }
+      }
+      if (selfDrawKing != null) {
+        titles.putIfAbsent(selfDrawKing, () => []).add('🎯 自摸王');
       }
     }
 
     // 放槍王
-    final maxLosses = stats.values.map((s) => s['losses'] ?? 0).reduce((a, b) => a > b ? a : b);
+    final maxLosses = stats.values.map((s) => s['losses'] as int).reduce((a, b) => a > b ? a : b);
     if (maxLosses > 0) {
+      String? lossKing;
+      DateTime? latestLossTime;
       for (final entry in stats.entries) {
         if (entry.value['losses'] == maxLosses) {
-          titles.putIfAbsent(entry.key, () => []).add('💥 放槍王');
+          final lossTime = entry.value['lastLossTime'] as DateTime;
+          if (latestLossTime == null || lossTime.isAfter(latestLossTime)) {
+            lossKing = entry.key;
+            latestLossTime = lossTime;
+          }
         }
+      }
+      if (lossKing != null) {
+        titles.putIfAbsent(lossKing, () => []).add('💥 放槍王');
       }
     }
 

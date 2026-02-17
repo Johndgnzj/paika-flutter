@@ -254,12 +254,22 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     final players = game.players;
     final centerX = constraints.maxWidth / 2;
     final centerY = constraints.maxHeight / 2;
+    
+    // 偵測橫向模式
+    final isLandscape = constraints.maxWidth > constraints.maxHeight;
+    
     // 響應式卡片寬度：手機窄螢幕自動縮小
     final cardWidth = math.min(constraints.maxWidth * 0.28, 150.0);
     final scaleFactor = cardWidth / 150.0;
-    // 使用不同的水平/垂直半徑以適應不同螢幕方向
-    final radiusX = cardWidth * 0.6;
-    final radiusY = constraints.maxHeight * 0.33 * 0.6;
+    
+    // 響應式半徑：橫向模式時增加水平半徑，避免蓋住中央按鈕
+    final radiusX = isLandscape 
+        ? math.max(cardWidth * 1.2, constraints.maxWidth * 0.35)
+        : cardWidth * 0.6;
+    final radiusY = isLandscape
+        ? math.max(cardWidth * 0.8, constraints.maxHeight * 0.35)
+        : constraints.maxHeight * 0.33 * 0.6;
+    
     final halfCard = cardWidth * 0.5;
     final cardHeight = cardWidth * 1.2;
     
