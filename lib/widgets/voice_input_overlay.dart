@@ -6,6 +6,7 @@ class VoiceInputOverlay extends StatefulWidget {
   final bool isListening;
   final VoidCallback onCancel;
   final VoidCallback onRetry;
+  final VoidCallback onConfirm;
 
   const VoiceInputOverlay({
     super.key,
@@ -13,6 +14,7 @@ class VoiceInputOverlay extends StatefulWidget {
     required this.isListening,
     required this.onCancel,
     required this.onRetry,
+    required this.onConfirm,
   });
 
   @override
@@ -213,32 +215,6 @@ class _VoiceInputOverlayState extends State<VoiceInputOverlay>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // 取消按鈕
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: widget.onCancel,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey.withValues(alpha: 0.8),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              elevation: 8,
-                            ),
-                            icon: const Icon(Icons.close, size: 24),
-                            label: const Text(
-                              '取消',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        
-                        const SizedBox(width: 16),
-                        
                         // 重新輸入按鈕
                         Expanded(
                           child: ElevatedButton.icon(
@@ -256,6 +232,34 @@ class _VoiceInputOverlayState extends State<VoiceInputOverlay>
                             icon: const Icon(Icons.refresh, size: 24),
                             label: const Text(
                               '重新輸入',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 16),
+                        
+                        // 確認按鈕
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: widget.recognizedText.isNotEmpty ? widget.onConfirm : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.withValues(alpha: 0.9),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.withValues(alpha: 0.5),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 8,
+                              shadowColor: Colors.green,
+                            ),
+                            icon: const Icon(Icons.check, size: 24),
+                            label: const Text(
+                              '確認',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,

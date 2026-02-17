@@ -164,6 +164,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               await Future.delayed(const Duration(milliseconds: 300));
               _toggleVoiceScoring(); // 重新開始
             },
+            onConfirm: () async {
+              // 確認並處理語音輸入
+              final text = _currentRecognizedText;
+              setState(() {
+                _isListening = false;
+                _currentRecognizedText = '';
+              });
+              await _speech.stop();
+              if (text.isNotEmpty) {
+                _processVoiceInput(text);
+              }
+            },
           ),
       ],
     );

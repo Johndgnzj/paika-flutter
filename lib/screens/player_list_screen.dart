@@ -60,12 +60,56 @@ class PlayerListScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // 檢測是否有自己的玩家資訊
+              if (selfProfile.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber, width: 2),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.person_add_alt_1, size: 48, color: Colors.amber),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '尚未建立自己的玩家資訊',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '建立後可以追蹤你的戰績和統計',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddSelfDialog(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('建立我的資訊'),
+                      ),
+                    ],
+                  ),
+                ),
+
               // 自己的檔案置頂
               for (final profile in selfProfile)
                 _buildProfileCard(context, profile, provider),
 
               // 分隔線
-              if (selfProfile.isNotEmpty) ...[
+              if (selfProfile.isNotEmpty && otherProfiles.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -337,6 +381,73 @@ class PlayerListScreen extends StatelessWidget {
                     Navigator.pop(dialogContext);
                   },
                   child: const Text('新增'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddSelfDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    String selectedEmoji = AppConstants.defaultEmojis[0];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('建立我的玩家資訊'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      _showEmojiPicker(context, selectedEmoji, (emoji) {
+                        setDialogState(() => selectedEmoji = emoji);
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: '你的名稱',
+                      border: OutlineInputBorder(),
+                      helperText: '這將成為你的玩家資訊',
+                    ),
+                    autofocus: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+                    context.read<GameProvider>().addPlayerProfile(
+                      name, 
+                      selectedEmoji,
+                      isSelf: true, // 設定為自己
+                    );
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('建立'),
                 ),
               ],
             );
