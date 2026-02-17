@@ -180,12 +180,12 @@ class VoiceScoringService {
     return null;
   }
 
-  /// 根據名稱或風位找玩家
+  /// 根據名稱或風位找玩家（智慧對應）
   static Player? _findPlayer(String identifier, Game game) {
     identifier = identifier.trim();
     if (identifier.isEmpty) return null;
 
-    // 1. 檢查是否為風位
+    // 1. 檢查是否為風位（完整對應）
     final windMap = {
       '東': 0, '東家': 0,
       '南': 1, '南家': 1,
@@ -195,7 +195,6 @@ class VoiceScoringService {
 
     if (windMap.containsKey(identifier)) {
       final seatIndex = windMap[identifier]!;
-      // players 的 index 就是座位
       if (seatIndex < game.players.length) {
         return game.players[seatIndex];
       }
@@ -206,22 +205,136 @@ class VoiceScoringService {
       return game.dealer;
     }
 
-    // 3. 模糊匹配玩家名稱
+    // 3. 精確匹配玩家名稱
     for (final player in game.players) {
-      // 完全匹配
       if (player.name == identifier) {
         return player;
       }
-      // 部分匹配（玩家名稱包含輸入文字）
+    }
+
+    // 4. 部分匹配（玩家名稱包含輸入文字）
+    for (final player in game.players) {
       if (player.name.contains(identifier)) {
         return player;
       }
-      // 反向匹配（輸入文字包含玩家名稱）
+    }
+
+    // 5. 反向匹配（輸入文字包含玩家名稱）
+    for (final player in game.players) {
       if (identifier.contains(player.name)) {
         return player;
       }
     }
 
+    // 6. 模糊匹配（編輯距離 ≤ 2）
+    Player? bestMatch;
+    int bestDistance = 999;
+
+    for (final player in game.players) {
+      final distance = _levenshteinDistance(identifier, player.name);
+      
+      // 允許的誤差：名字越長容錯率越高
+      final maxAllowedDistance = (player.name.length / 3).ceil().clamp(1, 3);
+      
+      if (distance <= maxAllowedDistance && distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = player;
+      }
+    }
+
+    if (bestMatch != null) {
+      return bestMatch;
+    }
+
+    // 7. 音似匹配（檢查常見語音辨識錯誤）
+    final phoneSimilarMap = {
+      '明': ['名', '銘', '鳴'],
+      '華': ['花', '話', '畫'],
+      '傑': ['杰', '結', '潔'],
+      '宇': ['雨', '羽', '語'],
+      '林': ['琳', '霖'],
+      '家': ['加', '佳'],
+    };
+
+    for (final player in game.players) {
+      if (_isPhoneticallySimilar(identifier, player.name, phoneSimilarMap)) {
+        return player;
+      }
+    }
+
     return null;
+  }
+
+  /// 計算 Levenshtein Distance（編輯距離）
+  static int _levenshteinDistance(String s1, String s2) {
+    if (s1 == s2) return 0;
+    if (s1.isEmpty) return s2.length;
+    if (s2.isEmpty) return s1.length;
+
+    final len1 = s1.length;
+    final len2 = s2.length;
+    
+    // 使用動態規劃計算
+    List<List<int>> dp = List.generate(
+      len1 + 1,
+      (i) => List.filled(len2 + 1, 0),
+    );
+
+    for (int i = 0; i <= len1; i++) {
+      dp[i][0] = i;
+    }
+    for (int j = 0; j <= len2; j++) {
+      dp[0][j] = j;
+    }
+
+    for (int i = 1; i <= len1; i++) {
+      for (int j = 1; j <= len2; j++) {
+        if (s1[i - 1] == s2[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1];
+        } else {
+          dp[i][j] = 1 + [
+            dp[i - 1][j],     // 刪除
+            dp[i][j - 1],     // 插入
+            dp[i - 1][j - 1], // 替換
+          ].reduce((a, b) => a < b ? a : b);
+        }
+      }
+    }
+
+    return dp[len1][len2];
+  }
+
+  /// 檢查是否音似（語音辨識容易混淆的字）
+  static bool _isPhoneticallySimilar(
+    String input,
+    String target,
+    Map<String, List<String>> similarMap,
+  ) {
+    if (input.length != target.length) return false;
+
+    for (int i = 0; i < input.length; i++) {
+      final inputChar = input[i];
+      final targetChar = target[i];
+
+      if (inputChar == targetChar) continue;
+
+      // 檢查是否在音似對應表中
+      bool found = false;
+      for (final entry in similarMap.entries) {
+        final key = entry.key;
+        final similars = entry.value;
+
+        if ((inputChar == key && similars.contains(targetChar)) ||
+            (targetChar == key && similars.contains(inputChar)) ||
+            (similars.contains(inputChar) && similars.contains(targetChar))) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) return false;
+    }
+
+    return true;
   }
 }

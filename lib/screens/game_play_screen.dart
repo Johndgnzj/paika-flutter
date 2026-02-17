@@ -13,6 +13,7 @@ import '../widgets/multi_win_dialog.dart';
 import '../widgets/swap_position_dialog.dart';
 import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
+import '../widgets/voice_input_overlay.dart';
 import 'game_detail_screen.dart';
 
 class GamePlayScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class GamePlayScreen extends StatefulWidget {
 class _GamePlayScreenState extends State<GamePlayScreen> {
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  String _currentRecognizedText = '';
 
   @override
   void initState() {
@@ -33,27 +35,29 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Consumer<GameProvider>(
-          builder: (context, provider, _) {
-            final game = provider.currentGame;
-            if (game == null) return const Text('遊戲');
-            
-            return Text(
-              '${game.currentWindDisplay}${game.consecutiveWins > 0 ? " 連${game.consecutiveWins}" : ""}',
-            );
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isListening ? Icons.mic : Icons.mic_none,
-              color: _isListening ? Colors.red : null,
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: Consumer<GameProvider>(
+              builder: (context, provider, _) {
+                final game = provider.currentGame;
+                if (game == null) return const Text('遊戲');
+                
+                return Text(
+                  '${game.currentWindDisplay}${game.consecutiveWins > 0 ? " 連${game.consecutiveWins}" : ""}',
+                );
+              },
             ),
-            onPressed: _toggleVoiceScoring,
-            tooltip: '語音記分',
-          ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  _isListening ? Icons.mic : Icons.mic_none,
+                  color: _isListening ? Colors.red : null,
+                ),
+                onPressed: _toggleVoiceScoring,
+                tooltip: '語音記分',
+              ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
@@ -129,16 +133,29 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           ),
         ],
       ),
-      body: Consumer<GameProvider>(
-        builder: (context, provider, _) {
-          final game = provider.currentGame;
-          if (game == null) {
-            return const Center(child: Text('沒有進行中的遊戲'));
-          }
+          body: Consumer<GameProvider>(
+            builder: (context, provider, _) {
+              final game = provider.currentGame;
+              if (game == null) {
+                return const Center(child: Text('沒有進行中的遊戲'));
+              }
 
-          return _buildMahjongTable(game);
-        },
-      ),
+              return _buildMahjongTable(game);
+            },
+          ),
+        ),
+        
+        // 語音輸入視覺反饋 overlay
+        if (_isListening)
+          VoiceInputOverlay(
+            recognizedText: _currentRecognizedText,
+            isListening: _isListening,
+            onCancel: () async {
+              setState(() => _isListening = false);
+              await _speech.stop();
+            },
+          ),
+      ],
     );
   }
 
@@ -451,7 +468,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   void _toggleVoiceScoring() async {
     if (_isListening) {
       // 停止錄音
-      setState(() => _isListening = false);
+      setState(() {
+        _isListening = false;
+        _currentRecognizedText = '';
+      });
       await _speech.stop();
     } else {
       // 開始錄音
@@ -462,7 +482,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           }
         },
         onError: (error) {
-          setState(() => _isListening = false);
+          setState(() {
+            _isListening = false;
+            _currentRecognizedText = '';
+          });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('語音辨識錯誤: ${error.errorMsg}')),
@@ -480,10 +503,19 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         return;
       }
 
-      setState(() => _isListening = true);
+      setState(() {
+        _isListening = true;
+        _currentRecognizedText = '';
+      });
 
       await _speech.listen(
         onResult: (result) {
+          // 即時更新辨識文字
+          setState(() {
+            _currentRecognizedText = result.recognizedWords;
+          });
+
+          // 最終結果才處理
           if (result.finalResult) {
             _processVoiceInput(result.recognizedWords);
           }
@@ -493,15 +525,6 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           listenMode: stt.ListenMode.confirmation,
         ),
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('請說話... 例如：「小明胡阿華5台」或「莊家自摸3台」'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
     }
   }
 
