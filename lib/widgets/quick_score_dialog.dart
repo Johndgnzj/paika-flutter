@@ -66,38 +66,54 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 標題
-              Row(
-                children: [
-                  Text(
-                    widget.selectedPlayer.emoji,
-                    style: const TextStyle(fontSize: 32),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.selectedPlayer.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+              // 標題（使用 Consumer 動態更新）
+              Consumer<GameProvider>(
+                builder: (context, gameProvider, _) {
+                  // 從當前遊戲取得最新的 player 資料
+                  Player currentPlayer = widget.selectedPlayer;
+                  if (gameProvider.currentGame != null) {
+                    try {
+                      currentPlayer = gameProvider.currentGame!.players
+                          .firstWhere((p) => p.id == widget.selectedPlayer.id);
+                    } catch (e) {
+                      // 找不到就用原本的
+                      currentPlayer = widget.selectedPlayer;
+                    }
+                  }
+                  
+                  return Row(
+                    children: [
+                      Text(
+                        currentPlayer.emoji,
+                        style: const TextStyle(fontSize: 32),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentPlayer.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 20),
-                    onPressed: () => _showEditPlayerNameDialog(context),
-                    tooltip: '修改名稱',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: () => _showEditPlayerNameDialog(context),
+                        tooltip: '修改名稱',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  );
+                },
               ),
               
               const Divider(),
@@ -488,11 +504,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
               );
               
               Navigator.pop(dialogContext);
-              
-              // 重新整理父對話框
-              if (mounted) {
-                setState(() {});
-              }
+              // Consumer 會自動更新，不需要 setState
             },
             child: const Text('確認'),
           ),

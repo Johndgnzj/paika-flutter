@@ -555,10 +555,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             _currentRecognizedText = result.recognizedWords;
           });
 
-          // 最終結果才處理
-          if (result.finalResult) {
-            _processVoiceInput(result.recognizedWords);
-          }
+          // 不在這裡自動處理，等使用者點擊「確認」
         },
         localeId: 'zh_TW',
         listenOptions: stt.SpeechListenOptions(
