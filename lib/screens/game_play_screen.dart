@@ -151,8 +151,18 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             recognizedText: _currentRecognizedText,
             isListening: _isListening,
             onCancel: () async {
-              setState(() => _isListening = false);
+              setState(() {
+                _isListening = false;
+                _currentRecognizedText = '';
+              });
               await _speech.stop();
+            },
+            onRetry: () async {
+              // 重新開始語音辨識
+              setState(() => _currentRecognizedText = '');
+              await _speech.stop();
+              await Future.delayed(const Duration(milliseconds: 300));
+              _toggleVoiceScoring(); // 重新開始
             },
           ),
       ],
