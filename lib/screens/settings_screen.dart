@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/game_provider.dart';
+import '../services/auth_service.dart';
 import '../services/export_service.dart';
 import '../utils/legal_texts.dart';
 import '../widgets/animation_helpers.dart';
@@ -55,6 +56,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context, provider, _) {
           return ListView(
             children: [
+              // 帳號資訊
+              _buildSectionHeader('帳號'),
+              Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  final name = auth.displayName ?? '';
+                  final email = auth.email ?? '';
+                  final initial = (name.isNotEmpty
+                          ? name[0]
+                          : email.isNotEmpty
+                              ? email[0]
+                              : '?')
+                      .toUpperCase();
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      name.isNotEmpty ? name : '（未設定名稱）',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(email),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+
               // 遊戲規則
               _buildSectionHeader('遊戲規則'),
 

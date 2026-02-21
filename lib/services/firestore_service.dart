@@ -131,6 +131,61 @@ class FirestoreService {
     return list.map((p) => Player.fromJson(p as Map<String, dynamic>)).toList();
   }
 
+  // --- Real-time Streams ---
+
+  /// 即時監聽牌局變化
+  static Stream<List<Game>> gamesStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc.collection('games').snapshots().map(
+          (snapshot) =>
+              snapshot.docs.map((d) => Game.fromJson(d.data())).toList(),
+        );
+  }
+
+  /// 即時監聽玩家檔案變化
+  static Stream<List<PlayerProfile>> playerProfilesStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc.collection('playerProfiles').snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((d) => PlayerProfile.fromJson(d.data()))
+              .toList(),
+        );
+  }
+
+  /// 即時監聽快速選擇列表變化
+  static Stream<List<Player>> savedPlayersStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc
+        .collection('savedPlayers')
+        .doc('default')
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return <Player>[];
+      final data = snapshot.data()!;
+      final list = data['players'] as List? ?? [];
+      return list
+          .map((p) => Player.fromJson(p as Map<String, dynamic>))
+          .toList();
+    });
+  }
+
+  /// 即時監聽設定變化
+  static Stream<GameSettings?> settingsStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc
+        .collection('settings')
+        .doc('default')
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return GameSettings.fromJson(snapshot.data()!);
+    });
+  }
+
   // --- Sync ---
 
   /// 從雲端同步所有資料到本地（回傳各類資料供呼叫端寫入 SharedPreferences）

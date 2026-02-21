@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game.dart';
@@ -26,6 +28,12 @@ class GameProvider with ChangeNotifier {
   String? _error;
   String? _currentAccountId;
   String? _pendingSelfProfileName;  // 註冊時暫存，由 _initializeForAccount 統一建立
+
+  // Real-time Firestore 監聽器
+  StreamSubscription<List<Game>>? _gamesSubscription;
+  StreamSubscription<List<PlayerProfile>>? _profilesSubscription;
+  StreamSubscription<List<Player>>? _savedPlayersSubscription;
+  StreamSubscription<GameSettings?>? _settingsSubscription;
 
   final _uuid = const Uuid();
 
@@ -108,6 +116,11 @@ class GameProvider with ChangeNotifier {
 
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
+
+      // 啟動 real-time 監聽器，讓跨裝置資料即時同步
+      if (FirebaseInitService.isInitialized) {
+        _startListeners(accountId);
+      }
     } catch (e) {
       _error = '載入資料失敗：$e';
     } finally {
@@ -117,6 +130,7 @@ class GameProvider with ChangeNotifier {
   }
 
   void _clearState() {
+    _cancelListeners();
     _currentGame = null;
     _gameHistory = [];
     _settings = const GameSettings();
@@ -125,6 +139,71 @@ class GameProvider with ChangeNotifier {
     _isLoading = false;
     _error = null;
     notifyListeners();
+  }
+
+  /// 啟動 Firestore real-time 監聽器（跨裝置即時同步）
+  void _startListeners(String accountId) {
+    _cancelListeners();
+
+    _gamesSubscription = FirestoreService.gamesStream().listen((remoteGames) {
+      // 合併：遠端有的覆蓋本地，本地獨有的保留
+      final localMap = <String, Game>{for (final g in _gameHistory) g.id: g};
+      for (final g in remoteGames) {
+        localMap[g.id] = g;
+      }
+      _gameHistory = localMap.values
+          .where((g) => g.accountId == accountId || g.accountId == null)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] games error: $e');
+    });
+
+    _profilesSubscription =
+        FirestoreService.playerProfilesStream().listen((profiles) {
+      if (profiles.isEmpty) return;
+      _playerProfiles = profiles;
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] profiles error: $e');
+    });
+
+    _savedPlayersSubscription =
+        FirestoreService.savedPlayersStream().listen((players) {
+      if (players.isEmpty) return;
+      _savedPlayers = players;
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] savedPlayers error: $e');
+    });
+
+    _settingsSubscription =
+        FirestoreService.settingsStream().listen((settings) {
+      if (settings == null) return;
+      _settings = settings;
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] settings error: $e');
+    });
+  }
+
+  /// 取消所有 Firestore 監聽器
+  void _cancelListeners() {
+    _gamesSubscription?.cancel();
+    _profilesSubscription?.cancel();
+    _savedPlayersSubscription?.cancel();
+    _settingsSubscription?.cancel();
+    _gamesSubscription = null;
+    _profilesSubscription = null;
+    _savedPlayersSubscription = null;
+    _settingsSubscription = null;
+  }
+
+  @override
+  void dispose() {
+    _cancelListeners();
+    super.dispose();
   }
 
   /// 初始化（載入資料）— 保留向後相容（無帳號時也能載入主題）
