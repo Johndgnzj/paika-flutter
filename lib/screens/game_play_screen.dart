@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../providers/game_provider.dart';
@@ -37,8 +36,6 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   Timer? _monitorTimer;
   int _monitorCountdown = 10;
   bool _isMonitorRefreshing = false;
-  DateTime? _monitorLastUpdated;
-  Game? _monitorGame;
 
   @override
   void initState() {
@@ -58,19 +55,16 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     _monitorTimer?.cancel();
     setState(() {
       _isMonitorMode = true;
-      _monitorGame = game;
-      _monitorLastUpdated = DateTime.now();
       _monitorCountdown = 10;
       _isMonitorRefreshing = false;
     });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _monitorTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
         _monitorCountdown--;
         if (_monitorCountdown <= 0) {
           _monitorCountdown = 10;
-          _monitorRefresh();
+          _monitorRefresh(game.id);
         }
       });
     });
@@ -79,24 +73,15 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   void _exitMonitorMode() {
     _monitorTimer?.cancel();
     _monitorTimer = null;
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    setState(() {
-      _isMonitorMode = false;
-      _monitorGame = null;
-    });
+    setState(() => _isMonitorMode = false);
   }
 
-  Future<void> _monitorRefresh() async {
-    if (_isMonitorRefreshing || _monitorGame == null) return;
+  Future<void> _monitorRefresh(String gameId) async {
+    if (_isMonitorRefreshing) return;
     setState(() => _isMonitorRefreshing = true);
     try {
-      final game = await FirestoreService.loadGame(_monitorGame!.id);
-      if (game != null && mounted) {
-        setState(() {
-          _monitorGame = game;
-          _monitorLastUpdated = DateTime.now();
-        });
-      }
+      // 從 Firestore 拉最新資料（real-time listener 已在跑，這是額外保險）
+      await FirestoreService.loadGame(gameId);
     } finally {
       if (mounted) setState(() => _isMonitorRefreshing = false);
     }
@@ -257,235 +242,54 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             },
           ),
 
-        // 監測模式 overlay（蓋住整個畫面）
-        if (_isMonitorMode && _monitorGame != null)
-          _buildMonitorOverlay(_monitorGame!),
+        // 監測模式 badge（右下角小標示）
+        if (_isMonitorMode)
+          Positioned(
+            right: 12,
+            bottom: 20,
+            child: _buildMonitorBadge(),
+          ),
       ],
     );
   }
 
-  // --- 監測模式 UI ---
-
-  Widget _buildMonitorOverlay(Game game) {
-    final scores = game.currentScores;
-    final players = game.players;
-    final ranked = List<Player>.from(players)
-      ..sort((a, b) => (scores[b.id] ?? 0).compareTo(scores[a.id] ?? 0));
-
-    return Material(
-      color: Colors.black,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Column(
-            children: [
-              // Header
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        game.currentWindDisplay,
-                        style: const TextStyle(
-                          color: Colors.amber,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      Text(
-                        '共 ${game.rounds.length} 局',
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  // 倒數 + 手動刷新 + 退出
-                  _isMonitorRefreshing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.amber,
-                          ),
-                        )
-                      : Text(
-                          '$_monitorCountdown s',
-                          style:
-                              const TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.refresh,
-                        color: Colors.grey, size: 20),
-                    tooltip: '立即更新',
-                    onPressed: () {
-                      setState(() => _monitorCountdown = 10);
-                      _monitorRefresh();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_note,
-                        color: Colors.white70, size: 22),
-                    tooltip: '返回記分',
-                    onPressed: _exitMonitorMode,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 記分卡
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.15,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: ranked.asMap().entries.map((e) {
-                    final rank = e.key;
-                    final player = e.value;
-                    final score = scores[player.id] ?? 0;
-                    final isDealer =
-                        game.dealerSeat == players.indexOf(player);
-                    return _buildMonitorCard(
-                      player: player,
-                      score: score,
-                      isDealer: isDealer,
-                      rank: rank,
-                      total: ranked.length,
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 6),
-              // Footer
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.access_time,
-                      color: Colors.grey, size: 12),
-                  const SizedBox(width: 4),
-                  Text(
-                    _monitorLastUpdated != null
-                        ? '最後更新：${_formatMonitorTime(_monitorLastUpdated!)}'
-                        : '更新中...',
-                    style:
-                        const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonitorCard({
-    required Player player,
-    required int score,
-    required bool isDealer,
-    required int rank,
-    required int total,
-  }) {
-    final Color bgColor;
-    final Color scoreColor;
-    if (rank == 0) {
-      bgColor = const Color(0xFF0D2B0D);
-      scoreColor = Colors.greenAccent;
-    } else if (rank == total - 1) {
-      bgColor = const Color(0xFF2B0D0D);
-      scoreColor = Colors.redAccent;
-    } else {
-      bgColor = const Color(0xFF0D0D2B);
-      scoreColor = Colors.white;
-    }
-
+  Widget _buildMonitorBadge() {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: isDealer
-            ? Border.all(color: Colors.amber, width: 2)
-            : Border.all(color: Colors.white12),
+        color: Colors.black.withOpacity(0.75),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24),
       ),
-      child: Stack(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Positioned(
-            top: 10,
-            left: 12,
-            child: Text(
-              '#${rank + 1}',
-              style: TextStyle(
-                color: rank == 0 ? Colors.greenAccent : Colors.white30,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+          _isMonitorRefreshing
+              ? const SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: Colors.greenAccent,
+                  ),
+                )
+              : const Icon(Icons.sync, color: Colors.greenAccent, size: 12),
+          const SizedBox(width: 5),
+          Text(
+            '自動更新 ${_monitorCountdown}s',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
             ),
           ),
-          if (isDealer)
-            Positioned(
-              top: 8,
-              right: 10,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.amber,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '莊',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(player.emoji,
-                    style: const TextStyle(fontSize: 30)),
-                const SizedBox(height: 4),
-                Text(
-                  player.name,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  score > 0 ? '+$score' : '$score',
-                  style: TextStyle(
-                    color: scoreColor,
-                    fontSize: 38,
-                    fontWeight: FontWeight.bold,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: _exitMonitorMode,
+            child: const Icon(Icons.close, color: Colors.white38, size: 13),
           ),
         ],
       ),
     );
-  }
-
-  String _formatMonitorTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    return '$h:$m:$s';
   }
 
   Widget _buildMahjongTable(Game game) {
