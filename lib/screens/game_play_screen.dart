@@ -15,6 +15,7 @@ import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
 import '../widgets/voice_input_overlay.dart';
 import 'game_detail_screen.dart';
+import 'monitor_screen.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -58,6 +59,26 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 ),
                 onPressed: _toggleVoiceScoring,
                 tooltip: '語音記分',
+              ),
+              Consumer<GameProvider>(
+                builder: (context, provider, _) {
+                  final game = provider.currentGame;
+                  if (game == null) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: const Icon(Icons.monitor),
+                    tooltip: '監測模式',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MonitorScreen(
+                            gameId: game.id,
+                            initialGame: game,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
           PopupMenuButton<String>(
             onSelected: (value) {

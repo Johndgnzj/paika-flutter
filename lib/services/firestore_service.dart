@@ -43,6 +43,16 @@ class FirestoreService {
     await doc.collection('games').doc(game.id).set(game.toJson());
   }
 
+  /// 載入單一牌局（監測模式用）
+  static Future<Game?> loadGame(String gameId) async {
+    final doc = _userDoc;
+    if (doc == null) return null;
+
+    final snapshot = await doc.collection('games').doc(gameId).get();
+    if (!snapshot.exists) return null;
+    return Game.fromJson(snapshot.data()!);
+  }
+
   /// 載入所有牌局
   static Future<List<Game>> loadGames() async {
     final doc = _userDoc;
