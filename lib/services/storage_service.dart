@@ -98,11 +98,13 @@ class StorageService {
     _syncToCloudAsync(() => FirestoreService.deleteGame(gameId));
   }
 
-  /// 儲存當前進行中的遊戲（帳號隔離）
+  /// 儲存當前進行中的遊戲（帳號隔離 + Firestore 同步）
   static Future<void> saveCurrentGame(Game game, {required String accountId}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_currentGameKey(accountId), jsonEncode(game.toJson()));
     await saveGame(game);
+    // 同步 currentGameId 到 Firestore，讓其他設備知道有進行中的牌局
+    _syncToCloudAsync(() => FirestoreService.saveCurrentGameId(game.id));
   }
 
   /// 載入當前進行中的遊戲（帳號隔離）
@@ -124,6 +126,8 @@ class StorageService {
   static Future<void> clearCurrentGame({required String accountId}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_currentGameKey(accountId));
+    // 清除 Firestore 的 currentGameId
+    _syncToCloudAsync(() => FirestoreService.saveCurrentGameId(null));
   }
 
   /// 儲存玩家列表（帳號隔離）

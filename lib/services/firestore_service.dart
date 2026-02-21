@@ -141,7 +141,51 @@ class FirestoreService {
     return list.map((p) => Player.fromJson(p as Map<String, dynamic>)).toList();
   }
 
+  // --- Current Game ---
+
+  /// 儲存目前進行中的牌局 ID（null 表示無進行中牌局）
+  static Future<void> saveCurrentGameId(String? gameId) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+    await doc.set({'currentGameId': gameId}, SetOptions(merge: true));
+  }
+
+  /// 讀取目前進行中的牌局 ID
+  static Future<String?> loadCurrentGameId() async {
+    final doc = _userDoc;
+    if (doc == null) return null;
+    final snapshot = await doc.get();
+    if (!snapshot.exists) return null;
+    final data = snapshot.data() as Map<String, dynamic>?;
+    return data?['currentGameId'] as String?;
+  }
+
   // --- Real-time Streams ---
+
+  /// 即時監聽 currentGameId 變化（跨裝置同步進行中牌局）
+  static Stream<String?> currentGameIdStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc.snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      final data = snapshot.data() as Map<String, dynamic>?;
+      return data?['currentGameId'] as String?;
+    });
+  }
+
+  /// 即時監聽特定牌局內容變化
+  static Stream<Game?> gameStream(String gameId) {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc
+        .collection('games')
+        .doc(gameId)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return Game.fromJson(snapshot.data()!);
+    });
+  }
 
   /// 即時監聽牌局變化
   static Stream<List<Game>> gamesStream() {

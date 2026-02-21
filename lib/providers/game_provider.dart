@@ -34,6 +34,8 @@ class GameProvider with ChangeNotifier {
   StreamSubscription<List<PlayerProfile>>? _profilesSubscription;
   StreamSubscription<List<Player>>? _savedPlayersSubscription;
   StreamSubscription<GameSettings?>? _settingsSubscription;
+  StreamSubscription<String?>? _currentGameIdSubscription;
+  StreamSubscription<Game?>? _currentGameSubscription;
 
   final _uuid = const Uuid();
 
@@ -92,6 +94,14 @@ class GameProvider with ChangeNotifier {
       _gameHistory = await StorageService.loadGames(accountId: accountId);
       _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
       _playerProfiles = await StorageService.loadPlayerProfiles(accountId: accountId);
+
+      // 若本地沒有 currentGame，嘗試從 Firestore 拿（另一台設備開了牌局）
+      if (_currentGame == null && FirebaseInitService.isInitialized) {
+        final gameId = await FirestoreService.loadCurrentGameId();
+        if (gameId != null) {
+          _currentGame = await FirestoreService.loadGame(gameId);
+        }
+      }
 
       // 1. 處理註冊時暫存的自己玩家檔案
       if (_pendingSelfProfileName != null && _pendingSelfProfileName!.isNotEmpty) {
@@ -186,6 +196,39 @@ class GameProvider with ChangeNotifier {
     }, onError: (e) {
       if (kDebugMode) print('[Listener] settings error: $e');
     });
+
+    // 監聽 currentGameId：讓另一台設備知道有進行中的牌局
+    _currentGameIdSubscription =
+        FirestoreService.currentGameIdStream().listen((gameId) {
+      if (gameId == null) {
+        // 另一台設備結束了牌局
+        if (_currentGame != null) {
+          _currentGame = null;
+          notifyListeners();
+        }
+        _currentGameSubscription?.cancel();
+        _currentGameSubscription = null;
+      } else if (_currentGame?.id != gameId) {
+        // 有新的進行中牌局，開始監聽其內容
+        _subscribeToCurrentGame(gameId);
+      }
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] currentGameId error: $e');
+    });
+  }
+
+  /// 監聽特定進行中牌局的即時更新（只更新記憶體，不回寫 Firestore 避免循環）
+  void _subscribeToCurrentGame(String gameId) {
+    _currentGameSubscription?.cancel();
+    _currentGameSubscription =
+        FirestoreService.gameStream(gameId).listen((game) {
+      if (game == null) return;
+      // 只更新記憶體狀態，重啟時由 syncFromCloud 處理持久化
+      _currentGame = game;
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] currentGame error: $e');
+    });
   }
 
   /// 取消所有 Firestore 監聽器
@@ -194,10 +237,14 @@ class GameProvider with ChangeNotifier {
     _profilesSubscription?.cancel();
     _savedPlayersSubscription?.cancel();
     _settingsSubscription?.cancel();
+    _currentGameIdSubscription?.cancel();
+    _currentGameSubscription?.cancel();
     _gamesSubscription = null;
     _profilesSubscription = null;
     _savedPlayersSubscription = null;
     _settingsSubscription = null;
+    _currentGameIdSubscription = null;
+    _currentGameSubscription = null;
   }
 
   @override
