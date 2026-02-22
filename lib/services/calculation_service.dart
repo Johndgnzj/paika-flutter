@@ -48,26 +48,53 @@ class CalculationService {
     final settings = game.settings;
     final totalTai = tai + flowers;
     
-    // 檢查是否莊家自摸
     final dealer = game.dealer;
-    final isDealer = (winnerId == dealer.id);
-    
-    final score = settings.calculateScore(
-      totalTai,
-      isSelfDraw: true,
-      isDealer: isDealer,
-      consecutiveWins: isDealer ? game.consecutiveWins : 0,
-    );
+    final isWinnerDealer = (winnerId == dealer.id);
     
     final changes = <String, int>{};
-    for (var player in game.players) {
-      if (player.id == winnerId) {
-        // 贏家拿三家的錢
-        changes[player.id] = score * 3;
-      } else {
-        // 其他人各付
-        changes[player.id] = -score;
+    
+    if (isWinnerDealer) {
+      // 莊家自摸：三家各付相同金額（含莊家倍＋連莊）
+      final score = settings.calculateScore(
+        totalTai,
+        isSelfDraw: true,
+        isDealer: true,
+        consecutiveWins: game.consecutiveWins,
+      );
+      for (var player in game.players) {
+        if (player.id == winnerId) {
+          changes[player.id] = score * 3;
+        } else {
+          changes[player.id] = -score;
+        }
       }
+    } else {
+      // 非莊家自摸：莊家付「莊家倍＋連莊」，閒家付基本分
+      final dealerScore = settings.calculateScore(
+        totalTai,
+        isSelfDraw: true,
+        isDealer: true,
+        consecutiveWins: game.consecutiveWins,
+      );
+      final nonDealerScore = settings.calculateScore(
+        totalTai,
+        isSelfDraw: true,
+        isDealer: false,
+        consecutiveWins: 0,
+      );
+      
+      int winnerTotal = 0;
+      for (var player in game.players) {
+        if (player.id == winnerId) continue;
+        if (player.id == dealer.id) {
+          changes[player.id] = -dealerScore;
+          winnerTotal += dealerScore;
+        } else {
+          changes[player.id] = -nonDealerScore;
+          winnerTotal += nonDealerScore;
+        }
+      }
+      changes[winnerId] = winnerTotal;
     }
     
     return changes;

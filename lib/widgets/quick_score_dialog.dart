@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/game.dart';
@@ -124,16 +125,16 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
               
               const SizedBox(height: 24),
               
-              // 台數選擇
-              _buildTaiSelection(),
-              
-              const SizedBox(height: 24),
-              
-              // 放槍者選擇（胡牌時顯示）
+              // 放槍者選擇（胡牌時顯示，移到台數前）
               if (_scoreType == 'win') ...[
                 _buildLoserSelection(),
                 const SizedBox(height: 24),
               ],
+
+              // 台數選擇
+              _buildTaiSelection(),
+              
+              const SizedBox(height: 24),
               
               // 計算預覽
               if (_canCalculate()) ...[
@@ -252,26 +253,34 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
         
         const SizedBox(height: 12),
         
-        // 台數選單 (0-99)
-        DropdownButtonFormField<int>(
-          initialValue: _tai,
-          decoration: const InputDecoration(
-            labelText: '選擇台數',
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: List.generate(100, (index) {
-            return DropdownMenuItem(
-              value: index,
-              child: Text('$index 台'),
+        // 台數選單 (0-99)，高度限制 1/3 螢幕，最小顯示 5 項
+        Builder(
+          builder: (ctx) {
+            final screenHeight = MediaQuery.of(ctx).size.height;
+            const itemHeight = 48.0;
+            final maxHeight = math.max(screenHeight / 3, itemHeight * 5);
+            return DropdownButtonFormField<int>(
+              initialValue: _tai,
+              menuMaxHeight: maxHeight,
+              decoration: const InputDecoration(
+                labelText: '選擇台數',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: List.generate(100, (index) {
+                return DropdownMenuItem(
+                  value: index,
+                  child: Text('$index 台'),
+                );
+              }),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _tai = value;
+                  });
+                }
+              },
             );
-          }),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() {
-                _tai = value;
-              });
-            }
           },
         ),
       ],
@@ -300,11 +309,12 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(player.emoji, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 4),
-                  Text(player.name),
+                  Text(player.emoji, style: const TextStyle(fontSize: 20.7)), // +15%
+                  const SizedBox(width: 5),
+                  Text(player.name, style: const TextStyle(fontSize: 16.1)),  // +15%
                 ],
               ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // +15%
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
@@ -326,15 +336,36 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
     String previewText = '';
     
     if (_scoreType == 'selfDraw') {
-      final isDealer = (widget.selectedPlayer.id == dealer.id);
-      previewText = CalculationService.getScorePreview(
-        settings: settings,
-        tai: _tai,
-        flowers: 0,
-        isSelfDraw: true,
-        isDealer: isDealer,
-        consecutiveWins: isDealer ? consecutiveWins : 0,
-      );
+      final isWinnerDealer = (widget.selectedPlayer.id == dealer.id);
+      if (isWinnerDealer) {
+        // 莊家自摸：三家各付相同
+        previewText = CalculationService.getScorePreview(
+          settings: settings,
+          tai: _tai,
+          flowers: 0,
+          isSelfDraw: true,
+          isDealer: true,
+          consecutiveWins: consecutiveWins,
+        );
+      } else {
+        // 非莊家自摸：莊家付更多
+        final dealerScore = settings.calculateScore(
+          _tai,
+          isSelfDraw: true,
+          isDealer: true,
+          consecutiveWins: consecutiveWins,
+        );
+        final nonDealerScore = settings.calculateScore(
+          _tai,
+          isSelfDraw: true,
+          isDealer: false,
+          consecutiveWins: 0,
+        );
+        final winnerTotal = dealerScore + nonDealerScore * 2;
+        previewText = '非莊家自摸\n'
+            '莊家(${dealer.name}) 付 $dealerScore，閒家各付 $nonDealerScore\n'
+            '${widget.selectedPlayer.name} 共得 $winnerTotal';
+      }
     } else if (_scoreType == 'win' && _loser != null) {
       final isDealerInvolved = (widget.selectedPlayer.id == dealer.id || _loser!.id == dealer.id);
       final score = settings.calculateScore(

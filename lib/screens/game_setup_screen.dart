@@ -17,6 +17,7 @@ class GameSetupScreen extends StatefulWidget {
 
 class _GameSetupScreenState extends State<GameSetupScreen> {
   final _uuid = const Uuid();
+  bool _initialized = false;
   
   // 玩家資料
   late List<Player> _players;
@@ -33,7 +34,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   void initState() {
     super.initState();
 
-    // 初始化預設玩家
+    // 預設玩家（若無歷史紀錄時使用）
     _players = List.generate(4, (index) {
       return Player(
         id: _uuid.v4(),
@@ -45,6 +46,27 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
     _nameControllers = List.generate(4, (index) {
       return TextEditingController(text: _players[index].name);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+
+    // 從上一局載入玩家（若存在）
+    final history = Provider.of<GameProvider>(context, listen: false).gameHistory;
+    if (history.isNotEmpty) {
+      final lastGame = history.first; // 最新在前
+      for (int i = 0; i < 4 && i < lastGame.players.length; i++) {
+        _players[i] = Player(
+          id: _uuid.v4(), // 新 ID，避免與舊局衝突
+          name: lastGame.players[i].name,
+          emoji: lastGame.players[i].emoji,
+        );
+        _nameControllers[i].text = _players[i].name;
+      }
+    }
   }
 
   @override

@@ -443,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                '底${game.settings.baseScore} / ${game.rounds.length}局',
+                '${game.settings.baseScore}/${game.settings.perTai} - ${game.rounds.length} 局',
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 12),
