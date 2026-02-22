@@ -216,6 +216,10 @@ class Game {
     // 判斷是否連莊
     bool shouldContinueDealer = false;
     if (round.winnerId == dealer.id) {
+      // 放槍/自摸：單一贏家是莊家
+      shouldContinueDealer = true;
+    } else if (round.winnerIds.contains(dealer.id)) {
+      // 一炮多響：贏家之中有莊家
       shouldContinueDealer = true;
     } else if (round.type == RoundType.draw) {
       shouldContinueDealer = true;

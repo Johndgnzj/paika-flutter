@@ -4,7 +4,6 @@ import '../models/game.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
-import '../utils/constants.dart';
 
 /// 一炮多響對話框
 class MultiWinDialog extends StatefulWidget {
@@ -197,8 +196,8 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                   if (selected) {
                     _selectedWinners.add(player.id);
                     // 初始化預設值
-                    _taiMap[player.id] = 4;
-                    _flowerMap[player.id] = 0;
+                    _taiMap[player.id] = 0;
+                    _flowerMap[player.id] = 0; // 花牌固定 0，不開放輸入
                   } else {
                     _selectedWinners.remove(player.id);
                     _taiMap.remove(player.id);
@@ -254,10 +253,10 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
             ),
             const SizedBox(height: 12),
             
-            // 常用台數快選
+            // 台數快選 0-5
             Wrap(
               spacing: 8,
-              children: AppConstants.commonTai.map((tai) {
+              children: List.generate(6, (i) => i).map((tai) {
                 final isSelected = _taiMap[player.id] == tai;
                 return ChoiceChip(
                   label: Text('$tai台'),
@@ -273,53 +272,25 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
             
             const SizedBox(height: 8),
             
-            // 台數和花牌輸入
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '台數',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    controller: TextEditingController(
-                      text: _taiMap[player.id]?.toString() ?? '4',
-                    ),
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null) {
-                        setState(() {
-                          _taiMap[player.id] = parsed;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: '花牌',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    controller: TextEditingController(
-                      text: _flowerMap[player.id]?.toString() ?? '0',
-                    ),
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null) {
-                        setState(() {
-                          _flowerMap[player.id] = parsed;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ],
+            // 台數輸入（移除花牌）
+            TextField(
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: '台數',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              controller: TextEditingController(
+                text: _taiMap[player.id]?.toString() ?? '0',
+              ),
+              onChanged: (value) {
+                final parsed = int.tryParse(value);
+                if (parsed != null) {
+                  setState(() {
+                    _taiMap[player.id] = parsed;
+                  });
+                }
+              },
             ),
           ],
         ),
