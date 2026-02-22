@@ -333,14 +333,14 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
         flowers: 0,
         isSelfDraw: true,
         isDealer: isDealer,
-        consecutiveWins: consecutiveWins,
+        consecutiveWins: isDealer ? consecutiveWins : 0,
       );
     } else if (_scoreType == 'win' && _loser != null) {
       final isDealerInvolved = (widget.selectedPlayer.id == dealer.id || _loser!.id == dealer.id);
       final score = settings.calculateScore(
         _tai,
         isDealer: isDealerInvolved,
-        consecutiveWins: consecutiveWins,
+        consecutiveWins: isDealerInvolved ? consecutiveWins : 0,
       );
       previewText = CalculationService.getScorePreview(
         settings: settings,
@@ -348,7 +348,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
         flowers: 0,
         isSelfDraw: false,
         isDealer: isDealerInvolved,
-        consecutiveWins: consecutiveWins,
+        consecutiveWins: isDealerInvolved ? consecutiveWins : 0,
       );
       previewText = '$previewText\n${widget.selectedPlayer.name} +$score\n'
                     '${_loser!.name} -$score';

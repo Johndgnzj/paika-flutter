@@ -21,7 +21,7 @@ class CalculationService {
     final score = settings.calculateScore(
       totalTai,
       isDealer: isDealerInvolved,
-      consecutiveWins: game.consecutiveWins,
+      consecutiveWins: isDealerInvolved ? game.consecutiveWins : 0,
     );
     
     final changes = <String, int>{};
@@ -56,7 +56,7 @@ class CalculationService {
       totalTai,
       isSelfDraw: true,
       isDealer: isDealer,
-      consecutiveWins: game.consecutiveWins,
+      consecutiveWins: isDealer ? game.consecutiveWins : 0,
     );
     
     final changes = <String, int>{};
@@ -138,7 +138,7 @@ class CalculationService {
       final score = settings.calculateScore(
         tai + flowers,
         isDealer: isDealerInvolved,
-        consecutiveWins: game.consecutiveWins,
+        consecutiveWins: isDealerInvolved ? game.consecutiveWins : 0,
       );
       
       changes[winnerId] = (changes[winnerId] ?? 0) + score;

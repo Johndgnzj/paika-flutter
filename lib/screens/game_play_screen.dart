@@ -413,7 +413,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           break;
         case 3: // 座位3（下）
           left = centerX - halfCard;
-          top = centerY + radiusY - cardHeight * 0.1;
+          top = centerY + radiusY - cardHeight * 0.1 - cardHeight / 3;
           break;
         default:
           left = centerX;
