@@ -120,19 +120,13 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
               const Divider(),
               const SizedBox(height: 16),
               
-              // 記分類型選擇
-              _buildScoreTypeSelection(),
+              // 記分類型 + 放槍者選擇（合併）
+              _buildCombinedTypeSelection(),
               
               const SizedBox(height: 24),
-              
-              // 放槍者選擇（胡牌時顯示，移到台數前）
-              if (_scoreType == 'win') ...[
-                _buildLoserSelection(),
-                const SizedBox(height: 24),
-              ],
 
-              // 台數選擇
-              _buildTaiSelection(),
+              // 台數選擇（詐胡時隱藏）
+              if (_scoreType != 'falseWin') _buildTaiSelection(),
               
               const SizedBox(height: 24),
               
@@ -165,7 +159,12 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
     );
   }
 
-  Widget _buildScoreTypeSelection() {
+  /// 合併記分類型＋放槍者：自摸 | 玩家A | 玩家B | 玩家C | 詐胡
+  Widget _buildCombinedTypeSelection() {
+    final availablePlayers = widget.game.players
+        .where((p) => p.id != widget.selectedPlayer.id)
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -174,45 +173,57 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Expanded(
-              child: ChoiceChip(
-                label: const Text('胡牌'),
-                selected: _scoreType == 'win',
+            // 自摸
+            ChoiceChip(
+              label: const Text('自摸'),
+              selected: _scoreType == 'selfDraw',
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              onSelected: (_) {
+                setState(() {
+                  _scoreType = 'selfDraw';
+                  _loser = null;
+                });
+              },
+            ),
+            // 各玩家（選中表示對方放槍）
+            ...availablePlayers.map((player) {
+              final isSelected = _scoreType == 'win' && _loser?.id == player.id;
+              return ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(player.emoji, style: const TextStyle(fontSize: 20.7)),
+                    const SizedBox(width: 5),
+                    Text(player.name, style: const TextStyle(fontSize: 16.1)),
+                  ],
+                ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
                     _scoreType = 'win';
-                    _loser = null;
+                    _loser = selected ? player : null;
                   });
                 },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ChoiceChip(
-                label: const Text('自摸'),
-                selected: _scoreType == 'selfDraw',
-                onSelected: (selected) {
-                  setState(() {
-                    _scoreType = 'selfDraw';
-                    _loser = null;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ChoiceChip(
-                label: const Text('詐胡'),
-                selected: _scoreType == 'falseWin',
-                onSelected: (selected) {
-                  setState(() {
-                    _scoreType = 'falseWin';
-                    _loser = null;
-                  });
-                },
-              ),
+                selectedColor: Colors.red.withValues(alpha: 0.2),
+              );
+            }),
+            // 詐胡
+            ChoiceChip(
+              label: const Text('詐胡'),
+              selected: _scoreType == 'falseWin',
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              onSelected: (_) {
+                setState(() {
+                  _scoreType = 'falseWin';
+                  _loser = null;
+                });
+              },
+              selectedColor: Colors.red.withValues(alpha: 0.2),
             ),
           ],
         ),
@@ -287,47 +298,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
     );
   }
 
-  Widget _buildLoserSelection() {
-    final availablePlayers = widget.game.players
-        .where((p) => p.id != widget.selectedPlayer.id)
-        .toList();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '誰放槍？',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: availablePlayers.map((player) {
-            final isSelected = _loser == player;
-            return ChoiceChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(player.emoji, style: const TextStyle(fontSize: 20.7)), // +15%
-                  const SizedBox(width: 5),
-                  Text(player.name, style: const TextStyle(fontSize: 16.1)),  // +15%
-                ],
-              ),
-              labelPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // +15%
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _loser = selected ? player : null;
-                });
-              },
-              selectedColor: Colors.red.withValues(alpha: 0.2),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
+  // _buildLoserSelection 已整合進 _buildCombinedTypeSelection
 
   Widget _buildPreview(GameProvider provider) {
     final settings = widget.game.settings;
