@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/game.dart';
+import '../models/hand_pattern.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
@@ -37,6 +38,9 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
   // 放槍者（胡牌時需要）
   Player? _loser;
 
+  // 特殊牌型（已選的 ID）
+  final Set<String> _selectedPatternIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -46,13 +50,6 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
     _tai = widget.prefillTai ?? 0;
     _loser = widget.prefillLoser;
   }
-
-  // 快速台數選項
-  final List<Map<String, dynamic>> _quickTaiOptions = [
-    {'label': '屁糊', 'tai': 0},
-    {'label': '自摸台', 'tai': 1},
-    {'label': '門清一摸三', 'tai': 3},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +123,14 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
               const SizedBox(height: 24),
 
               // 台數選擇（詐胡時隱藏）
-              if (_scoreType != 'falseWin') _buildTaiSelection(),
-              
-              const SizedBox(height: 24),
+              if (_scoreType != 'falseWin') ...[
+                _buildTaiSelection(),
+                const SizedBox(height: 16),
+                // 特殊牌型（可收合，預設收起）
+                _buildPatternSelection(),
+              ],
+
+              const SizedBox(height: 16),
               
               // 計算預覽
               if (_canCalculate()) ...[
@@ -240,30 +242,6 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        
-        // 快速台數按鈕
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _quickTaiOptions.map((option) {
-            final label = option['label'] as String;
-            final tai = option['tai'] as int;
-            final isSelected = _tai == tai;
-            
-            return ChoiceChip(
-              label: Text('$label ($tai 台)'),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  _tai = tai;
-                });
-              },
-            );
-          }).toList(),
-        ),
-        
-        const SizedBox(height: 12),
-        
         // 台數選單 (0-99)，高度限制 1/3 螢幕，最小顯示 5 項
         Builder(
           builder: (ctx) {
@@ -295,6 +273,65 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
           },
         ),
       ],
+    );
+  }
+
+  /// 特殊牌型區（可收合，預設收起）
+  Widget _buildPatternSelection() {
+    final allPatterns = HandPattern.allPatterns(widget.game.settings.customPatterns);
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: false,
+        title: Row(
+          children: [
+            const Text(
+              '特殊牌型',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            if (_selectedPatternIds.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_selectedPatternIds.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
+              ),
+            ],
+          ],
+        ),
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: allPatterns.map((pattern) {
+              final isSelected = _selectedPatternIds.contains(pattern.id);
+              return FilterChip(
+                label: Text('${pattern.name}(${pattern.referenceTai})'),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedPatternIds.add(pattern.id);
+                    } else {
+                      _selectedPatternIds.remove(pattern.id);
+                    }
+                  });
+                },
+                selectedColor: Theme.of(context).colorScheme.primaryContainer,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 
@@ -413,6 +450,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
   }
 
   Future<void> _submit(GameProvider provider) async {
+    final patternIds = _selectedPatternIds.toList();
     switch (_scoreType) {
       case 'win':
         if (_loser != null) {
@@ -421,6 +459,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
             loserId: _loser!.id,
             tai: _tai,
             flowers: 0,
+            handPatternIds: patternIds,
           );
         }
         break;
@@ -430,6 +469,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
           winnerId: widget.selectedPlayer.id,
           tai: _tai,
           flowers: 0,
+          handPatternIds: patternIds,
         );
         break;
         

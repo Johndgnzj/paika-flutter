@@ -40,6 +40,10 @@ class Round {
 
   final String? notes;      // 備註
 
+  // ★ 牌型記錄
+  final List<String> handPatternIds;              // win/selfDraw 的牌型
+  final Map<String, List<String>> winnerHandPatterns; // multiWin 各贏家的牌型 {winnerId: [patternId]}
+
   Round({
     required this.id,
     required this.timestamp,
@@ -56,6 +60,8 @@ class Round {
     required this.jiangNumber,
     required this.jiangStartDealerPassCount,
     this.notes,
+    this.handPatternIds = const [],
+    this.winnerHandPatterns = const {},
   });
 
   /// 計算實際台數（包含花牌）
@@ -121,6 +127,10 @@ class Round {
       jiangNumber: jiangNumber,
       jiangStartDealerPassCount: jiangStartDealerPassCount,
       notes: json['notes'] as String?,
+      handPatternIds: (json['handPatternIds'] as List<dynamic>?)?.cast<String>() ?? [],
+      winnerHandPatterns: (json['winnerHandPatterns'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(k, (v as List<dynamic>).cast<String>()),
+      ) ?? {},
     );
   }
 
@@ -142,6 +152,8 @@ class Round {
       'jiangNumber': jiangNumber,
       'jiangStartDealerPassCount': jiangStartDealerPassCount,
       'notes': notes,
+      'handPatternIds': handPatternIds,
+      'winnerHandPatterns': winnerHandPatterns,
     };
   }
 }

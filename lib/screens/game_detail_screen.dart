@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/game.dart';
+import '../models/hand_pattern.dart';
 import '../models/round.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
@@ -655,6 +656,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                              // 牌型標籤
+                              ..._buildPatternTags(round),
                             ],
                           ),
                         ),
@@ -732,6 +735,45 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         ),
       ],
     );
+  }
+
+  /// 建立牌型標籤列表（用於局數詳情左欄）
+  List<Widget> _buildPatternTags(Round round) {
+    final customPatterns = game.settings.customPatterns;
+    final List<String> ids;
+
+    // win/selfDraw 用 handPatternIds；multiWin 合併所有贏家的牌型
+    if (round.type == RoundType.multiWin) {
+      ids = round.winnerHandPatterns.values.expand((l) => l).toSet().toList();
+    } else {
+      ids = round.handPatternIds;
+    }
+
+    if (ids.isEmpty) return [];
+
+    return [
+      const SizedBox(height: 4),
+      Wrap(
+        spacing: 3,
+        runSpacing: 2,
+        alignment: WrapAlignment.center,
+        children: ids.map((id) {
+          final name = HandPattern.nameById(id, customPatterns);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
+            ),
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 10, color: Colors.purple),
+            ),
+          );
+        }).toList(),
+      ),
+    ];
   }
 
   Color _getRoundColor(Round round) {

@@ -451,7 +451,15 @@ class GameProvider with ChangeNotifier {
   void _ensureCurrentJiang() {
     if (_currentGame == null) return;
 
-    final updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
+    var updatedJiangs = List<Jiang>.from(_currentGame!.jiangs);
+    final currentPC = _currentGame!.dealerPassCount;
+
+    // ★ 修正 undo 後 jiangs 殘留問題：
+    //   若最後一個 Jiang 的 startDealerPassCount > currentPC，表示是 undo 後的殘留，移除它
+    while (updatedJiangs.isNotEmpty &&
+           updatedJiangs.last.startDealerPassCount > currentPC) {
+      updatedJiangs.removeLast();
+    }
 
     if (updatedJiangs.isEmpty) {
       final firstJiang = Jiang(
@@ -460,7 +468,7 @@ class GameProvider with ChangeNotifier {
         jiangNumber: 1,
         seatOrder: _currentGame!.players.map((p) => p.id).toList(),
         startDealerSeat: _currentGame!.dealerSeat,
-        startDealerPassCount: _currentGame!.dealerPassCount,
+        startDealerPassCount: currentPC,
         startTime: DateTime.now(),
       );
       updatedJiangs.add(firstJiang);
@@ -469,7 +477,9 @@ class GameProvider with ChangeNotifier {
     }
 
     final currentJiang = updatedJiangs.last;
-    final passCountInJiang = _currentGame!.dealerPassCount - currentJiang.startDealerPassCount;
+    final passCountInJiang = currentPC - currentJiang.startDealerPassCount;
+
+    bool changed = updatedJiangs.length != _currentGame!.jiangs.length;
 
     if (passCountInJiang >= 16) {
       final lastIndex = updatedJiangs.length - 1;
@@ -483,11 +493,15 @@ class GameProvider with ChangeNotifier {
         jiangNumber: currentJiang.jiangNumber + 1,
         seatOrder: _currentGame!.players.map((p) => p.id).toList(),
         startDealerSeat: _currentGame!.dealerSeat,
-        startDealerPassCount: _currentGame!.dealerPassCount,
+        startDealerPassCount: currentPC,
         startTime: DateTime.now(),
       );
 
       updatedJiangs.add(newJiang);
+      changed = true;
+    }
+
+    if (changed) {
       _currentGame = _currentGame!.copyWith(jiangs: updatedJiangs);
     }
   }
@@ -502,6 +516,8 @@ class GameProvider with ChangeNotifier {
     int flowers = 0,
     required Map<String, int> scoreChanges,
     String? notes,
+    List<String> handPatternIds = const [],
+    Map<String, List<String>> winnerHandPatterns = const {},
   }) {
     return Round(
       id: _uuid.v4(),
@@ -519,6 +535,8 @@ class GameProvider with ChangeNotifier {
       jiangNumber: _currentGame!.jiangNumber,
       jiangStartDealerPassCount: _currentGame!.currentJiang?.startDealerPassCount ?? 0,
       notes: notes,
+      handPatternIds: handPatternIds,
+      winnerHandPatterns: winnerHandPatterns,
     );
   }
 
@@ -528,6 +546,7 @@ class GameProvider with ChangeNotifier {
     required String loserId,
     required int tai,
     required int flowers,
+    List<String> handPatternIds = const [],
   }) async {
     if (_currentGame == null) return;
 
@@ -549,6 +568,7 @@ class GameProvider with ChangeNotifier {
         tai: tai,
         flowers: flowers,
         scoreChanges: scoreChanges,
+        handPatternIds: handPatternIds,
       );
 
       _currentGame = _currentGame!.addRound(round);
@@ -566,6 +586,7 @@ class GameProvider with ChangeNotifier {
     required String winnerId,
     required int tai,
     required int flowers,
+    List<String> handPatternIds = const [],
   }) async {
     if (_currentGame == null) return;
 
@@ -584,6 +605,7 @@ class GameProvider with ChangeNotifier {
       tai: tai,
       flowers: flowers,
       scoreChanges: scoreChanges,
+      handPatternIds: handPatternIds,
     );
 
     _currentGame = _currentGame!.addRound(round);
@@ -622,6 +644,7 @@ class GameProvider with ChangeNotifier {
     required String loserId,
     required Map<String, int> taiMap,
     required Map<String, int> flowerMap,
+    Map<String, List<String>> winnerHandPatterns = const {},
   }) async {
     if (_currentGame == null) return;
 
@@ -643,6 +666,7 @@ class GameProvider with ChangeNotifier {
       loserId: loserId,
       tai: primaryTai,
       scoreChanges: scoreChanges,
+      winnerHandPatterns: winnerHandPatterns,
     );
 
     _currentGame = _currentGame!.addRound(round);

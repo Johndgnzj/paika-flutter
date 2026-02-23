@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/game.dart';
+import '../models/hand_pattern.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
@@ -27,6 +28,9 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
   
   // 每個贏家的花牌
   final Map<String, int> _flowerMap = {};
+
+  // 每個贏家的牌型（winnerId → Set<patternId>）
+  final Map<String, Set<String>> _winnerPatternIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,9 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                               loserId: _loser!.id,
                               taiMap: _taiMap,
                               flowerMap: _flowerMap,
+                              winnerHandPatterns: _winnerPatternIds.map(
+                                (k, v) => MapEntry(k, v.toList()),
+                              ),
                             );
                             if (context.mounted) {
                               Navigator.pop(context);
@@ -197,11 +204,13 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                     _selectedWinners.add(player.id);
                     // 初始化預設值
                     _taiMap[player.id] = 0;
-                    _flowerMap[player.id] = 0; // 花牌固定 0，不開放輸入
+                    _flowerMap[player.id] = 0;
+                    _winnerPatternIds[player.id] = {};
                   } else {
                     _selectedWinners.remove(player.id);
                     _taiMap.remove(player.id);
                     _flowerMap.remove(player.id);
+                    _winnerPatternIds.remove(player.id);
                   }
                 });
               },
@@ -292,8 +301,79 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
                 }
               },
             ),
+
+            const SizedBox(height: 8),
+
+            // 特殊牌型（可收合，預設收起）
+            _buildWinnerPatternSelection(player),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildWinnerPatternSelection(Player player) {
+    final allPatterns = HandPattern.allPatterns(widget.game.settings.customPatterns);
+    final selected = _winnerPatternIds[player.id] ?? {};
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: false,
+        title: Row(
+          children: [
+            Text(
+              '特殊牌型',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            if (selected.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${selected.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ),
+            ],
+          ],
+        ),
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: allPatterns.map((pattern) {
+              final isSelected = selected.contains(pattern.id);
+              return FilterChip(
+                label: Text('${pattern.name}(${pattern.referenceTai})',
+                    style: const TextStyle(fontSize: 12)),
+                selected: isSelected,
+                onSelected: (sel) {
+                  setState(() {
+                    final s = _winnerPatternIds[player.id] ??= {};
+                    if (sel) {
+                      s.add(pattern.id);
+                    } else {
+                      s.remove(pattern.id);
+                    }
+                  });
+                },
+                selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                visualDensity: VisualDensity.compact,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

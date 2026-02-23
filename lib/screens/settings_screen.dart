@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../models/hand_pattern.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
 import '../services/export_service.dart';
 import '../utils/legal_texts.dart';
 import '../widgets/animation_helpers.dart';
+import 'custom_patterns_screen.dart';
 import 'legal_screen.dart';
 import 'help_screen.dart';
 
@@ -142,6 +144,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 自訂牌型
+              _buildSectionHeader('牌型'),
+              ListTile(
+                leading: const Icon(Icons.style_outlined),
+                title: const Text('自訂牌型'),
+                subtitle: Text(
+                  '系統 ${HandPattern.systemPatterns.length} 種'
+                  ' + 自訂 ${provider.settings.customPatterns.length} 種',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CustomPatternsScreen(),
                   ),
                 ),
               ),

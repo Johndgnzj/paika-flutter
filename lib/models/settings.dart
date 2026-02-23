@@ -1,3 +1,5 @@
+import 'hand_pattern.dart';
+
 /// 遊戲設定
 class GameSettings {
   final int baseScore;      // 底分
@@ -8,6 +10,7 @@ class GameSettings {
   final bool supportMultiWin; // 是否支援一炮多響
   final bool dealerTai;     // 自動計算莊家台數（莊家+1台）
   final bool consecutiveTai; // 自動計算連莊台數（每連莊+2台）
+  final List<HandPattern> customPatterns; // 使用者自訂牌型
 
   const GameSettings({
     this.baseScore = 50,
@@ -18,6 +21,7 @@ class GameSettings {
     this.supportMultiWin = true,
     this.dealerTai = true,
     this.consecutiveTai = true,
+    this.customPatterns = const [],
   });
   
   /// 每台分數（與maxTai相同，為了語意清楚）
@@ -43,6 +47,9 @@ class GameSettings {
       supportMultiWin: json['supportMultiWin'] as bool? ?? true,
       dealerTai: json['dealerTai'] as bool? ?? true,
       consecutiveTai: json['consecutiveTai'] as bool? ?? true,
+      customPatterns: (json['customPatterns'] as List<dynamic>?)
+          ?.map((e) => HandPattern.fromJson(e as Map<String, dynamic>))
+          .toList() ?? [],
     );
   }
 
@@ -57,6 +64,7 @@ class GameSettings {
       'supportMultiWin': supportMultiWin,
       'dealerTai': dealerTai,
       'consecutiveTai': consecutiveTai,
+      'customPatterns': customPatterns.map((p) => p.toJson()).toList(),
     };
   }
 
@@ -70,6 +78,7 @@ class GameSettings {
     bool? supportMultiWin,
     bool? dealerTai,
     bool? consecutiveTai,
+    List<HandPattern>? customPatterns,
   }) {
     return GameSettings(
       baseScore: baseScore ?? this.baseScore,
@@ -80,6 +89,7 @@ class GameSettings {
       supportMultiWin: supportMultiWin ?? this.supportMultiWin,
       dealerTai: dealerTai ?? this.dealerTai,
       consecutiveTai: consecutiveTai ?? this.consecutiveTai,
+      customPatterns: customPatterns ?? this.customPatterns,
     );
   }
 
