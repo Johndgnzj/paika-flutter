@@ -8,6 +8,7 @@ class PlayerProfile {
   final bool isSelf;            // 是否為帳號擁有者本人
   final DateTime createdAt;
   final DateTime lastPlayedAt;
+  final List<String> mergedProfileIds; // 已合併的玩家 profile ID 列表
 
   PlayerProfile({
     required this.id,
@@ -18,6 +19,7 @@ class PlayerProfile {
     this.isSelf = false,
     required this.createdAt,
     required this.lastPlayedAt,
+    this.mergedProfileIds = const [],
   });
 
   factory PlayerProfile.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,10 @@ class PlayerProfile {
       isSelf: json['isSelf'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       lastPlayedAt: DateTime.parse(json['lastPlayedAt'] as String),
+      mergedProfileIds: (json['mergedProfileIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -43,6 +49,7 @@ class PlayerProfile {
       'isSelf': isSelf,
       'createdAt': createdAt.toIso8601String(),
       'lastPlayedAt': lastPlayedAt.toIso8601String(),
+      'mergedProfileIds': mergedProfileIds,
     };
   }
 
@@ -55,6 +62,7 @@ class PlayerProfile {
     bool? isSelf,
     DateTime? createdAt,
     DateTime? lastPlayedAt,
+    List<String>? mergedProfileIds,
   }) {
     return PlayerProfile(
       id: id ?? this.id,
@@ -65,6 +73,7 @@ class PlayerProfile {
       isSelf: isSelf ?? this.isSelf,
       createdAt: createdAt ?? this.createdAt,
       lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
+      mergedProfileIds: mergedProfileIds ?? this.mergedProfileIds,
     );
   }
 }

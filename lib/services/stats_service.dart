@@ -106,15 +106,15 @@ enum TimeRange {
 
 /// 統計計算服務
 class StatsService {
-  /// 計算指定玩家的統計數據
+  /// 計算指定玩家的統計數據（支援多 profileId 聚合）
   static PlayerStats getPlayerStats(
-    String profileId,
+    List<String> profileIds,
     List<Game> games, {
     TimeRange timeRange = TimeRange.all,
   }) {
-    // 篩選包含該玩家的牌局
+    // 篩選包含該玩家的牌局（任一 profileId 符合即可）
     var relevantGames = games.where((game) {
-      return game.players.any((p) => p.userId == profileId);
+      return game.players.any((p) => profileIds.contains(p.userId));
     }).toList();
 
     // 根據時間範圍篩選
@@ -168,8 +168,8 @@ class StatsService {
     int bestRoundAmount = 0;
 
     for (final game in relevantGames) {
-      // 找到該玩家在這場的 playerId
-      final player = game.players.firstWhere((p) => p.userId == profileId);
+      // 找到該玩家在這場的 playerId（用任一符合的 profileId）
+      final player = game.players.firstWhere((p) => profileIds.contains(p.userId));
       final playerId = player.id;
       final scores = game.currentScores;
       final gameScore = scores[playerId] ?? 0;

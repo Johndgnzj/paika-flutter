@@ -95,6 +95,23 @@ class GameProvider with ChangeNotifier {
       _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
       _playerProfiles = await StorageService.loadPlayerProfiles(accountId: accountId);
 
+      // 方案 B：若本地 playerProfiles 為空，額外嘗試直接從 Firestore 拉取
+      // 解決同一帳號在不同設備登入時，可能因 syncFromCloud 尚未完成而漏掉已有 profile 的問題
+      if (_playerProfiles.isEmpty && FirebaseInitService.isInitialized) {
+        try {
+          final remoteProfiles = await FirestoreService.loadPlayerProfiles();
+          if (remoteProfiles.isNotEmpty) {
+            _playerProfiles = remoteProfiles;
+            // 同步寫入本地
+            for (final profile in remoteProfiles) {
+              await StorageService.savePlayerProfile(profile, accountId: accountId);
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) print('[GameProvider] loadPlayerProfiles from Firestore failed: $e');
+        }
+      }
+
       // 若本地沒有 currentGame，嘗試從 Firestore 拿（另一台設備開了牌局）
       if (_currentGame == null && FirebaseInitService.isInitialized) {
         final gameId = await FirestoreService.loadCurrentGameId();
@@ -366,6 +383,76 @@ class GameProvider with ChangeNotifier {
     _playerProfiles.removeWhere((p) => p.id == id);
     await StorageService.deletePlayerProfile(id, accountId: _currentAccountId!);
     notifyListeners();
+  }
+
+  /// 合併玩家檔案（將 mergeId 的記錄合併進 keepId）
+  Future<void> mergePlayerProfiles(String keepId, String mergeId) async {
+    if (_currentAccountId == null) return;
+
+    final keepIndex = _playerProfiles.indexWhere((p) => p.id == keepId);
+    final mergeIndex = _playerProfiles.indexWhere((p) => p.id == mergeId);
+    if (keepIndex < 0 || mergeIndex < 0) return;
+
+    final keepProfile = _playerProfiles[keepIndex];
+    final mergeProfile = _playerProfiles[mergeIndex];
+
+    try {
+      // 1. 遍歷 _gameHistory，把每局中 player.userId == mergeId 改成 keepId
+      for (var i = 0; i < _gameHistory.length; i++) {
+        final game = _gameHistory[i];
+        bool changed = false;
+        final updatedPlayers = game.players.map((p) {
+          if (p.userId == mergeId) {
+            changed = true;
+            return p.copyWith(userId: keepId);
+          }
+          return p;
+        }).toList();
+
+        if (changed) {
+          _gameHistory[i] = game.copyWith(players: updatedPlayers);
+          await StorageService.saveGame(_gameHistory[i]);
+        }
+      }
+
+      // 2. 同樣處理 _currentGame
+      if (_currentGame != null) {
+        bool changed = false;
+        final updatedPlayers = _currentGame!.players.map((p) {
+          if (p.userId == mergeId) {
+            changed = true;
+            return p.copyWith(userId: keepId);
+          }
+          return p;
+        }).toList();
+
+        if (changed) {
+          _currentGame = _currentGame!.copyWith(players: updatedPlayers);
+          await _saveCurrentGame();
+        }
+      }
+
+      // 3. 更新 kept profile：lastPlayedAt 取兩者較新的，把 mergeId 加入 mergedProfileIds
+      final newerLastPlayedAt = keepProfile.lastPlayedAt.isAfter(mergeProfile.lastPlayedAt)
+          ? keepProfile.lastPlayedAt
+          : mergeProfile.lastPlayedAt;
+      final updatedMergedIds = [...keepProfile.mergedProfileIds, mergeId];
+
+      _playerProfiles[keepIndex] = keepProfile.copyWith(
+        lastPlayedAt: newerLastPlayedAt,
+        mergedProfileIds: updatedMergedIds,
+      );
+      await StorageService.savePlayerProfile(_playerProfiles[keepIndex], accountId: _currentAccountId!);
+
+      // 4. 刪除 merge profile
+      _playerProfiles.removeAt(mergeIndex > keepIndex ? mergeIndex : mergeIndex);
+      await StorageService.deletePlayerProfile(mergeId, accountId: _currentAccountId!);
+
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) print('[GameProvider] mergePlayerProfiles failed: $e');
+      rethrow;
+    }
   }
 
   /// 載入玩家檔案

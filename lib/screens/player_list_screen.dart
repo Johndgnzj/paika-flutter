@@ -182,6 +182,9 @@ class PlayerListScreen extends StatelessWidget {
               case 'edit':
                 _showEditDialog(context, profile, provider);
                 break;
+              case 'merge':
+                _showMergeDialog(context, profile, provider);
+                break;
               case 'link':
                 _showGenerateLinkDialog(context, profile, provider);
                 break;
@@ -195,6 +198,7 @@ class PlayerListScreen extends StatelessWidget {
           },
           itemBuilder: (context) => [
             const PopupMenuItem(value: 'edit', child: Text('編輯')),
+            const PopupMenuItem(value: 'merge', child: Text('合併玩家')),
             const PopupMenuItem(value: 'link', child: Text('產生連結碼')),
             if (isLinked)
               const PopupMenuItem(value: 'unlink', child: Text('解除連結')),
@@ -564,6 +568,90 @@ class PlayerListScreen extends StatelessWidget {
               Navigator.pop(context);
             },
             child: const Text('刪除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMergeDialog(BuildContext context, PlayerProfile profile, GameProvider provider) {
+    // 取得其他所有 profile（排除自己）
+    final otherProfiles = provider.playerProfiles.where((p) => p.id != profile.id).toList();
+
+    if (otherProfiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('沒有其他玩家可以合併')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('合併至「${profile.name}」'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: otherProfiles.length,
+              itemBuilder: (context, index) {
+                final other = otherProfiles[index];
+                return ListTile(
+                  leading: Text(other.emoji, style: const TextStyle(fontSize: 28)),
+                  title: Text(other.name),
+                  subtitle: other.isSelf ? const Text('(自己)') : null,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _confirmMerge(context, profile, other, provider);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmMerge(BuildContext context, PlayerProfile keepProfile, PlayerProfile mergeProfile, GameProvider provider) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('確認合併'),
+        content: Text(
+          '確定將「${mergeProfile.name}」的所有記錄合併進「${keepProfile.name}」嗎？\n\n此操作無法復原，被合併的玩家將被刪除。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await provider.mergePlayerProfiles(keepProfile.id, mergeProfile.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('合併完成')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('合併失敗：$e')),
+                  );
+                }
+              }
+            },
+            child: const Text('確認合併', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

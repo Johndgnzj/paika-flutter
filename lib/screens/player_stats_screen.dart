@@ -32,7 +32,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
           final stats = StatsService.getPlayerStats(
-            widget.profile.id,
+            [widget.profile.id, ...widget.profile.mergedProfileIds],
             provider.gameHistory,
             timeRange: _timeRange,
           );
