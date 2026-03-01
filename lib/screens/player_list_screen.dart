@@ -173,7 +173,7 @@ class PlayerListScreen extends StatelessWidget {
                     await provider.setSelfProfileId(null);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已取消「我的 Profile」設定')),
+                        const SnackBar(content: Text('已取消我的 Profile 設定')),
                       );
                     }
                   } else {
@@ -181,7 +181,10 @@ class PlayerListScreen extends StatelessWidget {
                     await provider.setSelfProfileId(profile.id);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('已將「${profile.name}」設為我的 Profile')),
+                        const SnackBar(
+                          content: Text('✅ 已設為我的 Profile！點選首頁上方帳號名稱可進入你的統計頁'),
+                          duration: Duration(seconds: 4),
+                        ),
                       );
                     }
                   }
@@ -536,7 +539,16 @@ class PlayerListScreen extends StatelessWidget {
                       child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      _showAvatarOptionsSheet(context, profile, provider);
+                    },
+                    icon: const Icon(Icons.photo_camera, size: 18),
+                    label: const Text('更換頭像類型 ▼'),
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
