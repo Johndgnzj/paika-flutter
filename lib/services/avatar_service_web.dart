@@ -2,14 +2,14 @@ import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
-/// Web implementation: use dart:html FileUploadInputElement
-/// Must be called synchronously from user gesture (no await before click())
+/// Web implementation: use dart:html FileUploadInputElement + Canvas 壓縮
+/// 選圖後透過 Canvas 縮圖至 100x100, JPEG 70%，base64 約 3-8KB
 Future<String?> pickImageAsBase64Web() {
   final completer = Completer<String?>();
 
   final input = html.FileUploadInputElement()
     ..accept = 'image/*'
-    ..click(); // 必須同步執行，不能有任何 await 在前面
+    ..click();
 
   input.onChange.listen((event) {
     final files = input.files;
@@ -17,22 +17,33 @@ Future<String?> pickImageAsBase64Web() {
       completer.complete(null);
       return;
     }
+
+    final file = files[0];
     final reader = html.FileReader();
-    reader.readAsDataUrl(files[0]);
+    reader.readAsDataUrl(file);
+
     reader.onLoad.listen((_) {
-      // 使用 .toString() 而非 as String?
-      // reader.result 是 JS Object，直接 cast 在新版 Flutter Web 可能靜默失敗回傳 null
-      final result = reader.result;
-      if (result == null) {
+      final dataUrl = reader.result?.toString();
+      if (dataUrl == null) {
         completer.complete(null);
-      } else {
-        completer.complete(result.toString());
+        return;
       }
+
+      // 用 Canvas 壓縮到 100x100, JPEG 70%
+      final img = html.ImageElement()..src = dataUrl;
+      img.onLoad.listen((_) {
+        final canvas = html.CanvasElement(width: 100, height: 100);
+        final ctx = canvas.context2D;
+        ctx.drawImageScaled(img, 0, 0, 100, 100);
+        final compressed = canvas.toDataUrl('image/jpeg', 0.7);
+        completer.complete(compressed);
+      });
+      img.onError.listen((_) => completer.complete(dataUrl)); // fallback
     });
+
     reader.onError.listen((_) => completer.complete(null));
   });
 
-  // 若使用者取消（關閉 dialog 沒選檔），5 分鐘後 timeout
   Future.delayed(const Duration(seconds: 300), () {
     if (!completer.isCompleted) completer.complete(null);
   });
