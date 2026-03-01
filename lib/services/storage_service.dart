@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/account_settings.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../models/player_profile.dart';
@@ -35,6 +36,7 @@ class StorageService {
   static String _playersKey(String accountId) => 'players_$accountId';
   static String _settingsKey(String accountId) => 'settings_$accountId';
   static String _playerProfilesKey(String accountId) => 'player_profiles_$accountId';
+  static String _accountSettingsKey(String accountId) => 'account_settings_$accountId';
 
   /// 儲存遊戲（全域 games 列表，accountId 存在 Game 物件內）
   static Future<void> saveGame(Game game) async {
@@ -173,6 +175,32 @@ class StorageService {
     }
   }
 
+  // --- Account Settings CRUD ---
+
+  /// 儲存帳號設定
+  static Future<void> saveAccountSettings(AccountSettings settings, {required String accountId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accountSettingsKey(accountId), jsonEncode(settings.toJson()));
+    _syncToCloudAsync(() => FirestoreService.saveAccountSettings(settings));
+  }
+
+  /// 載入帳號設定（帳號隔離）
+  static Future<AccountSettings> loadAccountSettings({required String accountId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_accountSettingsKey(accountId));
+
+    if (json == null) {
+      return const AccountSettings();
+    }
+
+    try {
+      final data = jsonDecode(json) as Map<String, dynamic>;
+      return AccountSettings.fromJson(data);
+    } catch (e) {
+      return const AccountSettings();
+    }
+  }
+
   // --- PlayerProfile CRUD ---
 
   /// 儲存 PlayerProfile
@@ -280,6 +308,14 @@ class StorageService {
             .map((p) => jsonEncode(p.toJson()))
             .toList();
         await prefs.setStringList(_playersKey(accountId), list);
+      }
+
+      // 帳號設定（雲端覆蓋）
+      if (result.accountSettings != null) {
+        await prefs.setString(
+          _accountSettingsKey(accountId),
+          jsonEncode(result.accountSettings!.toJson()),
+        );
       }
 
       if (kDebugMode) {

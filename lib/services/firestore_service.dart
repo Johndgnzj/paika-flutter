@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../models/account_settings.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../models/player_profile.dart';
@@ -88,6 +89,89 @@ class FirestoreService {
     final snapshot = await doc.collection('settings').doc('default').get();
     if (!snapshot.exists) return null;
     return GameSettings.fromJson(snapshot.data()!);
+  }
+
+  // --- Account Settings ---
+
+  /// 儲存帳號設定
+  static Future<void> saveAccountSettings(AccountSettings settings) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+
+    await doc.collection('settings').doc('account').set(settings.toJson());
+  }
+
+  /// 載入帳號設定
+  static Future<AccountSettings?> loadAccountSettings() async {
+    final doc = _userDoc;
+    if (doc == null) return null;
+
+    final snapshot = await doc.collection('settings').doc('account').get();
+    if (!snapshot.exists) return null;
+    return AccountSettings.fromJson(snapshot.data()!);
+  }
+
+  /// 即時監聯帳號設定變化
+  static Stream<AccountSettings?> accountSettingsStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc
+        .collection('settings')
+        .doc('account')
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return AccountSettings.fromJson(snapshot.data()!);
+    });
+  }
+
+  // --- Account Avatar ---
+
+  /// 儲存帳號頭像 URL
+  static Future<void> saveAccountAvatar(String url) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+
+    await doc.collection('accountAvatar').doc('default').set({
+      'url': url,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// 載入帳號頭像 URL
+  static Future<String?> loadAccountAvatar() async {
+    final doc = _userDoc;
+    if (doc == null) return null;
+
+    final snapshot = await doc.collection('accountAvatar').doc('default').get();
+    if (!snapshot.exists) return null;
+    return snapshot.data()?['url'] as String?;
+  }
+
+  /// 即時監聽帳號頭像變化
+  static Stream<String?> accountAvatarStream() {
+    final doc = _userDoc;
+    if (doc == null) return const Stream.empty();
+    return doc
+        .collection('accountAvatar')
+        .doc('default')
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return snapshot.data()?['url'] as String?;
+    });
+  }
+
+  /// 載入其他帳號的頭像 URL（用於顯示 accountAvatar 類型的頭像）
+  static Future<String?> loadAccountAvatarByUid(String uid) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('accountAvatar')
+        .doc('default')
+        .get();
+    if (!snapshot.exists) return null;
+    return snapshot.data()?['url'] as String?;
   }
 
   // --- Player Profiles ---
@@ -359,6 +443,7 @@ class FirestoreService {
         loadSettings(),
         loadPlayerProfiles(),
         loadSavedPlayers(),
+        loadAccountSettings(),
       ]);
 
       return SyncResult(
@@ -366,6 +451,7 @@ class FirestoreService {
         settings: results[1] as GameSettings?,
         playerProfiles: results[2] as List<PlayerProfile>,
         savedPlayers: results[3] as List<Player>,
+        accountSettings: results[4] as AccountSettings?,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -382,12 +468,14 @@ class SyncResult {
   final GameSettings? settings;
   final List<PlayerProfile> playerProfiles;
   final List<Player> savedPlayers;
+  final AccountSettings? accountSettings;
 
   SyncResult({
     required this.games,
     required this.settings,
     required this.playerProfiles,
     required this.savedPlayers,
+    this.accountSettings,
   });
 }
 

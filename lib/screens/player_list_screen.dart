@@ -2,11 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/game_provider.dart';
 import '../models/player_profile.dart';
+import '../services/avatar_service.dart';
+import '../services/firestore_service.dart';
 import '../services/link_service.dart';
 import '../utils/constants.dart';
 import '../widgets/animation_helpers.dart';
+import '../widgets/player_avatar.dart';
 import 'player_stats_screen.dart';
 
 class PlayerListScreen extends StatelessWidget {
@@ -144,11 +148,53 @@ class PlayerListScreen extends StatelessWidget {
   Widget _buildProfileCard(BuildContext context, PlayerProfile profile, GameProvider provider) {
     final dateFormat = DateFormat('yyyy-MM-dd');
     final isLinked = profile.linkedAccountId != null;
+    final isSelfProfile = provider.selfProfileId == profile.id;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Text(profile.emoji, style: const TextStyle(fontSize: 32)),
+        leading: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // 頭像（可點擊更換）
+            GestureDetector(
+              onTap: () => _showAvatarOptionsSheet(context, profile, provider),
+              onLongPress: () => _showAvatarOptionsSheet(context, profile, provider),
+              child: PlayerAvatar(profile: profile, size: 40),
+            ),
+            // ⭐ 圖示：設為「我的 Profile」
+            Positioned(
+              top: -6,
+              right: -6,
+              child: GestureDetector(
+                onTap: () async {
+                  if (isSelfProfile) {
+                    // 取消設定
+                    await provider.setSelfProfileId(null);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已取消「我的 Profile」設定')),
+                      );
+                    }
+                  } else {
+                    // 設定為我的 Profile
+                    await provider.setSelfProfileId(profile.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('已將「${profile.name}」設為我的 Profile')),
+                      );
+                    }
+                  }
+                },
+                child: Icon(
+                  isSelfProfile ? Icons.star : Icons.star_border,
+                  size: 20,
+                  color: isSelfProfile ? Colors.amber : Colors.grey,
+                ),
+              ),
+            ),
+          ],
+        ),
         title: Row(
           children: [
             Flexible(child: Text(profile.name, style: const TextStyle(fontSize: 18))),
@@ -656,6 +702,122 @@ class PlayerListScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // --- 頭像選項 ---
+
+  void _showAvatarOptionsSheet(BuildContext context, PlayerProfile profile, GameProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.emoji_emotions),
+                title: const Text('顯示 Emoji'),
+                trailing: profile.avatarType == AvatarType.emoji
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await provider.updatePlayerProfile(
+                    profile.id,
+                    avatarType: AvatarType.emoji,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_circle),
+                title: const Text('使用帳號頭像'),
+                trailing: profile.avatarType == AvatarType.accountAvatar
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  // 檢查帳號頭像是否存在
+                  final avatarUrl = await FirestoreService.loadAccountAvatar();
+                  if (avatarUrl == null) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('請先在帳號設定上傳頭像')),
+                      );
+                    }
+                    return;
+                  }
+                  await provider.updatePlayerProfile(
+                    profile.id,
+                    avatarType: AvatarType.accountAvatar,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('自訂照片（相機）'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _pickAndUploadPhoto(context, profile, provider, ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('自訂照片（相簿）'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _pickAndUploadPhoto(context, profile, provider, ImageSource.gallery);
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('取消'),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickAndUploadPhoto(
+    BuildContext context,
+    PlayerProfile profile,
+    GameProvider provider,
+    ImageSource source,
+  ) async {
+    final image = await AvatarService.pickImage(source: source);
+    if (image == null) return;
+
+    // 顯示上傳中提示
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上傳中...')),
+      );
+    }
+
+    final url = await AvatarService.uploadProfilePhoto(profile.id, image);
+    if (url == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('上傳失敗，請重試')),
+        );
+      }
+      return;
+    }
+
+    await provider.updatePlayerProfile(
+      profile.id,
+      avatarType: AvatarType.customPhoto,
+      customPhotoUrl: url,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('頭像已更新')),
+      );
+    }
   }
 }
 

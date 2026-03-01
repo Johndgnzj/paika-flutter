@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../models/account_settings.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
 import '../models/jiang.dart';
@@ -23,6 +24,7 @@ class GameProvider with ChangeNotifier {
   List<Game> _linkedGames = []; // 來自其他玩家綁定的場次
   Set<String> _linkedProfileIds = {}; // 在別人牌局中代表「我」的 profileId
   GameSettings _settings = const GameSettings();
+  AccountSettings _accountSettings = const AccountSettings();
   List<Player> _savedPlayers = [];
   List<PlayerProfile> _playerProfiles = [];
   ThemeMode _themeMode = ThemeMode.system;
@@ -36,6 +38,7 @@ class GameProvider with ChangeNotifier {
   StreamSubscription<List<PlayerProfile>>? _profilesSubscription;
   StreamSubscription<List<Player>>? _savedPlayersSubscription;
   StreamSubscription<GameSettings?>? _settingsSubscription;
+  StreamSubscription<AccountSettings?>? _accountSettingsSubscription;
   StreamSubscription<String?>? _currentGameIdSubscription;
   StreamSubscription<Game?>? _currentGameSubscription;
 
@@ -43,7 +46,27 @@ class GameProvider with ChangeNotifier {
 
   Game? get currentGame => _currentGame;
   /// 代表「自己」的 profileId 集合（用於 UI 高亮自己）
-  Set<String> get selfProfileIds => _linkedProfileIds;
+  /// 包含 _linkedProfileIds（跨帳號連結）和 selfProfileId（自己設定）
+  Set<String> get selfProfileIds {
+    final result = Set<String>.from(_linkedProfileIds);
+    final selfId = _accountSettings.selfProfileId;
+    if (selfId != null) {
+      result.add(selfId);
+    }
+    // 同時包含標記為 isSelf 的 profile
+    for (final profile in _playerProfiles) {
+      if (profile.isSelf) {
+        result.add(profile.id);
+      }
+    }
+    return result;
+  }
+
+  /// 取得 selfProfileId（若有設定）
+  String? get selfProfileId => _accountSettings.selfProfileId;
+
+  /// 取得帳號設定
+  AccountSettings get accountSettings => _accountSettings;
 
   List<Game> get gameHistory {
     final merged = <String, Game>{};
@@ -106,6 +129,7 @@ class GameProvider with ChangeNotifier {
       }
 
       _settings = await StorageService.loadSettings(accountId: accountId);
+      _accountSettings = await StorageService.loadAccountSettings(accountId: accountId);
       _savedPlayers = await StorageService.loadPlayers(accountId: accountId);
       _gameHistory = await StorageService.loadGames(accountId: accountId);
       _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
@@ -209,6 +233,7 @@ class GameProvider with ChangeNotifier {
     _linkedGames = [];
     _linkedProfileIds = {};
     _settings = const GameSettings();
+    _accountSettings = const AccountSettings();
     _savedPlayers = [];
     _playerProfiles = [];
     _isLoading = false;
@@ -262,6 +287,15 @@ class GameProvider with ChangeNotifier {
       if (kDebugMode) print('[Listener] settings error: $e');
     });
 
+    _accountSettingsSubscription =
+        FirestoreService.accountSettingsStream().listen((accountSettings) {
+      if (accountSettings == null) return;
+      _accountSettings = accountSettings;
+      notifyListeners();
+    }, onError: (e) {
+      if (kDebugMode) print('[Listener] accountSettings error: $e');
+    });
+
     // 監聽 currentGameId：讓另一台設備知道有進行中的牌局
     _currentGameIdSubscription =
         FirestoreService.currentGameIdStream().listen((gameId) {
@@ -302,12 +336,14 @@ class GameProvider with ChangeNotifier {
     _profilesSubscription?.cancel();
     _savedPlayersSubscription?.cancel();
     _settingsSubscription?.cancel();
+    _accountSettingsSubscription?.cancel();
     _currentGameIdSubscription?.cancel();
     _currentGameSubscription?.cancel();
     _gamesSubscription = null;
     _profilesSubscription = null;
     _savedPlayersSubscription = null;
     _settingsSubscription = null;
+    _accountSettingsSubscription = null;
     _currentGameIdSubscription = null;
     _currentGameSubscription = null;
   }
@@ -381,7 +417,14 @@ class GameProvider with ChangeNotifier {
   }
 
   /// 更新玩家檔案
-  Future<void> updatePlayerProfile(String id, {String? name, String? emoji}) async {
+  Future<void> updatePlayerProfile(
+    String id, {
+    String? name,
+    String? emoji,
+    AvatarType? avatarType,
+    String? customPhotoUrl,
+    bool clearCustomPhotoUrl = false,
+  }) async {
     if (_currentAccountId == null) return;
     final index = _playerProfiles.indexWhere((p) => p.id == id);
     if (index < 0) return;
@@ -389,6 +432,9 @@ class GameProvider with ChangeNotifier {
     _playerProfiles[index] = _playerProfiles[index].copyWith(
       name: name,
       emoji: emoji,
+      avatarType: avatarType,
+      customPhotoUrl: customPhotoUrl,
+      clearCustomPhotoUrl: clearCustomPhotoUrl,
     );
     await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
     notifyListeners();
@@ -940,6 +986,17 @@ class GameProvider with ChangeNotifier {
     if (_currentAccountId != null) {
       await StorageService.saveSettings(newSettings, accountId: _currentAccountId!);
     }
+    notifyListeners();
+  }
+
+  /// 設定 selfProfileId（設為「我的 Profile」）
+  Future<void> setSelfProfileId(String? profileId) async {
+    if (_currentAccountId == null) return;
+    _accountSettings = _accountSettings.copyWith(
+      selfProfileId: profileId,
+      clearSelfProfileId: profileId == null,
+    );
+    await StorageService.saveAccountSettings(_accountSettings, accountId: _currentAccountId!);
     notifyListeners();
   }
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
+import '../models/player_profile.dart';
 import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../widgets/animation_helpers.dart';
@@ -11,6 +12,7 @@ import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
 import 'game_detail_screen.dart';
 import 'player_list_screen.dart';
+import 'player_stats_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   bool _isSearching = false;
+  bool _showAllGames = false; // 是否顯示全部牌局
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 onChanged: (value) => setState(() => _searchQuery = value),
               )
-            : Consumer<AuthService>(
-                builder: (context, auth, _) {
+            : Consumer2<AuthService, GameProvider>(
+                builder: (context, auth, gameProvider, _) {
                   final name = auth.displayName;
-                  return Text(name != null && name.isNotEmpty ? '🀄 $name' : '🀄 牌咖');
+                  final displayText = name != null && name.isNotEmpty ? '🀄 $name' : '🀄 牌咖';
+                  return GestureDetector(
+                    onTap: () => _navigateToSelfStats(context, gameProvider),
+                    child: Text(displayText),
+                  );
                 },
               ),
         actions: [
@@ -257,79 +264,225 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeView(BuildContext context, GameProvider provider) {
-    final games = _searchQuery.isEmpty
+    final allGames = _searchQuery.isEmpty
         ? provider.gameHistory
         : provider.searchGames(_searchQuery);
 
-    return Column(
-      children: [
-        // 開始新局按鈕
-        if (!_isSearching)
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    FadeSlidePageRoute(page: const GameSetupScreen()),
-                  );
-                },
-                icon: const Icon(Icons.add_circle_outline, size: 28),
-                label: const Text('開始新局', style: TextStyle(fontSize: 22)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                ),
-              ),
-            ),
-          ),
+    // 計算最近一起玩的玩家
+    final recentPlayers = _getRecentPlayers(provider);
 
-        // 歷史紀錄
-        if (games.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _isSearching ? '搜尋結果 (${games.length})' : '最近牌局',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: games.length,
-              itemBuilder: (context, index) {
-                final game = games[index];
-                return _buildGameHistoryCard(context, game, provider);
-              },
-            ),
-          ),
-        ] else ...[
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+    // 搜尋模式或展開全部時顯示完整列表
+    if (_isSearching || _showAllGames) {
+      return Column(
+        children: [
+          // 搜尋模式下不顯示新局按鈕；展開全部模式下顯示返回按鈕
+          if (_showAllGames && !_isSearching)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
                 children: [
-                  Icon(
-                    _isSearching ? Icons.search_off : Icons.history,
-                    size: 64,
-                    color: Colors.grey,
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => setState(() => _showAllGames = false),
                   ),
-                  const SizedBox(height: 16),
+                  const Text(
+                    '全部牌局',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
                   Text(
-                    _isSearching ? '找不到符合的牌局' : '尚無牌局紀錄',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                    '共 ${allGames.length} 場',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
             ),
+          if (_isSearching)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '搜尋結果 (${allGames.length})',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          Expanded(
+            child: allGames.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _isSearching ? Icons.search_off : Icons.history,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _isSearching ? '找不到符合的牌局' : '尚無牌局紀錄',
+                          style: const TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: allGames.length,
+                    itemBuilder: (context, index) {
+                      final game = allGames[index];
+                      return _buildGameHistoryCard(context, game, provider);
+                    },
+                  ),
           ),
         ],
-      ],
+      );
+    }
+
+    // 首頁正常顯示：新局按鈕 + 最近 3 筆牌局 + 最近一起玩
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 開始新局按鈕
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  FadeSlidePageRoute(page: const GameSetupScreen()),
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 28),
+              label: const Text('開始新局', style: TextStyle(fontSize: 22)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // 最近牌局（只顯示 3 筆）
+          if (allGames.isNotEmpty) ...[
+            const Text(
+              '最近牌局',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            ...allGames.take(3).map((game) => _buildGameHistoryCard(context, game, provider)),
+            if (allGames.length > 3) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _showAllGames = true),
+                  icon: const Icon(Icons.expand_more),
+                  label: Text('查看全部 (${allGames.length} 場)'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+          ],
+
+          // 最近一起玩
+          if (recentPlayers.isNotEmpty) ...[
+            const Text(
+              '最近一起玩',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            ...recentPlayers.take(3).map((profile) => _buildRecentPlayerCard(context, profile)),
+          ],
+
+          // 若沒有任何記錄
+          if (allGames.isEmpty && recentPlayers.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(48),
+                child: Column(
+                  children: [
+                    Icon(Icons.history, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      '尚無牌局紀錄',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '點擊「開始新局」開始記錄',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  /// 取得最近一起玩的玩家（排除自己，依最後一起玩時間排序）
+  List<PlayerProfile> _getRecentPlayers(GameProvider provider) {
+    final selfIds = provider.selfProfileIds;
+    final profiles = provider.playerProfiles
+        .where((p) => !selfIds.contains(p.id))
+        .toList();
+    // 已經按 lastPlayedAt 排序，直接取前 3 個
+    return profiles.take(3).toList();
+  }
+
+  /// 建立最近一起玩的玩家卡片
+  Widget _buildRecentPlayerCard(BuildContext context, PlayerProfile profile) {
+    final dateFormat = DateFormat('MM/dd');
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Text(profile.emoji, style: const TextStyle(fontSize: 32)),
+        title: Text(profile.name, style: const TextStyle(fontSize: 16)),
+        subtitle: Text('最後遊玩：${dateFormat.format(profile.lastPlayedAt)}'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            FadeSlidePageRoute(page: PlayerStatsScreen(profile: profile)),
+          );
+        },
+      ),
+    );
+  }
+
+  /// 點擊 AppBar 名稱進入自己的統計頁
+  void _navigateToSelfStats(BuildContext context, GameProvider provider) {
+    final selfProfileId = provider.selfProfileId;
+    if (selfProfileId == null) {
+      // 嘗試用 isSelf 找
+      final selfProfile = provider.playerProfiles.where((p) => p.isSelf).firstOrNull;
+      if (selfProfile != null) {
+        Navigator.push(
+          context,
+          FadeSlidePageRoute(page: PlayerStatsScreen(profile: selfProfile)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('請先在玩家管理中設定你的 Profile')),
+        );
+      }
+      return;
+    }
+
+    final profile = provider.playerProfiles.where((p) => p.id == selfProfileId).firstOrNull;
+    if (profile != null) {
+      Navigator.push(
+        context,
+        FadeSlidePageRoute(page: PlayerStatsScreen(profile: profile)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('找不到你的 Profile，請在玩家管理中重新設定')),
+      );
+    }
   }
 
   Widget _buildGameHistoryCard(BuildContext context, Game game, GameProvider provider) {
