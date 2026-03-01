@@ -36,6 +36,12 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // 強制使用 HTML renderer，讓 file input 能在 user gesture context 中正確觸發
+    window.flutterConfiguration = {
+      renderer: "html"
+    };
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
