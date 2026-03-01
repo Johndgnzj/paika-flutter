@@ -10,10 +10,13 @@ class AvatarService {
   static final ImagePicker _picker = ImagePicker();
 
   /// 選擇照片來源
+  /// Web 平台不支援 ImageSource.camera，強制使用 gallery
   static Future<XFile?> pickImage({ImageSource source = ImageSource.gallery}) async {
     try {
+      // Web 不支援 camera，強制改為 gallery
+      final actualSource = kIsWeb ? ImageSource.gallery : source;
       final XFile? image = await _picker.pickImage(
-        source: source,
+        source: actualSource,
         maxWidth: 512,
         maxHeight: 512,
         imageQuality: 85,

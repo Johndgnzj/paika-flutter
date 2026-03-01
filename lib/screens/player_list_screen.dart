@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -743,43 +744,43 @@ class PlayerListScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.account_circle),
                 title: const Text('使用帳號頭像'),
+                subtitle: const Text('點選後上傳照片作為帳號頭像'),
                 trailing: profile.avatarType == AvatarType.accountAvatar
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () async {
                   Navigator.pop(sheetContext);
-                  // 檢查帳號頭像是否存在
-                  final avatarUrl = await FirestoreService.loadAccountAvatar();
-                  if (avatarUrl == null) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('請先在帳號設定上傳頭像')),
-                      );
-                    }
-                    return;
-                  }
-                  await provider.updatePlayerProfile(
-                    profile.id,
-                    avatarType: AvatarType.accountAvatar,
-                  );
+                  await _pickAndUploadAccountAvatar(context, profile, provider);
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera),
-                title: const Text('自訂照片（相機）'),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await _pickAndUploadPhoto(context, profile, provider, ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('自訂照片（相簿）'),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await _pickAndUploadPhoto(context, profile, provider, ImageSource.gallery);
-                },
-              ),
+              // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」
+              if (!kIsWeb) ...[
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('拍照（相機）'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, profile, provider, ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('從相簿選擇'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, profile, provider, ImageSource.gallery);
+                  },
+                ),
+              ] else ...[
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('從裝置選擇照片'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, profile, provider, ImageSource.gallery);
+                  },
+                ),
+              ],
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.close),
@@ -791,6 +792,60 @@ class PlayerListScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _pickAndUploadAccountAvatar(
+    BuildContext context,
+    PlayerProfile profile,
+    GameProvider provider,
+  ) async {
+    // 檢查是否已有帳號頭像
+    final existingUrl = await FirestoreService.loadAccountAvatar();
+
+    if (existingUrl != null) {
+      // 已有帳號頭像，直接使用
+      await provider.updatePlayerProfile(
+        profile.id,
+        avatarType: AvatarType.accountAvatar,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已套用帳號頭像')),
+        );
+      }
+      return;
+    }
+
+    // 沒有帳號頭像，讓使用者選擇照片上傳
+    final image = await AvatarService.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上傳帳號頭像中...')),
+      );
+    }
+
+    final url = await AvatarService.uploadAccountAvatar(image);
+    if (url == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('上傳失敗，請重試')),
+        );
+      }
+      return;
+    }
+
+    await provider.updatePlayerProfile(
+      profile.id,
+      avatarType: AvatarType.accountAvatar,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('帳號頭像已上傳並套用')),
+      );
+    }
   }
 
   Future<void> _pickAndUploadPhoto(

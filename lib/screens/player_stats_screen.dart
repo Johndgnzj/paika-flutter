@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/player_profile.dart';
 import '../providers/game_provider.dart';
 import '../services/stats_service.dart';
 import '../services/calculation_service.dart';
+import '../services/avatar_service.dart';
+import '../services/firestore_service.dart';
+import '../utils/constants.dart';
 import '../widgets/animation_helpers.dart';
+import '../widgets/player_avatar.dart';
 import '../widgets/charts/score_trend_chart.dart';
 import '../widgets/charts/win_rate_pie_chart.dart';
 import '../widgets/charts/tai_distribution_chart.dart';
@@ -23,17 +29,49 @@ class PlayerStatsScreen extends StatefulWidget {
 
 class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   TimeRange _timeRange = TimeRange.all;
+  late PlayerProfile _currentProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentProfile = widget.profile;
+  }
+
+  void _refreshProfile() {
+    final provider = context.read<GameProvider>();
+    final updated = provider.playerProfiles.firstWhere(
+      (p) => p.id == widget.profile.id,
+      orElse: () => widget.profile,
+    );
+    setState(() {
+      _currentProfile = updated;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.profile.emoji} ${widget.profile.name}'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PlayerAvatar(profile: _currentProfile, size: 28),
+            const SizedBox(width: 8),
+            Flexible(child: Text(_currentProfile.name, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: '編輯玩家',
+            onPressed: () => _showEditSheet(context),
+          ),
+        ],
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
           final stats = StatsService.getPlayerStats(
-            [widget.profile.id, ...widget.profile.mergedProfileIds],
+            [_currentProfile.id, ..._currentProfile.mergedProfileIds],
             provider.gameHistory,
             timeRange: _timeRange,
           );
@@ -112,13 +150,13 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            Text(widget.profile.emoji, style: const TextStyle(fontSize: 48)),
+            PlayerAvatar(profile: _currentProfile, size: 64),
             const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.profile.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(_currentProfile.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -566,5 +604,346 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
         ),
       ],
     );
+  }
+
+  // --- 編輯玩家 ---
+
+  void _showEditSheet(BuildContext context) {
+    final nameController = TextEditingController(text: _currentProfile.name);
+    String selectedEmoji = _currentProfile.emoji;
+    final provider = context.read<GameProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    '編輯玩家',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  // 頭像區塊
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showAvatarOptionsSheet(context, provider);
+                      },
+                      child: Stack(
+                        children: [
+                          PlayerAvatar(profile: _currentProfile, size: 80),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.camera_alt,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _showAvatarOptionsSheet(context, provider);
+                      },
+                      icon: const Icon(Icons.photo_camera, size: 18),
+                      label: const Text('更換頭像'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Emoji 選擇
+                  Row(
+                    children: [
+                      const Text('Emoji：', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          _showEmojiPicker(context, selectedEmoji, (emoji) {
+                            setSheetState(() => selectedEmoji = emoji);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(selectedEmoji, style: const TextStyle(fontSize: 32)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('(點擊更換)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // 名稱輸入
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: '玩家名稱',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 按鈕列
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          if (name.isEmpty) return;
+                          await provider.updatePlayerProfile(
+                            _currentProfile.id,
+                            name: name,
+                            emoji: selectedEmoji,
+                          );
+                          if (sheetContext.mounted) Navigator.pop(sheetContext);
+                          _refreshProfile();
+                        },
+                        child: const Text('儲存'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEmojiPicker(BuildContext context, String current, void Function(String) onSelected) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('選擇圖示'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.count(
+              shrinkWrap: true,
+              crossAxisCount: 4,
+              children: AppConstants.availableEmojis.map((emoji) {
+                return InkWell(
+                  onTap: () {
+                    onSelected(emoji);
+                    Navigator.pop(dialogContext);
+                  },
+                  child: Center(
+                    child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAvatarOptionsSheet(BuildContext context, GameProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.emoji_emotions),
+                title: const Text('顯示 Emoji'),
+                trailing: _currentProfile.avatarType == AvatarType.emoji
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await provider.updatePlayerProfile(
+                    _currentProfile.id,
+                    avatarType: AvatarType.emoji,
+                  );
+                  _refreshProfile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_circle),
+                title: const Text('使用帳號頭像'),
+                subtitle: const Text('點選後上傳照片作為帳號頭像'),
+                trailing: _currentProfile.avatarType == AvatarType.accountAvatar
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : null,
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  await _pickAndUploadAccountAvatar(context, provider);
+                },
+              ),
+              // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」
+              if (!kIsWeb) ...[
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('拍照（相機）'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, provider, ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('從相簿選擇'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, provider, ImageSource.gallery);
+                  },
+                ),
+              ] else ...[
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('從裝置選擇照片'),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickAndUploadPhoto(context, provider, ImageSource.gallery);
+                  },
+                ),
+              ],
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('取消'),
+                onTap: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickAndUploadPhoto(
+    BuildContext context,
+    GameProvider provider,
+    ImageSource source,
+  ) async {
+    final image = await AvatarService.pickImage(source: source);
+    if (image == null) return;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上傳中...')),
+      );
+    }
+
+    final url = await AvatarService.uploadProfilePhoto(_currentProfile.id, image);
+    if (url == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('上傳失敗，請重試')),
+        );
+      }
+      return;
+    }
+
+    await provider.updatePlayerProfile(
+      _currentProfile.id,
+      avatarType: AvatarType.customPhoto,
+      customPhotoUrl: url,
+    );
+
+    _refreshProfile();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('頭像已更新')),
+      );
+    }
+  }
+
+  Future<void> _pickAndUploadAccountAvatar(
+    BuildContext context,
+    GameProvider provider,
+  ) async {
+    // 檢查是否已有帳號頭像
+    final existingUrl = await FirestoreService.loadAccountAvatar();
+
+    if (existingUrl != null) {
+      // 已有帳號頭像，直接使用
+      await provider.updatePlayerProfile(
+        _currentProfile.id,
+        avatarType: AvatarType.accountAvatar,
+      );
+      _refreshProfile();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已套用帳號頭像')),
+        );
+      }
+      return;
+    }
+
+    // 沒有帳號頭像，讓使用者選擇照片上傳
+    final image = await AvatarService.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上傳帳號頭像中...')),
+      );
+    }
+
+    final url = await AvatarService.uploadAccountAvatar(image);
+    if (url == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('上傳失敗，請重試')),
+        );
+      }
+      return;
+    }
+
+    await provider.updatePlayerProfile(
+      _currentProfile.id,
+      avatarType: AvatarType.accountAvatar,
+    );
+
+    _refreshProfile();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('帳號頭像已上傳並套用')),
+      );
+    }
   }
 }
