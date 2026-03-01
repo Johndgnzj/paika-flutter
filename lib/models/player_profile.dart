@@ -12,7 +12,7 @@ class PlayerProfile {
   final String name;            // 玩家名稱
   final String emoji;           // 頭像 emoji
   final AvatarType avatarType;  // 頭像類型
-  final String? customPhotoUrl; // 自訂照片 URL（Firebase Storage）
+  final String? customPhotoData; // 自訂照片 base64 data URI（格式：data:image/jpeg;base64,...）
   final String? linkedAccountId; // 連結到的另一個帳號
   final bool isSelf;            // 是否為帳號擁有者本人
   final DateTime createdAt;
@@ -25,7 +25,7 @@ class PlayerProfile {
     required this.name,
     required this.emoji,
     this.avatarType = AvatarType.emoji,
-    this.customPhotoUrl,
+    this.customPhotoData,
     this.linkedAccountId,
     this.isSelf = false,
     required this.createdAt,
@@ -40,7 +40,7 @@ class PlayerProfile {
       name: json['name'] as String,
       emoji: json['emoji'] as String,
       avatarType: _parseAvatarType(json['avatarType'] as String?),
-      customPhotoUrl: json['customPhotoUrl'] as String?,
+      customPhotoData: json['customPhotoData'] as String?,
       linkedAccountId: json['linkedAccountId'] as String?,
       isSelf: json['isSelf'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -81,7 +81,7 @@ class PlayerProfile {
       'name': name,
       'emoji': emoji,
       'avatarType': _avatarTypeToString(avatarType),
-      'customPhotoUrl': customPhotoUrl,
+      'customPhotoData': customPhotoData,
       'linkedAccountId': linkedAccountId,
       'isSelf': isSelf,
       'createdAt': createdAt.toIso8601String(),
@@ -96,8 +96,8 @@ class PlayerProfile {
     String? name,
     String? emoji,
     AvatarType? avatarType,
-    String? customPhotoUrl,
-    bool clearCustomPhotoUrl = false,
+    String? customPhotoData,
+    bool clearCustomPhotoData = false,
     String? linkedAccountId,
     bool? isSelf,
     DateTime? createdAt,
@@ -110,7 +110,7 @@ class PlayerProfile {
       name: name ?? this.name,
       emoji: emoji ?? this.emoji,
       avatarType: avatarType ?? this.avatarType,
-      customPhotoUrl: clearCustomPhotoUrl ? null : (customPhotoUrl ?? this.customPhotoUrl),
+      customPhotoData: clearCustomPhotoData ? null : (customPhotoData ?? this.customPhotoData),
       linkedAccountId: linkedAccountId ?? this.linkedAccountId,
       isSelf: isSelf ?? this.isSelf,
       createdAt: createdAt ?? this.createdAt,

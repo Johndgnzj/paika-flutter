@@ -877,7 +877,7 @@ class PlayerListScreen extends StatelessWidget {
     await provider.updatePlayerProfile(
       profile.id,
       avatarType: AvatarType.customPhoto,
-      customPhotoUrl: url,
+      customPhotoData: url,
     );
 
     if (context.mounted) {

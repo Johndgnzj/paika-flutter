@@ -422,8 +422,8 @@ class GameProvider with ChangeNotifier {
     String? name,
     String? emoji,
     AvatarType? avatarType,
-    String? customPhotoUrl,
-    bool clearCustomPhotoUrl = false,
+    String? customPhotoData,
+    bool clearCustomPhotoData = false,
   }) async {
     if (_currentAccountId == null) return;
     final index = _playerProfiles.indexWhere((p) => p.id == id);
@@ -433,8 +433,8 @@ class GameProvider with ChangeNotifier {
       name: name,
       emoji: emoji,
       avatarType: avatarType,
-      customPhotoUrl: customPhotoUrl,
-      clearCustomPhotoUrl: clearCustomPhotoUrl,
+      customPhotoData: customPhotoData,
+      clearCustomPhotoData: clearCustomPhotoData,
     );
     await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
     notifyListeners();

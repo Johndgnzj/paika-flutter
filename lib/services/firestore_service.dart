@@ -127,25 +127,25 @@ class FirestoreService {
 
   // --- Account Avatar ---
 
-  /// 儲存帳號頭像 URL
-  static Future<void> saveAccountAvatar(String url) async {
+  /// 儲存帳號頭像 base64 data
+  static Future<void> saveAccountAvatar(String data) async {
     final doc = _userDoc;
     if (doc == null) return;
 
     await doc.collection('accountAvatar').doc('default').set({
-      'url': url,
+      'data': data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// 載入帳號頭像 URL
+  /// 載入帳號頭像 base64 data
   static Future<String?> loadAccountAvatar() async {
     final doc = _userDoc;
     if (doc == null) return null;
 
     final snapshot = await doc.collection('accountAvatar').doc('default').get();
     if (!snapshot.exists) return null;
-    return snapshot.data()?['url'] as String?;
+    return snapshot.data()?['data'] as String?;
   }
 
   /// 即時監聽帳號頭像變化
@@ -158,11 +158,11 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return null;
-      return snapshot.data()?['url'] as String?;
+      return snapshot.data()?['data'] as String?;
     });
   }
 
-  /// 載入其他帳號的頭像 URL（用於顯示 accountAvatar 類型的頭像）
+  /// 載入其他帳號的頭像 base64 data（用於顯示 accountAvatar 類型的頭像）
   static Future<String?> loadAccountAvatarByUid(String uid) async {
     final snapshot = await _db
         .collection('users')
@@ -171,7 +171,7 @@ class FirestoreService {
         .doc('default')
         .get();
     if (!snapshot.exists) return null;
-    return snapshot.data()?['url'] as String?;
+    return snapshot.data()?['data'] as String?;
   }
 
   // --- Player Profiles ---

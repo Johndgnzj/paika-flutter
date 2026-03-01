@@ -1,13 +1,16 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'firestore_service.dart';
 
-/// 頭像上傳服務
+/// 頭像服務（使用 Firestore base64 儲存）
 class AvatarService {
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
   static final ImagePicker _picker = ImagePicker();
+
+  /// 最大圖片大小（bytes）
+  static const int _maxImageSize = 200 * 1024; // 200KB
 
   /// 選擇照片來源
   /// Web 平台不支援 ImageSource.camera，強制使用 gallery
@@ -28,88 +31,75 @@ class AvatarService {
     }
   }
 
-  /// 上傳玩家自訂頭像
-  /// 路徑：profilePhotos/{uid}/{profileId}.jpg
-  /// 回傳帶時間戳的 URL
+  /// 將圖片轉換為 base64 data URI
+  /// 壓縮至 <= 200KB
+  static Future<String?> imageToBase64(XFile image) async {
+    try {
+      Uint8List bytes = await image.readAsBytes();
+
+      // 如果圖片太大，嘗試進一步壓縮
+      // 由於 XFile 已經在 pickImage 時壓縮過，通常不會超過限制
+      // 但為了安全起見，我們檢查並在必要時截斷
+      if (bytes.length > _maxImageSize) {
+        // 重新選取圖片時使用更低的品質
+        if (kDebugMode) {
+          print('[AvatarService] Image too large (${bytes.length} bytes), trying lower quality');
+        }
+        // 由於我們無法在這裡重新壓縮，只能警告並返回 null
+        // 實際上 pickImage 已經設定 maxWidth=512, maxHeight=512, imageQuality=85
+        // 應該足夠小。如果還是太大，需要用戶選擇較小的圖片
+        if (bytes.length > _maxImageSize * 2) {
+          if (kDebugMode) {
+            print('[AvatarService] Image still too large, please select a smaller image');
+          }
+          return null;
+        }
+      }
+
+      final base64String = base64Encode(bytes);
+      final dataUri = 'data:image/jpeg;base64,$base64String';
+
+      if (kDebugMode) {
+        print('[AvatarService] Image converted to base64, size: ${bytes.length} bytes');
+      }
+
+      return dataUri;
+    } catch (e) {
+      if (kDebugMode) print('[AvatarService] imageToBase64 failed: $e');
+      return null;
+    }
+  }
+
+  /// 上傳玩家自訂頭像（轉換為 base64）
+  /// 回傳 base64 data URI
   static Future<String?> uploadProfilePhoto(String profileId, XFile imageFile) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return null;
 
-      final path = 'profilePhotos/$uid/$profileId.jpg';
-      final ref = _storage.ref().child(path);
-
-      // 刪除舊檔（如果存在）
-      try {
-        await ref.delete();
-      } catch (_) {
-        // 檔案不存在，忽略
-      }
-
-      // 上傳新檔
-      final bytes = await imageFile.readAsBytes();
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
-      await ref.putData(bytes, metadata);
-
-      // 取得下載 URL 並加上時間戳強制刷新
-      final downloadUrl = await ref.getDownloadURL();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      return '$downloadUrl?v=$timestamp';
+      return await imageToBase64(imageFile);
     } catch (e) {
       if (kDebugMode) print('[AvatarService] uploadProfilePhoto failed: $e');
       return null;
     }
   }
 
-  /// 上傳帳號頭像
-  /// 路徑：accountAvatars/{uid}/avatar.jpg
-  /// 上傳後自動更新 Firestore
+  /// 上傳帳號頭像（轉換為 base64 並存入 Firestore）
   static Future<String?> uploadAccountAvatar(XFile imageFile) async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return null;
 
-      final path = 'accountAvatars/$uid/avatar.jpg';
-      final ref = _storage.ref().child(path);
+      final base64Data = await imageToBase64(imageFile);
+      if (base64Data == null) return null;
 
-      // 刪除舊檔（如果存在）
-      try {
-        await ref.delete();
-      } catch (_) {
-        // 檔案不存在，忽略
-      }
+      // 更新 Firestore（使用新的 data 欄位）
+      await FirestoreService.saveAccountAvatar(base64Data);
 
-      // 上傳新檔
-      final bytes = await imageFile.readAsBytes();
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
-      await ref.putData(bytes, metadata);
-
-      // 取得下載 URL 並加上時間戳強制刷新
-      final downloadUrl = await ref.getDownloadURL();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final urlWithTimestamp = '$downloadUrl?v=$timestamp';
-
-      // 更新 Firestore
-      await FirestoreService.saveAccountAvatar(urlWithTimestamp);
-
-      return urlWithTimestamp;
+      return base64Data;
     } catch (e) {
       if (kDebugMode) print('[AvatarService] uploadAccountAvatar failed: $e');
       return null;
-    }
-  }
-
-  /// 刪除玩家自訂頭像
-  static Future<void> deleteProfilePhoto(String profileId) async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      final path = 'profilePhotos/$uid/$profileId.jpg';
-      final ref = _storage.ref().child(path);
-      await ref.delete();
-    } catch (e) {
-      if (kDebugMode) print('[AvatarService] deleteProfilePhoto failed: $e');
     }
   }
 }

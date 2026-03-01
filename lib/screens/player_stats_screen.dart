@@ -879,7 +879,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     await provider.updatePlayerProfile(
       _currentProfile.id,
       avatarType: AvatarType.customPhoto,
-      customPhotoUrl: url,
+      customPhotoData: url,
     );
 
     _refreshProfile();
