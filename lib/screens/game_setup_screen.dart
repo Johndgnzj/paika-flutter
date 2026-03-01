@@ -63,6 +63,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
           id: _uuid.v4(), // 新 ID，避免與舊局衝突
           name: lastGame.players[i].name,
           emoji: lastGame.players[i].emoji,
+          userId: lastGame.players[i].userId, // 保留 profile 綁定
         );
         _nameControllers[i].text = _players[i].name;
       }

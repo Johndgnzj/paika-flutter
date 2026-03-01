@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/player_profile.dart';
@@ -147,41 +148,68 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   }
 
   Widget _buildStatsCards(BuildContext context, PlayerStats stats) {
+    final totalRounds = stats.totalRounds;
+    final winRate    = totalRounds > 0 ? stats.wins      / totalRounds * 100 : 0.0;
+    final selfRate   = totalRounds > 0 ? stats.selfDraws / totalRounds * 100 : 0.0;
+    final lossRate   = totalRounds > 0 ? stats.losses    / totalRounds * 100 : 0.0;
+
+    // 綜合戰力 0~100
+    // 公式：胡牌率*40 + 自摸率*30 + (1-放槍率)*20 + 場次權重*10
+    // 場次權重：log(場次+1)/log(51) capped at 1
+
+    final gameWeight = stats.totalGames > 0
+        ? (math.log(stats.totalGames + 1) / math.log(51)).clamp(0.0, 1.0)
+        : 0.0;
+    final power = ((winRate / 100) * 40 +
+                   (selfRate / 100) * 30 +
+                   (1 - (lossRate / 100)) * 20 +
+                   gameWeight * 10).clamp(0.0, 100.0);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('戰績概覽', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Row(
+          children: [
+            const Text('戰績概覽', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => _showPowerFormula(context),
+              child: const Icon(Icons.info_outline, size: 18, color: Colors.grey),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
+        // 第一行：胡牌、自摸、放槍 大字 + 機率，以及綜合戰力
         GridView.count(
           crossAxisCount: 4,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1,
+          childAspectRatio: 0.9,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           children: [
-            _buildStatCard('胡牌', '${stats.wins}', Colors.green),
-            _buildStatCard('自摸', '${stats.selfDraws}', Colors.blue),
-            _buildStatCard('放槍', '${stats.losses}', Colors.red),
-            _buildStatCard('詐胡', '${stats.falseWins}', Colors.orange),
+            _buildStatCard('胡牌', '${stats.wins}', Colors.green,
+                sub: '${winRate.toStringAsFixed(1)}%'),
+            _buildStatCard('自摸', '${stats.selfDraws}', Colors.blue,
+                sub: '${selfRate.toStringAsFixed(1)}%'),
+            _buildStatCard('放槍', '${stats.losses}', Colors.red,
+                sub: '${lossRate.toStringAsFixed(1)}%'),
+            _buildPowerCard(power.round()),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        // 第二行：詐胡 + 單場最高最低 + 平均
         Row(
           children: [
             Expanded(
               child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Text(
-                        CalculationService.formatScore(stats.bestGameScore),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                      ),
-                      const Text('單場最高', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
+                  child: Column(children: [
+                    Text('${stats.falseWins}',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                    const Text('詐胡', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
                 ),
               ),
             ),
@@ -189,15 +217,11 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
               child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Text(
-                        CalculationService.formatScore(stats.worstGameScore),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
-                      ),
-                      const Text('單場最低', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
+                  child: Column(children: [
+                    Text(CalculationService.formatScore(stats.bestGameScore),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    const Text('單場最高', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
                 ),
               ),
             ),
@@ -205,15 +229,23 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
               child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Text(
-                        stats.avgScorePerGame.toStringAsFixed(0),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const Text('平均得分', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
+                  child: Column(children: [
+                    Text(CalculationService.formatScore(stats.worstGameScore),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                    const Text('單場最低', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(children: [
+                    Text(stats.avgScorePerGame.toStringAsFixed(0),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('平均得分', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
                 ),
               ),
             ),
@@ -223,18 +255,116 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color) {
+  Widget _buildStatCard(String label, String value, Color color, {String? sub}) {
     return Card(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+          if (sub != null)
+            Text(sub, style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8))),
+          const SizedBox(height: 2),
           Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
         ],
       ),
     );
   }
+
+  Widget _buildPowerCard(int power) {
+    final color = power >= 70
+        ? Colors.amber
+        : power >= 40
+            ? Colors.blue
+            : Colors.grey;
+    return Card(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('$power', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 2),
+          const Text('戰力', style: TextStyle(fontSize: 13, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  void _showPowerFormula(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('綜合戰力計算公式'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('滿分 100 分，由以下四項加總：', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              Text('🀄 胡牌率 × 40 分'),
+              Text('   胡牌次數 ÷ 參與局數'),
+              SizedBox(height: 8),
+              Text('🀄 自摸率 × 30 分'),
+              Text('   自摸次數 ÷ 參與局數'),
+              SizedBox(height: 8),
+              Text('🛡 不放槍率 × 20 分'),
+              Text('   (1 − 放槍率)，放槍越少越高'),
+              SizedBox(height: 8),
+              Text('📊 場次權重 × 10 分'),
+              Text('   log(場次+1) / log(51)，最多 50 場滿分'),
+              SizedBox(height: 12),
+              Text('說明：', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('場次少時戰力偏低，反映樣本不足的不確定性。'
+                   '高胡牌率 + 高自摸率 + 低放槍率可達到高分。'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('了解了')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpponents(BuildContext context, PlayerStats stats) {
+    if (stats.opponents.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('常見對手', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        ...stats.opponents.map((opp) {
+          final r = opp.roundsTogether;
+          final winPct  = r > 0 ? (opp.winsBy  / r * 100).toStringAsFixed(1) : '-';
+          final lossPct = r > 0 ? (opp.lossesBy / r * 100).toStringAsFixed(1) : '-';
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: Text(opp.emoji, style: const TextStyle(fontSize: 28)),
+              title: Text(opp.name),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('同場 ${opp.gamesTogether} 場 / ${opp.roundsTogether} 局'),
+                  Text(
+                    '胡對手 ${opp.winsBy}次($winPct%)  被胡 ${opp.lossesBy}次($lossPct%)',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              isThreeLine: true,
+              trailing: Text(
+                '${opp.winsAgainst}胡\n${opp.lossesAgainst}放',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
 
   Widget _buildTaiInfo(BuildContext context, PlayerStats stats) {
     return Row(
@@ -297,15 +427,22 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   Widget _buildRecentGames(BuildContext context, PlayerStats stats, GameProvider provider) {
     if (stats.recentGames.isEmpty) return const SizedBox.shrink();
 
-    final dateFormat = DateFormat('MM/dd');
+    final dateFormat = DateFormat('yyyy/MM/dd');
+    final sortedGames = List.of(stats.recentGames)
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('最近牌局', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        ...stats.recentGames.map((summary) {
+        ...sortedGames.asMap().entries.map((entry) {
+          final idx = entry.key + 1;
+          final summary = entry.value;
           final scoreColor = summary.score > 0 ? Colors.green : summary.score < 0 ? Colors.red : null;
+          final hasName = summary.gameName != null && summary.gameName!.isNotEmpty;
+          final subtitleText =
+              '${summary.baseScore}/${summary.perTai} - ${summary.jiangCount}將(${summary.rounds}局) - ${dateFormat.format(summary.date)}';
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
@@ -314,7 +451,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                     ? Colors.amber.withValues(alpha: 0.25)
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Text(
-                  '#${summary.rank}',
+                  '#$idx',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: summary.rank == 1
@@ -323,12 +460,21 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                   ),
                 ),
               ),
-              title: Text(CalculationService.formatScore(summary.score),
-                style: TextStyle(fontWeight: FontWeight.bold, color: scoreColor)),
-              subtitle: Text('${dateFormat.format(summary.date)}  ${summary.rounds}局'),
+              title: Row(
+                children: [
+                  if (hasName) ...[
+                    Text(summary.gameName!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Text(CalculationService.formatScore(summary.score),
+                        style: TextStyle(fontSize: 13, color: scoreColor)),
+                  ] else
+                    Text(CalculationService.formatScore(summary.score),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: scoreColor)),
+                ],
+              ),
+              subtitle: Text(subtitleText),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // 找到對應的完整 Game 物件
                 try {
                   final game = provider.gameHistory.firstWhere((g) => g.id == summary.gameId);
                   Navigator.push(context, FadeSlidePageRoute(page: GameDetailScreen(game: game)));
@@ -341,31 +487,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     );
   }
 
-  Widget _buildOpponents(BuildContext context, PlayerStats stats) {
-    if (stats.opponents.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('常見對手', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        ...stats.opponents.map((opp) {
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: Text(opp.emoji, style: const TextStyle(fontSize: 28)),
-              title: Text(opp.name),
-              subtitle: Text('同場 ${opp.gamesTogether} 次'),
-              trailing: Text(
-                '${opp.winsAgainst}勝 ${opp.lossesAgainst}負',
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
 
   Widget _buildBestRound(BuildContext context, PlayerStats stats, GameProvider provider) {
     final best = stats.bestRound!;

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:screenshot/screenshot.dart';
+import 'package:provider/provider.dart';
+import '../providers/game_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/game.dart';
 import '../models/hand_pattern.dart';
 import '../models/round.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import '../services/export_service.dart';
+import '../widgets/game_share_card.dart';
 
 /// 牌局詳細頁面
 class GameDetailScreen extends StatefulWidget {
@@ -20,8 +24,6 @@ class GameDetailScreen extends StatefulWidget {
 }
 
 class _GameDetailScreenState extends State<GameDetailScreen> {
-  final ScreenshotController _rankingScreenshotController = ScreenshotController();
-  final ScreenshotController _statsScreenshotController = ScreenshotController();
   bool _sortAscending = false; // 局數排序：false = 降序（最新優先），true = 順序
 
   Game get game => widget.game;
@@ -51,14 +53,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
         ),
         body: TabBarView(
           children: [
-            Screenshot(
-              controller: _rankingScreenshotController,
-              child: _buildRankingTab(),
-            ),
-            Screenshot(
-              controller: _statsScreenshotController,
-              child: _buildStatsTab(),
-            ),
+            _buildRankingTab(),
+            _buildStatsTab(),
             _buildRoundsTab(),
           ],
         ),
@@ -77,6 +73,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     });
     
     final titles = _calculateTitles();
+    final myProfileIds = context.read<GameProvider>().selfProfileIds;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -137,9 +134,12 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                             children: [
                               Text(
                                 player.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
+                                  color: myProfileIds.contains(player.userId)
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
                                 ),
                               ),
                               if (titles[player.id] != null && titles[player.id]!.isNotEmpty)
@@ -593,7 +593,6 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                 children: displayRounds.map((round) {
                   final dealer = game.players[round.dealerSeat.clamp(0, 3)];
                   final consecutiveWins = round.consecutiveWins;
-                  final dealerWasLost = (round.loserId == dealer.id);
 
                   return Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -624,36 +623,28 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                 child: Text(
                                   _getRoundTypeText(round),
                                   style: TextStyle(
-                                    fontSize: 24,
+                                    fontSize: 23,
                                     fontWeight: FontWeight.bold,
                                     color: _getRoundColor(round),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('莊:${dealer.emoji}',
-                                      style: const TextStyle(fontSize: 20)),
-                                  if (consecutiveWins > 0)
-                                    Text(
-                                      ' 連$consecutiveWins',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        color: Colors.orange,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                              if (consecutiveWins > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Text(
+                                    '連$consecutiveWins',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                ],
-                              ),
-                              if (dealerWasLost)
-                                const Text(
-                                  '莊被胡',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               // 牌型標籤
@@ -664,20 +655,45 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                         // 四欄：玩家分數
                         ...game.players.map((player) {
                           final change = round.scoreChanges[player.id] ?? 0;
+                          final isDealer = player.id == dealer.id;
                           return Expanded(
-                            child: Text(
-                              change == 0 ? '-' : CalculationService.formatScore(change),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight:
-                                    change != 0 ? FontWeight.bold : FontWeight.normal,
-                                color: change > 0
-                                    ? Colors.green
-                                    : change < 0
-                                        ? Colors.red
-                                        : Colors.grey,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  change == 0 ? '-' : CalculationService.formatScore(change),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: change != 0 ? FontWeight.bold : FontWeight.normal,
+                                    color: change > 0
+                                        ? Colors.green
+                                        : change < 0
+                                            ? Colors.red
+                                            : Colors.grey,
+                                  ),
+                                ),
+                                if (isDealer)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.6)),
+                                    ),
+                                    child: const Text(
+                                      '莊家',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(height: 17), // 保持高度一致
+                              ],
                             ),
                           );
                         }),
@@ -762,13 +778,21 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
             decoration: BoxDecoration(
-              color: Colors.purple.withValues(alpha: 0.15),
+              color: Colors.purple.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.35)),
             ),
-            child: Text(
-              name,
-              style: const TextStyle(fontSize: 10, color: Colors.purple),
+            child: Builder(
+              builder: (ctx) {
+                final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                return Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFFB8963E) : Colors.purple,
+                  ),
+                );
+              },
             ),
           );
         }).toList(),
@@ -868,55 +892,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Future<void> _shareScreenshots() async {
-    try {
-      // 顯示載入提示
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('正在生成截圖...')),
-      );
+    if (!mounted) return;
 
-      // 截取兩個畫面
-      final rankingImage = await _rankingScreenshotController.capture();
-      final statsImage = await _statsScreenshotController.capture();
-
-      if (rankingImage == null || statsImage == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('截圖失敗')),
-        );
-        return;
-      }
-
-      // 分享截圖
-      final dateFormat = DateFormat('yyyyMMdd_HHmmss');
-      final timestamp = dateFormat.format(game.createdAt);
-      
-      await SharePlus.instance.share(ShareParams(
-        files: [
-          XFile.fromData(
-            rankingImage,
-            name: 'paika_${timestamp}_ranking.png',
-            mimeType: 'image/png',
-          ),
-          XFile.fromData(
-            statsImage,
-            name: 'paika_${timestamp}_stats.png',
-            mimeType: 'image/png',
-          ),
-        ],
-        subject: '${game.name ?? "牌局"} - ${DateFormat("yyyy/MM/dd").format(game.createdAt)}',
-      ));
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('截圖已生成')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('分享失敗: $e')),
-      );
-    }
+    // 彈出預覽 dialog，讓用戶確認後再分享
+    await showDialog(
+      context: context,
+      builder: (ctx) => _SharePreviewDialog(game: game),
+    );
   }
 }
 
@@ -953,11 +935,11 @@ class _RoundsPlayerHeaderDelegate extends SliverPersistentHeaderDelegate {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                    Text(player.emoji, style: const TextStyle(fontSize: 22)),
                     Text(
                       player.name,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
@@ -977,4 +959,93 @@ class _RoundsPlayerHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_RoundsPlayerHeaderDelegate oldDelegate) =>
       oldDelegate.players != players;
+}
+
+/// 分享預覽 Dialog（含截圖邏輯）
+class _SharePreviewDialog extends StatefulWidget {
+  final Game game;
+  const _SharePreviewDialog({required this.game});
+
+  @override
+  State<_SharePreviewDialog> createState() => _SharePreviewDialogState();
+}
+
+class _SharePreviewDialogState extends State<_SharePreviewDialog> {
+  final GlobalKey _repaintKey = GlobalKey();
+  bool _isCapturing = false;
+
+  Future<void> _captureAndShare() async {
+    setState(() => _isCapturing = true);
+    try {
+      await Future.delayed(const Duration(milliseconds: 100)); // 等待渲染完成
+      final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) throw Exception('無法取得渲染物件');
+
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) throw Exception('圖片轉換失敗');
+
+      final bytes = byteData.buffer.asUint8List();
+      final dateFormat = DateFormat('yyyyMMdd_HHmmss');
+      final timestamp = dateFormat.format(widget.game.createdAt);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      await SharePlus.instance.share(ShareParams(
+        files: [
+          XFile.fromData(bytes, name: 'paika_$timestamp.png', mimeType: 'image/png'),
+        ],
+        subject: '${widget.game.name ?? "牌局"} - ${DateFormat("yyyy/MM/dd").format(widget.game.createdAt)}',
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isCapturing = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('截圖失敗: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 預覽卡片
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: RepaintBoundary(
+              key: _repaintKey,
+              child: GameShareCard(game: widget.game),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // 按鈕列
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: _isCapturing ? null : () => Navigator.pop(context),
+                child: const Text('取消', style: TextStyle(color: Colors.white70)),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: _isCapturing ? null : _captureAndShare,
+                icon: _isCapturing
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.share),
+                label: Text(_isCapturing ? '生成中...' : '分享'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

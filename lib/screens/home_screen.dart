@@ -335,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildGameHistoryCard(BuildContext context, Game game, GameProvider provider) {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final scores = game.currentScores;
+    final myProfileIds = provider.selfProfileIds;
 
     // 找出最高分玩家
     String topPlayerId = game.players[0].id;
@@ -443,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                '${game.settings.baseScore}/${game.settings.perTai} - ${game.rounds.length} 局',
+                '${game.settings.baseScore}/${game.settings.perTai} - ${game.jiangs.length}將(${game.rounds.length}局)',
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 12),
@@ -458,7 +459,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(player.emoji, style: const TextStyle(fontSize: 22)),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(player.name, style: const TextStyle(fontSize: 16))),
+                      Expanded(
+                        child: Text(
+                          player.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: myProfileIds.contains(player.userId) ? FontWeight.bold : FontWeight.normal,
+                            color: myProfileIds.contains(player.userId)
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                          ),
+                        ),
+                      ),
                       Text(
                         CalculationService.formatScore(score),
                         style: TextStyle(

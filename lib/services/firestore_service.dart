@@ -240,6 +240,112 @@ class FirestoreService {
     });
   }
 
+
+
+  // --- Linked Sources (跨帳號場次查詢) ---
+
+  /// 儲存連結來源（兌換連結碼後呼叫，記錄我可以查詢哪個帳號的場次）
+  static Future<void> saveLinkedSource({
+    required String ownerUid,
+    required String profileId,
+  }) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('linkedSources')
+        .doc(ownerUid)
+        .set({'ownerUid': ownerUid, 'profileId': profileId});
+  }
+
+  /// 移除連結來源（解除連結時呼叫）
+  static Future<void> removeLinkedSource(String ownerUid) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('linkedSources')
+        .doc(ownerUid)
+        .delete();
+  }
+
+  /// 載入所有連結來源
+  static Future<List<LinkedSource>> loadLinkedSources() async {
+    final uid = _uid;
+    if (uid == null) return [];
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('linkedSources')
+        .get();
+    return snapshot.docs.map((d) {
+      final data = d.data();
+      return LinkedSource(
+        ownerUid: data['ownerUid'] as String,
+        profileId: data['profileId'] as String,
+      );
+    }).toList();
+  }
+
+  /// 從其他帳號載入我參與的場次（跨帳號查詢）
+  static Future<List<Game>> loadLinkedGames(String ownerUid, String myProfileId) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(ownerUid)
+        .collection('games')
+        .get();
+    return snapshot.docs
+        .map((d) => Game.fromJson(d.data()))
+        .where((g) => g.players.any((p) => p.userId == myProfileId))
+        .toList();
+  }
+
+  /// 更新玩家檔案的 linkedAccountId（連結操作，用 merge 方式只更新該欄位）
+  static Future<void> updateProfileLinkedAccountId({
+    required String ownerUid,
+    required String profileId,
+    required String linkedAccountId,
+  }) async {
+    await _db
+        .collection('users')
+        .doc(ownerUid)
+        .collection('playerProfiles')
+        .doc(profileId)
+        .update({'linkedAccountId': linkedAccountId});
+  }
+
+  // --- Link Codes ---
+
+  /// 儲存連結碼到全域 linkCodes collection（任何登入用戶皆可讀取）
+  static Future<void> saveLinkCode({
+    required String code,
+    required String playerProfileId,
+    required String fromAccountId,
+    required DateTime expiresAt,
+  }) async {
+    await _db.collection('linkCodes').doc(code).set({
+      'code': code,
+      'playerProfileId': playerProfileId,
+      'fromAccountId': fromAccountId,
+      'createdAt': DateTime.now().toIso8601String(),
+      'expiresAt': expiresAt.toIso8601String(),
+    });
+  }
+
+  /// 讀取連結碼
+  static Future<Map<String, dynamic>?> loadLinkCode(String code) async {
+    final snapshot = await _db.collection('linkCodes').doc(code).get();
+    if (!snapshot.exists) return null;
+    return snapshot.data();
+  }
+
+  /// 刪除連結碼（兌換後或清理用）
+  static Future<void> deleteLinkCode(String code) async {
+    await _db.collection('linkCodes').doc(code).delete();
+  }
+
   // --- Sync ---
 
   /// 從雲端同步所有資料到本地（回傳各類資料供呼叫端寫入 SharedPreferences）
@@ -283,4 +389,12 @@ class SyncResult {
     required this.playerProfiles,
     required this.savedPlayers,
   });
+}
+
+/// 連結來源（我連結到的另一個帳號及對應的玩家 profile）
+class LinkedSource {
+  final String ownerUid;
+  final String profileId;
+
+  const LinkedSource({required this.ownerUid, required this.profileId});
 }

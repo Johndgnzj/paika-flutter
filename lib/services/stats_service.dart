@@ -4,17 +4,25 @@ import '../models/round.dart';
 /// 單場牌局摘要
 class GameSummary {
   final String gameId;
+  final String? gameName;
   final DateTime date;
   final int rank;         // 排名 (1-4)
   final int score;        // 該場得分
   final int rounds;       // 局數
+  final int jiangCount;   // 將數
+  final int baseScore;    // 底分
+  final int perTai;       // 台數
 
   GameSummary({
     required this.gameId,
+    this.gameName,
     required this.date,
     required this.rank,
     required this.score,
     required this.rounds,
+    required this.jiangCount,
+    required this.baseScore,
+    required this.perTai,
   });
 }
 
@@ -43,16 +51,22 @@ class BestRoundRecord {
 class OpponentRecord {
   final String name;
   final String emoji;
-  final int gamesTogether;  // 同場次數
-  final int winsAgainst;    // 對該對手胡牌次數
-  final int lossesAgainst;  // 被該對手胡牌次數
+  final int gamesTogether;   // 同場次數（場）
+  final int roundsTogether;  // 同場總局數
+  final int winsAgainst;    // 我胡牌（任意）總次數（舊欄位保留相容）
+  final int lossesAgainst;  // 被胡總次數（舊欄位保留相容）
+  final int winsBy;         // 我直接胡對手（對手放槍）次數
+  final int lossesBy;       // 被對手直接胡（我放槍）次數
 
   OpponentRecord({
     required this.name,
     required this.emoji,
     required this.gamesTogether,
+    required this.roundsTogether,
     required this.winsAgainst,
     required this.lossesAgainst,
+    required this.winsBy,
+    required this.lossesBy,
   });
 }
 
@@ -167,6 +181,7 @@ class StatsService {
     BestRoundRecord? bestRound;
     int bestRoundAmount = 0;
 
+
     for (final game in relevantGames) {
       // 找到該玩家在這場的 playerId（用任一符合的 profileId）
       final player = game.players.firstWhere((p) => profileIds.contains(p.userId));
@@ -189,10 +204,14 @@ class StatsService {
 
       gameSummaries.add(GameSummary(
         gameId: game.id,
+        gameName: game.name,
         date: game.createdAt,
         rank: rank,
         score: gameScore,
         rounds: game.rounds.length,
+        jiangCount: game.jiangs.length,
+        baseScore: game.settings.baseScore,
+        perTai: game.settings.perTai,
       ));
 
       // 遍歷每局
@@ -256,13 +275,19 @@ class StatsService {
         // 對手勝負統計
         if (round.type == RoundType.win || round.type == RoundType.selfDraw) {
           if (round.winnerId == playerId && round.loserId != null) {
-            // 我胡了對手
+            // 我胡了對手（放槍）
             final opp = game.players.firstWhere((p) => p.id == round.loserId);
             _getOpponent(opponentMap, opp.name, opp.emoji).winsAgainst++;
+            if (round.type == RoundType.win) {
+              _getOpponent(opponentMap, opp.name, opp.emoji).winsBy++;
+            }
           } else if (round.loserId == playerId && round.winnerId != null) {
             // 對手胡了我
             final opp = game.players.firstWhere((p) => p.id == round.winnerId);
             _getOpponent(opponentMap, opp.name, opp.emoji).lossesAgainst++;
+            if (round.type == RoundType.win) {
+              _getOpponent(opponentMap, opp.name, opp.emoji).lossesBy++;
+            }
           }
         }
       }
@@ -270,7 +295,9 @@ class StatsService {
       // 記錄同場對手
       for (final opp in game.players) {
         if (opp.id != playerId) {
-          _getOpponent(opponentMap, opp.name, opp.emoji).gamesTogether++;
+          final acc = _getOpponent(opponentMap, opp.name, opp.emoji);
+          acc.gamesTogether++;
+          acc.roundsTogether += game.rounds.length;
         }
       }
     }
@@ -286,8 +313,11 @@ class StatsService {
         name: acc.name,
         emoji: acc.emoji,
         gamesTogether: acc.gamesTogether,
+        roundsTogether: acc.roundsTogether,
         winsAgainst: acc.winsAgainst,
         lossesAgainst: acc.lossesAgainst,
+        winsBy: acc.winsBy,
+        lossesBy: acc.lossesBy,
       );
     }).toList()
       ..sort((a, b) => b.gamesTogether.compareTo(a.gamesTogether));
@@ -327,8 +357,11 @@ class _OpponentAccumulator {
   final String name;
   final String emoji;
   int gamesTogether = 0;
+  int roundsTogether = 0;
   int winsAgainst = 0;
   int lossesAgainst = 0;
+  int winsBy = 0;     // 我直接胡對手（對手放槍）
+  int lossesBy = 0;   // 被對手直接胡（我放槍）
 
   _OpponentAccumulator({required this.name, required this.emoji});
 }

@@ -95,7 +95,7 @@ class ExportService {
 
           // 排名表
           pw.Header(level: 1, text: 'Final Ranking'),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: ['Rank', 'Player', 'Score'],
             data: sortedPlayers.asMap().entries.map((entry) {
               final rank = entry.key + 1;
@@ -113,7 +113,7 @@ class ExportService {
 
           // 局數明細
           pw.Header(level: 1, text: 'Round Details'),
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: [
               '#',
               'Wind',
@@ -143,14 +143,14 @@ class ExportService {
 
   /// 分享文字內容
   static Future<void> shareText(String content, String filename) async {
-    await Share.share(content, subject: filename);
+    await SharePlus.instance.share(ShareParams(text: content, subject: filename));
   }
 
   /// 分享檔案
   static Future<void> shareFile(Uint8List bytes, String filename, String mimeType) async {
-    await Share.shareXFiles(
-      [XFile.fromData(bytes, mimeType: mimeType, name: filename)],
-    );
+    await SharePlus.instance.share(ShareParams(
+      files: [XFile.fromData(bytes, mimeType: mimeType, name: filename)],
+    ));
   }
 
   static String _roundTypeText(RoundType type) {

@@ -20,6 +20,8 @@ import '../services/storage_service.dart';
 class GameProvider with ChangeNotifier {
   Game? _currentGame;
   List<Game> _gameHistory = [];
+  List<Game> _linkedGames = []; // 來自其他玩家綁定的場次
+  Set<String> _linkedProfileIds = {}; // 在別人牌局中代表「我」的 profileId
   GameSettings _settings = const GameSettings();
   List<Player> _savedPlayers = [];
   List<PlayerProfile> _playerProfiles = [];
@@ -40,7 +42,21 @@ class GameProvider with ChangeNotifier {
   final _uuid = const Uuid();
 
   Game? get currentGame => _currentGame;
-  List<Game> get gameHistory => _gameHistory;
+  /// 代表「自己」的 profileId 集合（用於 UI 高亮自己）
+  Set<String> get selfProfileIds => _linkedProfileIds;
+
+  List<Game> get gameHistory {
+    final merged = <String, Game>{};
+    for (final g in _linkedGames) {
+      merged[g.id] = g;
+    }
+    for (final g in _gameHistory) {
+      merged[g.id] = g;
+    }
+    final result = merged.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result;
+  }
   GameSettings get settings => _settings;
   List<Player> get savedPlayers => _savedPlayers;
   ThemeMode get themeMode => _themeMode;
@@ -94,6 +110,11 @@ class GameProvider with ChangeNotifier {
       _gameHistory = await StorageService.loadGames(accountId: accountId);
       _currentGame = await StorageService.loadCurrentGame(accountId: accountId);
       _playerProfiles = await StorageService.loadPlayerProfiles(accountId: accountId);
+
+      // 載入跨帳號連結場次（被連結用戶可查詢場主的場次）
+      if (FirebaseInitService.isInitialized) {
+        await _loadLinkedGames(accountId);
+      }
 
       // 方案 B：若本地 playerProfiles 為空，額外嘗試直接從 Firestore 拉取
       // 解決同一帳號在不同設備登入時，可能因 syncFromCloud 尚未完成而漏掉已有 profile 的問題
@@ -156,10 +177,37 @@ class GameProvider with ChangeNotifier {
     }
   }
 
+  /// 載入跨帳號連結場次（被連結用戶可查詢場主的場次）
+  Future<void> _loadLinkedGames(String accountId) async {
+    try {
+      final linkedSources = await FirestoreService.loadLinkedSources();
+      if (linkedSources.isEmpty) return;
+
+      final linkedGames = <Game>[];
+      for (final source in linkedSources) {
+        final games = await FirestoreService.loadLinkedGames(
+          source.ownerUid,
+          source.profileId,
+        );
+        linkedGames.addAll(games);
+      }
+
+      if (linkedGames.isEmpty) return;
+
+      // 存入 _linkedGames（不混入 _gameHistory，避免被 listener 過濾掉）
+      _linkedGames = linkedGames;
+      _linkedProfileIds = linkedSources.map((s) => s.profileId).toSet();
+    } catch (e) {
+      if (kDebugMode) print('[GameProvider] loadLinkedGames failed: $e');
+    }
+  }
+
   void _clearState() {
     _cancelListeners();
     _currentGame = null;
     _gameHistory = [];
+    _linkedGames = [];
+    _linkedProfileIds = {};
     _settings = const GameSettings();
     _savedPlayers = [];
     _playerProfiles = [];
@@ -463,10 +511,15 @@ class GameProvider with ChangeNotifier {
   }
 
   /// 確保牌局中的玩家都存在於玩家清單，並更新 lastPlayedAt
+  /// 同時回寫 player.userId，確保 game 內的 player 都有對應的 profileId
   Future<void> _ensurePlayersInProfiles(List<Player> players) async {
-    if (_currentAccountId == null) return;
+    if (_currentAccountId == null || _currentGame == null) return;
     final now = DateTime.now();
-    for (final player in players) {
+    bool gameNeedsUpdate = false;
+    final updatedPlayers = List<Player>.from(_currentGame!.players);
+
+    for (int pi = 0; pi < updatedPlayers.length; pi++) {
+      final player = updatedPlayers[pi];
       int index = -1;
 
       // 先用 userId 查找
@@ -478,10 +531,12 @@ class GameProvider with ChangeNotifier {
         index = _playerProfiles.indexWhere((p) => p.name == player.name);
       }
 
+      String profileId;
       if (index >= 0) {
         // 已存在 → 更新 lastPlayedAt
         _playerProfiles[index] = _playerProfiles[index].copyWith(lastPlayedAt: now);
         await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
+        profileId = _playerProfiles[index].id;
       } else {
         // 不存在 → 自動新增
         final profile = PlayerProfile(
@@ -494,7 +549,20 @@ class GameProvider with ChangeNotifier {
         );
         _playerProfiles.add(profile);
         await StorageService.savePlayerProfile(profile, accountId: _currentAccountId!);
+        profileId = profile.id;
       }
+
+      // 回寫 userId 到 game 的 player（確保 linkedGames 查詢可命中）
+      if (player.userId != profileId) {
+        updatedPlayers[pi] = player.copyWith(userId: profileId);
+        gameNeedsUpdate = true;
+      }
+    }
+
+    if (gameNeedsUpdate) {
+      _currentGame = _currentGame!.copyWith(players: updatedPlayers);
+      await StorageService.saveGame(_currentGame!);
+      await FirestoreService.saveGame(_currentGame!);
     }
   }
 
