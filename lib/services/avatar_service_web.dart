@@ -20,7 +20,14 @@ Future<String?> pickImageAsBase64Web() {
     final reader = html.FileReader();
     reader.readAsDataUrl(files[0]);
     reader.onLoad.listen((_) {
-      completer.complete(reader.result as String?);
+      // 使用 .toString() 而非 as String?
+      // reader.result 是 JS Object，直接 cast 在新版 Flutter Web 可能靜默失敗回傳 null
+      final result = reader.result;
+      if (result == null) {
+        completer.complete(null);
+      } else {
+        completer.complete(result.toString());
+      }
     });
     reader.onError.listen((_) => completer.complete(null));
   });
