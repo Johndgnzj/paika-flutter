@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart' show ImageSource;
 import '../models/player_profile.dart';
 import '../providers/game_provider.dart';
 import '../services/stats_service.dart';
@@ -807,8 +807,31 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await _pickAndUploadAccountAvatar(context, provider);
+                  // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
+                  final base64Data = await AvatarService.pickImageAsBase64();
+
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                  if (base64Data == null) {
+                    // 使用者取消了選取，檢查是否已有帳號頭像可直接套用
+                    final existingUrl = await FirestoreService.loadAccountAvatar();
+                    if (existingUrl != null) {
+                      await provider.updatePlayerProfile(
+                        _currentProfile.id,
+                        avatarType: AvatarType.accountAvatar,
+                      );
+                      _refreshProfile();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已套用帳號頭像')),
+                        );
+                      }
+                    }
+                    return;
+                  }
+
+                  // 有選取圖片，上傳並套用
+                  await _handleAccountAvatarSelectedBase64(context, provider, base64Data);
                 },
               ),
               // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」
@@ -817,16 +840,26 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                   leading: const Icon(Icons.photo_camera),
                   title: const Text('拍照（相機）'),
                   onTap: () async {
-                    Navigator.pop(sheetContext);
-                    await _pickAndUploadPhoto(context, provider, ImageSource.camera);
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
+                    final base64Data = await AvatarService.pickImageAsBase64(source: ImageSource.camera);
+
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, provider, base64Data);
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從相簿選擇'),
                   onTap: () async {
-                    Navigator.pop(sheetContext);
-                    await _pickAndUploadPhoto(context, provider, ImageSource.gallery);
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
+                    final base64Data = await AvatarService.pickImageAsBase64();
+
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, provider, base64Data);
                   },
                 ),
               ] else ...[
@@ -834,8 +867,13 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從裝置選擇照片'),
                   onTap: () async {
-                    Navigator.pop(sheetContext);
-                    await _pickAndUploadPhoto(context, provider, ImageSource.gallery);
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
+                    final base64Data = await AvatarService.pickImageAsBase64();
+
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, provider, base64Data);
                   },
                 ),
               ],
@@ -852,21 +890,18 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     );
   }
 
-  Future<void> _pickAndUploadPhoto(
+  Future<void> _handlePhotoSelectedBase64(
     BuildContext context,
     GameProvider provider,
-    ImageSource source,
+    String base64Data,
   ) async {
-    final image = await AvatarService.pickImage(source: source);
-    if (image == null) return;
-
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('上傳中...')),
       );
     }
 
-    final url = await AvatarService.uploadProfilePhoto(_currentProfile.id, image);
+    final url = await AvatarService.uploadProfilePhotoFromBase64(_currentProfile.id, base64Data);
     if (url == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -891,39 +926,18 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     }
   }
 
-  Future<void> _pickAndUploadAccountAvatar(
+  Future<void> _handleAccountAvatarSelectedBase64(
     BuildContext context,
     GameProvider provider,
+    String base64Data,
   ) async {
-    // 檢查是否已有帳號頭像
-    final existingUrl = await FirestoreService.loadAccountAvatar();
-
-    if (existingUrl != null) {
-      // 已有帳號頭像，直接使用
-      await provider.updatePlayerProfile(
-        _currentProfile.id,
-        avatarType: AvatarType.accountAvatar,
-      );
-      _refreshProfile();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已套用帳號頭像')),
-        );
-      }
-      return;
-    }
-
-    // 沒有帳號頭像，讓使用者選擇照片上傳
-    final image = await AvatarService.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('上傳帳號頭像中...')),
       );
     }
 
-    final url = await AvatarService.uploadAccountAvatar(image);
+    final url = await AvatarService.uploadAccountAvatarFromBase64(base64Data);
     if (url == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

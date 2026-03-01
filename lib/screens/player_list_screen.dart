@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart' show ImageSource;
 import '../providers/game_provider.dart';
 import '../models/player_profile.dart';
 import '../services/avatar_service.dart';
@@ -495,7 +495,7 @@ class PlayerListScreen extends StatelessWidget {
                     final name = nameController.text.trim();
                     if (name.isEmpty) return;
                     context.read<GameProvider>().addPlayerProfile(
-                      name, 
+                      name,
                       selectedEmoji,
                       isSelf: true, // 設定為自己
                     );
@@ -749,27 +749,32 @@ class PlayerListScreen extends StatelessWidget {
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () async {
-                  // 檢查是否已有帳號頭像
-                  final existingUrl = await FirestoreService.loadAccountAvatar();
-                  if (existingUrl != null) {
-                    // 已有帳號頭像，直接使用
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    await provider.updatePlayerProfile(
-                      profile.id,
-                      avatarType: AvatarType.accountAvatar,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已套用帳號頭像')),
+                  // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
+                  // 這樣在 Web 上 dart:html 的 click() 才能正常觸發 file picker
+                  final base64Data = await AvatarService.pickImageAsBase64();
+
+                  // pick 完成後再關閉 sheet
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                  if (base64Data == null) {
+                    // 使用者取消了選取，檢查是否已有帳號頭像可直接套用
+                    final existingUrl = await FirestoreService.loadAccountAvatar();
+                    if (existingUrl != null) {
+                      await provider.updatePlayerProfile(
+                        profile.id,
+                        avatarType: AvatarType.accountAvatar,
                       );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已套用帳號頭像')),
+                        );
+                      }
                     }
                     return;
                   }
-                  // 沒有帳號頭像，先 pick 再 pop（Web 必須在 user gesture 同步鏈中觸發）
-                  final image = await AvatarService.pickImage(source: ImageSource.gallery);
-                  if (image == null) return;
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  await _handleAccountAvatarSelected(context, profile, provider, image);
+
+                  // 有選取圖片，上傳並套用
+                  await _handleAccountAvatarSelectedBase64(context, profile, provider, base64Data);
                 },
               ),
               // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」
@@ -778,22 +783,26 @@ class PlayerListScreen extends StatelessWidget {
                   leading: const Icon(Icons.photo_camera),
                   title: const Text('拍照（相機）'),
                   onTap: () async {
-                    // 先 pick 再 pop（Web 必須在 user gesture 同步鏈中觸發）
-                    final image = await AvatarService.pickImage(source: ImageSource.camera);
-                    if (image == null) return;
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
+                    final base64Data = await AvatarService.pickImageAsBase64(source: ImageSource.camera);
+
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    await _handlePhotoSelected(context, profile, provider, image);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, profile, provider, base64Data);
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從相簿選擇'),
                   onTap: () async {
-                    // 先 pick 再 pop（Web 必須在 user gesture 同步鏈中觸發）
-                    final image = await AvatarService.pickImage(source: ImageSource.gallery);
-                    if (image == null) return;
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
+                    final base64Data = await AvatarService.pickImageAsBase64();
+
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    await _handlePhotoSelected(context, profile, provider, image);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, profile, provider, base64Data);
                   },
                 ),
               ] else ...[
@@ -801,11 +810,13 @@ class PlayerListScreen extends StatelessWidget {
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從裝置選擇照片'),
                   onTap: () async {
-                    // 先 pick 再 pop（Web 必須在 user gesture 同步鏈中觸發）
-                    final image = await AvatarService.pickImage(source: ImageSource.gallery);
-                    if (image == null) return;
+                    // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
+                    final base64Data = await AvatarService.pickImageAsBase64();
+
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    await _handlePhotoSelected(context, profile, provider, image);
+
+                    if (base64Data == null) return;
+                    await _handlePhotoSelectedBase64(context, profile, provider, base64Data);
                   },
                 ),
               ],
@@ -822,12 +833,12 @@ class PlayerListScreen extends StatelessWidget {
     );
   }
 
-  /// 處理已選取的帳號頭像圖片（上傳並套用）
-  Future<void> _handleAccountAvatarSelected(
+  /// 處理已選取的帳號頭像圖片（從 base64 上傳並套用）
+  Future<void> _handleAccountAvatarSelectedBase64(
     BuildContext context,
     PlayerProfile profile,
     GameProvider provider,
-    XFile image,
+    String base64Data,
   ) async {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -835,7 +846,7 @@ class PlayerListScreen extends StatelessWidget {
       );
     }
 
-    final url = await AvatarService.uploadAccountAvatar(image);
+    final url = await AvatarService.uploadAccountAvatarFromBase64(base64Data);
     if (url == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -857,12 +868,12 @@ class PlayerListScreen extends StatelessWidget {
     }
   }
 
-  /// 處理已選取的玩家頭像圖片（上傳並套用）
-  Future<void> _handlePhotoSelected(
+  /// 處理已選取的玩家頭像圖片（從 base64 上傳並套用）
+  Future<void> _handlePhotoSelectedBase64(
     BuildContext context,
     PlayerProfile profile,
     GameProvider provider,
-    XFile image,
+    String base64Data,
   ) async {
     // 顯示上傳中提示
     if (context.mounted) {
@@ -871,7 +882,7 @@ class PlayerListScreen extends StatelessWidget {
       );
     }
 
-    final url = await AvatarService.uploadProfilePhoto(profile.id, image);
+    final url = await AvatarService.uploadProfilePhotoFromBase64(profile.id, base64Data);
     if (url == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
