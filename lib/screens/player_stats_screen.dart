@@ -802,36 +802,36 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
               ListTile(
                 leading: const Icon(Icons.account_circle),
                 title: const Text('使用帳號頭像'),
-                subtitle: const Text('點選後上傳照片作為帳號頭像'),
+                subtitle: const Text('套用您的帳號大頭照'),
                 trailing: _currentProfile.avatarType == AvatarType.accountAvatar
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () async {
-                  // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
-                  final base64Data = await AvatarService.pickImageAsBase64();
-
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
 
-                  if (base64Data == null) {
-                    // 使用者取消了選取，檢查是否已有帳號頭像可直接套用
-                    final existingUrl = await FirestoreService.loadAccountAvatar();
-                    if (existingUrl != null) {
-                      await provider.updatePlayerProfile(
-                        _currentProfile.id,
-                        avatarType: AvatarType.accountAvatar,
+                  // 先檢查是否已有帳號頭像
+                  final existingData = await FirestoreService.loadAccountAvatar();
+                  if (existingData != null) {
+                    // 已有帳號頭像，直接套用
+                    await provider.updatePlayerProfile(
+                      _currentProfile.id,
+                      avatarType: AvatarType.accountAvatar,
+                    );
+                    _refreshProfile();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已套用帳號頭像')),
                       );
-                      _refreshProfile();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('已套用帳號頭像')),
-                        );
-                      }
                     }
                     return;
                   }
 
-                  // 有選取圖片，上傳並套用
-                  await _handleAccountAvatarSelectedBase64(context, provider, base64Data);
+                  // 尚未上傳帳號頭像，提示使用者先上傳
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('尚未設定帳號頭像，請先至個人資料上傳大頭照')),
+                    );
+                  }
                 },
               ),
               // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」

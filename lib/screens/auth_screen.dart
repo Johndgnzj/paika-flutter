@@ -139,132 +139,144 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
-            child: Form(
-              key: _formKey,
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(32),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/paika-logo.png',
+                          width: 120,
+                          height: 120,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '牌咖 Paika',
+                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 48),
+
+                        // Email
+                        TextFormField(
+                          controller: _emailController,
+                          focusNode: _emailFocusNode,
+                          onTap: () => _requestFocus(_emailFocusNode),
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email),
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return '請輸入 Email';
+                            if (!v.contains('@') || !v.contains('.')) return 'Email 格式不正確';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 密碼
+                        TextFormField(
+                          controller: _passwordController,
+                          focusNode: _passwordFocusNode,
+                          onTap: () => _requestFocus(_passwordFocusNode),
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: '密碼',
+                            prefixIcon: const Icon(Icons.lock),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
+                          textInputAction: _isRegister ? TextInputAction.next : TextInputAction.done,
+                          onFieldSubmitted: _isRegister ? null : (_) => _submit(),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return '請輸入密碼';
+                            if (v.length < 6) return '密碼至少需要 6 碼';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // 忘記密碼（僅登入時顯示）
+                        if (!_isRegister)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showPasswordResetDialog,
+                              child: const Text('忘記密碼？'),
+                            ),
+                          ),
+
+                        // 顯示名稱（僅註冊時顯示）
+                        if (_isRegister) ...[
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _nameController,
+                            focusNode: _nameFocusNode,
+                            onTap: () => _requestFocus(_nameFocusNode),
+                            decoration: const InputDecoration(
+                              labelText: '顯示名稱',
+                              prefixIcon: Icon(Icons.person),
+                              border: OutlineInputBorder(),
+                            ),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(),
+                            validator: (v) => v == null || v.trim().isEmpty ? '請輸入顯示名稱' : null,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        const SizedBox(height: 8),
+
+                        // 登入/註冊按鈕
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              _isRegister ? '註冊' : '登入',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 切換模式
+                        TextButton(
+                          onPressed: () => setState(() {
+                                _isRegister = !_isRegister;
+                                _nameController.clear();
+                              }),
+                          child: Text(
+                            _isRegister ? '已有帳號？登入' : '沒有帳號？註冊',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // 版權與版號（固定在底部，不隨表單捲動）
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/paika-logo.png',
-                    width: 120,
-                    height: 120,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '牌咖 Paika',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Email
-                  TextFormField(
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    onTap: () => _requestFocus(_emailFocusNode),
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return '請輸入 Email';
-                      if (!v.contains('@') || !v.contains('.')) return 'Email 格式不正確';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 密碼
-                  TextFormField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    onTap: () => _requestFocus(_passwordFocusNode),
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: '密碼',
-                      prefixIcon: const Icon(Icons.lock),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    textInputAction: _isRegister ? TextInputAction.next : TextInputAction.done,
-                    onFieldSubmitted: _isRegister ? null : (_) => _submit(),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '請輸入密碼';
-                      if (v.length < 6) return '密碼至少需要 6 碼';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 忘記密碼（僅登入時顯示）
-                  if (!_isRegister)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _showPasswordResetDialog,
-                        child: const Text('忘記密碼？'),
-                      ),
-                    ),
-
-                  // 顯示名稱（僅註冊時顯示）
-                  if (_isRegister) ...[
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _nameController,
-                      focusNode: _nameFocusNode,
-                      onTap: () => _requestFocus(_nameFocusNode),
-                      decoration: const InputDecoration(
-                        labelText: '顯示名稱',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
-                      ),
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                      validator: (v) => v == null || v.trim().isEmpty ? '請輸入顯示名稱' : null,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  const SizedBox(height: 8),
-
-                  // 登入/註冊按鈕
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        _isRegister ? '註冊' : '登入',
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 切換模式
-                  TextButton(
-                    onPressed: () => setState(() {
-                          _isRegister = !_isRegister;
-                          _nameController.clear();
-                        }),
-                    child: Text(
-                      _isRegister ? '已有帳號？登入' : '沒有帳號？註冊',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 版權與版號
                   Text(
                     '© ${DateTime.now().year} Paika. All rights reserved.',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500]),
@@ -277,7 +289,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
