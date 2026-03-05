@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
@@ -21,11 +22,23 @@ class _AuthScreenState extends State<AuthScreen> {
   final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _nameFocusNode = FocusNode();
+
+  void _requestFocus(FocusNode node) {
+    node.requestFocus();
+    SystemChannels.textInput.invokeMethod('TextInput.show');
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -139,6 +152,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   // Email
                   TextFormField(
                     controller: _emailController,
+                    focusNode: _emailFocusNode,
+                    onTap: () => _requestFocus(_emailFocusNode),
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.email),
@@ -157,6 +172,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   // 密碼
                   TextFormField(
                     controller: _passwordController,
+                    focusNode: _passwordFocusNode,
+                    onTap: () => _requestFocus(_passwordFocusNode),
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       labelText: '密碼',
@@ -192,6 +209,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
+                      focusNode: _nameFocusNode,
+                      onTap: () => _requestFocus(_nameFocusNode),
                       decoration: const InputDecoration(
                         labelText: '顯示名稱',
                         prefixIcon: Icon(Icons.person),
