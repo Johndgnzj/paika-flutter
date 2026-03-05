@@ -45,8 +45,11 @@ class PlayerAvatar extends StatelessWidget {
   }
 
   Widget _buildAccountAvatar() {
+    // linkedAccountId 優先：這個玩家已連結自己的帳號，頭像來自連結帳號
+    // fallback 到 accountId：自己的 self profile（isSelf=true），頭像來自自己帳號
+    final uid = profile.linkedAccountId ?? profile.accountId;
     return FutureBuilder<String?>(
-      future: FirestoreService.loadAccountAvatarByUid(profile.accountId),
+      future: FirestoreService.loadAccountAvatarByUid(uid),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data != null) {
           return _buildBase64Avatar(snapshot.data!);
