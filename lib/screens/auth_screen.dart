@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
@@ -16,6 +17,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool _isRegister = false;
   bool _obscurePassword = true;
+  String _version = '';
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -25,6 +27,14 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _nameFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
 
   void _requestFocus(FocusNode node) {
     node.requestFocus();
@@ -252,6 +262,18 @@ class _AuthScreenState extends State<AuthScreen> {
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),
+                  const SizedBox(height: 32),
+
+                  // 版權與版號
+                  Text(
+                    '© ${DateTime.now().year} Paika. All rights reserved.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                  if (_version.isNotEmpty)
+                    Text(
+                      'v$_version',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    ),
                 ],
               ),
             ),
