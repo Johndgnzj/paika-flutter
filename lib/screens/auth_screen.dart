@@ -174,6 +174,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
+                          autofocus: true,
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return '請輸入 Email';
                             if (!v.contains('@') || !v.contains('.')) return 'Email 格式不正確';

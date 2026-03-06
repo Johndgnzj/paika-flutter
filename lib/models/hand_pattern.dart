@@ -56,7 +56,7 @@ class HandPattern {
     HandPattern(id: 'qiqiangyi',       name: '七搶一',    referenceTai: 8,  isSystem: true),
     HandPattern(id: 'qianggang',       name: '搶槓',      referenceTai: 1,  isSystem: true),
     HandPattern(id: 'haidilao',        name: '海底撈月',  referenceTai: 1,  isSystem: true),
-    HandPattern(id: 'gangshangkaihua', name: '槓上開化',  referenceTai: 1,  isSystem: true),
+    HandPattern(id: 'gangshangkaihua', name: '槓上開花',  referenceTai: 1,  isSystem: true),
     HandPattern(id: 'quanqiu',         name: '全求',      referenceTai: 2,  isSystem: true),
     HandPattern(id: 'pinghu',          name: '平胡',      referenceTai: 2,  isSystem: true),
   ];
