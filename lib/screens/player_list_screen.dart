@@ -744,17 +744,26 @@ class PlayerListScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.account_circle),
                 title: const Text('使用帳號頭像'),
-                subtitle: const Text('套用您的帳號大頭照'),
+                subtitle: Text(profile.linkedAccountId != null
+                    ? '套用該玩家連結帳號的大頭照'
+                    : '套用您的帳號大頭照'),
                 trailing: profile.avatarType == AvatarType.accountAvatar
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
                 onTap: () async {
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
 
-                  // 先檢查是否已有帳號頭像
-                  final existingData = await FirestoreService.loadAccountAvatar();
+                  // 根據是否有連結帳號，決定從哪個帳號載入頭像
+                  final String? existingData;
+                  if (profile.linkedAccountId != null) {
+                    existingData = await FirestoreService.loadAccountAvatarByUid(
+                      profile.linkedAccountId!,
+                    );
+                  } else {
+                    existingData = await FirestoreService.loadAccountAvatar();
+                  }
+
                   if (existingData != null) {
-                    // 已有帳號頭像，直接套用
                     await provider.updatePlayerProfile(
                       profile.id,
                       avatarType: AvatarType.accountAvatar,
@@ -767,10 +776,14 @@ class PlayerListScreen extends StatelessWidget {
                     return;
                   }
 
-                  // 尚未上傳帳號頭像，提示使用者先上傳
+                  // 尚未上傳帳號頭像
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('尚未設定帳號頭像，請先至個人資料上傳大頭照')),
+                      SnackBar(content: Text(
+                        profile.linkedAccountId != null
+                            ? '該玩家尚未設定帳號頭像'
+                            : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
+                      )),
                     );
                   }
                 },
