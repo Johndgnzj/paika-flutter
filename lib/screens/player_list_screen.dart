@@ -515,41 +515,98 @@ class PlayerListScreen extends StatelessWidget {
     final nameController = TextEditingController(text: profile.name);
     String selectedEmoji = profile.emoji;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) {
+      isScrollControlled: true,
+      builder: (sheetContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('編輯玩家'),
-              content: Column(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+              ),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  InkWell(
-                    onTap: () {
-                      _showEmojiPicker(context, selectedEmoji, (emoji) {
-                        setDialogState(() => selectedEmoji = emoji);
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                        borderRadius: BorderRadius.circular(12),
+                  const Text(
+                    '編輯玩家',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  // 頭像區塊（顯示真實頭像）
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showAvatarOptionsSheet(context, profile, provider);
+                      },
+                      child: Stack(
+                        children: [
+                          PlayerAvatar(profile: profile, size: 80),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.camera_alt,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      _showAvatarOptionsSheet(context, profile, provider);
-                    },
-                    icon: const Icon(Icons.photo_camera, size: 18),
-                    label: const Text('更換頭像類型 ▼'),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _showAvatarOptionsSheet(context, profile, provider);
+                      },
+                      icon: const Icon(Icons.photo_camera, size: 18),
+                      label: const Text('更換頭像'),
+                    ),
                   ),
                   const SizedBox(height: 8),
+                  // Emoji 選擇
+                  Row(
+                    children: [
+                      const Text('Emoji：', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          _showEmojiPicker(context, selectedEmoji, (emoji) {
+                            setSheetState(() => selectedEmoji = emoji);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(selectedEmoji, style: const TextStyle(fontSize: 32)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('(點擊更換)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // 名稱輸入
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
@@ -557,23 +614,33 @@ class PlayerListScreen extends StatelessWidget {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // 按鈕列
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          if (name.isEmpty) return;
+                          await provider.updatePlayerProfile(
+                            profile.id,
+                            name: name,
+                            emoji: selectedEmoji,
+                          );
+                          if (sheetContext.mounted) Navigator.pop(sheetContext);
+                        },
+                        child: const Text('儲存'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('取消'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) return;
-                    provider.updatePlayerProfile(profile.id, name: name, emoji: selectedEmoji);
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text('儲存'),
-                ),
-              ],
             );
           },
         );

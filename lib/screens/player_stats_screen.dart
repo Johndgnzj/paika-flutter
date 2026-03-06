@@ -908,9 +908,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     GameProvider provider,
     String base64Data,
   ) async {
-    print('[DEBUG][Stats] _handlePhotoSelectedBase64: base64Data length=${base64Data.length}');
-    print('[DEBUG][Stats] profileId=${_currentProfile.id}, name=${_currentProfile.name}');
-
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('上傳中...')),
@@ -918,8 +915,6 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     }
 
     final url = await AvatarService.uploadProfilePhotoFromBase64(_currentProfile.id, base64Data);
-    print('[DEBUG][Stats] uploadProfilePhotoFromBase64 result: ${url != null ? '有資料(${url.length}chars)' : 'null'}');
-
     if (url == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -935,9 +930,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
       customPhotoData: url,
     );
 
-    print('[DEBUG][Stats] _refreshProfile 前，provider 中此 profile avatarType=${provider.playerProfiles.firstWhere((p) => p.id == _currentProfile.id, orElse: () => _currentProfile).avatarType.name}');
     _refreshProfile();
-    print('[DEBUG][Stats] _refreshProfile 後，_currentProfile.avatarType=${_currentProfile.avatarType.name}');
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

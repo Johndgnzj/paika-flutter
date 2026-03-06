@@ -179,19 +179,9 @@ class FirestoreService {
   /// 儲存玩家檔案
   static Future<void> savePlayerProfile(PlayerProfile profile) async {
     final doc = _userDoc;
-    if (doc == null) {
-      print('[DEBUG][Firestore] ❌ savePlayerProfile: _userDoc is null (uid=${_uid})');
-      return;
-    }
+    if (doc == null) return;
 
-    final data = profile.toJson();
-    print('[DEBUG][Firestore] 📝 savePlayerProfile: id=${profile.id}, name=${profile.name}');
-    print('[DEBUG][Firestore]   avatarType=${data['avatarType']}');
-    print('[DEBUG][Firestore]   customPhotoData length=${data['customPhotoData']?.toString().length ?? 'null'}');
-    print('[DEBUG][Firestore]   field count=${data.keys.length}');
-
-    await doc.collection('playerProfiles').doc(profile.id).set(data);
-    print('[DEBUG][Firestore] ✅ savePlayerProfile 完成: id=${profile.id}');
+    await doc.collection('playerProfiles').doc(profile.id).set(profile.toJson());
   }
 
   /// 載入所有玩家檔案
