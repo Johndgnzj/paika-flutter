@@ -1,10 +1,16 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../models/hand_pattern.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
+import '../services/avatar_service.dart';
 import '../services/export_service.dart';
+import '../services/firestore_service.dart';
 import '../utils/legal_texts.dart';
 import '../widgets/animation_helpers.dart';
 import 'custom_patterns_screen.dart';
@@ -22,6 +28,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _falseWinPayAll;
   late int _falseWinTai;
   String _version = '載入中...';
+  String? _accountAvatarData;
+  bool _avatarLoading = false;
 
   @override
   void initState() {
@@ -30,6 +38,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _falseWinPayAll = settings.falseWinPayAll;
     _falseWinTai = settings.falseWinTai;
     _loadVersion();
+    _loadAccountAvatar();
+  }
+
+  Future<void> _loadAccountAvatar() async {
+    final data = await FirestoreService.loadAccountAvatar();
+    if (mounted) setState(() => _accountAvatarData = data);
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    setState(() => _avatarLoading = true);
+    try {
+      final base64Data = await AvatarService.pickImageAsBase64();
+      if (base64Data == null) return;
+
+      final url = await AvatarService.uploadAccountAvatarFromBase64(base64Data);
+      if (url != null && mounted) {
+        setState(() => _accountAvatarData = url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('大頭照已更新')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _avatarLoading = false);
+    }
+  }
+
+  Widget _buildAvatarWidget(String initial) {
+    if (_accountAvatarData != null) {
+      try {
+        final base64String = _accountAvatarData!.split(',').last;
+        final Uint8List bytes = base64Decode(base64String);
+        return CircleAvatar(
+          radius: 28,
+          backgroundImage: MemoryImage(bytes),
+        );
+      } catch (_) {
+        // fallback
+      }
+    }
+    return CircleAvatar(
+      radius: 28,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+      ),
+    );
   }
 
   Future<void> _loadVersion() async {
@@ -71,24 +130,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : '?')
                       .toUpperCase();
                   return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
-                      child: Text(
-                        initial,
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    leading: GestureDetector(
+                      onTap: _avatarLoading ? null : _pickAndUploadAvatar,
+                      child: Stack(
+                        children: [
+                          _buildAvatarWidget(initial),
+                          if (_avatarLoading)
+                            const Positioned.fill(
+                              child: CircleAvatar(
+                                backgroundColor: Colors.black38,
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 11,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     title: Text(
                       name.isNotEmpty ? name : '（未設定名稱）',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(email),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(email),
+                        const Text(
+                          '點擊大頭照可上傳',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    isThreeLine: true,
                   );
                 },
               ),
