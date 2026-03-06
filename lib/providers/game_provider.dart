@@ -263,10 +263,14 @@ class GameProvider with ChangeNotifier {
     _profilesSubscription =
         FirestoreService.playerProfilesStream().listen((profiles) {
       if (profiles.isEmpty) return;
+      print('[DEBUG][Stream] 🔄 playerProfilesStream 收到更新，共 ${profiles.length} 筆');
+      for (final p in profiles) {
+        print('[DEBUG][Stream]   - ${p.name}: avatarType=${p.avatarType.name}, customPhotoData=${p.customPhotoData != null ? '有(${p.customPhotoData!.length}chars)' : 'null'}');
+      }
       _playerProfiles = profiles;
       notifyListeners();
     }, onError: (e) {
-      if (kDebugMode) print('[Listener] profiles error: $e');
+      print('[DEBUG][Stream] ❌ playerProfilesStream error: $e');
     });
 
     _savedPlayersSubscription =
@@ -429,6 +433,9 @@ class GameProvider with ChangeNotifier {
     final index = _playerProfiles.indexWhere((p) => p.id == id);
     if (index < 0) return;
 
+    print('[DEBUG][Provider] updatePlayerProfile: id=$id');
+    print('[DEBUG][Provider]   avatarType=$avatarType, customPhotoData length=${customPhotoData?.length ?? 'null'}');
+
     _playerProfiles[index] = _playerProfiles[index].copyWith(
       name: name,
       emoji: emoji,
@@ -436,8 +443,13 @@ class GameProvider with ChangeNotifier {
       customPhotoData: customPhotoData,
       clearCustomPhotoData: clearCustomPhotoData,
     );
+
+    print('[DEBUG][Provider]   after copyWith: avatarType=${_playerProfiles[index].avatarType.name}');
+
     await StorageService.savePlayerProfile(_playerProfiles[index], accountId: _currentAccountId!);
     notifyListeners();
+
+    print('[DEBUG][Provider]   ✅ updatePlayerProfile 完成');
   }
 
   /// 更新牌局中的玩家名稱（僅影響當前牌局，不改變玩家檔案）

@@ -23,11 +23,16 @@ class StorageService {
 
   /// 非同步雲端寫入（fire-and-forget，錯誤只 log）
   static void _syncToCloudAsync(Future<void> Function() action) {
-    if (!_cloudEnabled) return;
-    action().catchError((e) {
-      if (kDebugMode) {
-        print('[Cloud Sync] Error: $e');
-      }
+    if (!_cloudEnabled) {
+      print('[DEBUG][Cloud Sync] ⚠️ _cloudEnabled=false，跳過寫入');
+      return;
+    }
+    print('[DEBUG][Cloud Sync] 🚀 開始雲端寫入...');
+    action().then((_) {
+      print('[DEBUG][Cloud Sync] ✅ 雲端寫入成功');
+    }).catchError((e, stack) {
+      print('[DEBUG][Cloud Sync] ❌ 雲端寫入失敗: $e');
+      print('[DEBUG][Cloud Sync] StackTrace: $stack');
     });
   }
 
