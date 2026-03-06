@@ -519,7 +519,7 @@ class PlayerListScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (dialogStateContext, setDialogState) {
             return AlertDialog(
               title: const Text('編輯玩家'),
               content: Column(
@@ -527,14 +527,14 @@ class PlayerListScreen extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: () {
-                      _showEmojiPicker(context, selectedEmoji, (emoji) {
+                      _showEmojiPicker(dialogStateContext, selectedEmoji, (emoji) {
                         setDialogState(() => selectedEmoji = emoji);
                       });
                     },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        border: Border.all(color: Theme.of(dialogStateContext).colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(selectedEmoji, style: const TextStyle(fontSize: 40)),
@@ -544,7 +544,7 @@ class PlayerListScreen extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () {
                       Navigator.pop(dialogContext);
-                      _showAvatarOptionsSheet(context, profile, provider);
+                      _showAvatarOptionsSheet(context, profile, provider); // ← 外層 screen context
                     },
                     icon: const Icon(Icons.photo_camera, size: 18),
                     label: const Text('更換頭像類型 ▼'),
@@ -753,38 +753,46 @@ class PlayerListScreen extends StatelessWidget {
                 onTap: () async {
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
 
-                  // 根據是否有連結帳號，決定從哪個帳號載入頭像
-                  final String? existingData;
-                  if (profile.linkedAccountId != null) {
-                    existingData = await FirestoreService.loadAccountAvatarByUid(
-                      profile.linkedAccountId!,
-                    );
-                  } else {
-                    existingData = await FirestoreService.loadAccountAvatar();
-                  }
+                  try {
+                    // 根據是否有連結帳號，決定從哪個帳號載入頭像
+                    final String? existingData;
+                    if (profile.linkedAccountId != null) {
+                      existingData = await FirestoreService.loadAccountAvatarByUid(
+                        profile.linkedAccountId!,
+                      );
+                    } else {
+                      existingData = await FirestoreService.loadAccountAvatar();
+                    }
 
-                  if (existingData != null) {
-                    await provider.updatePlayerProfile(
-                      profile.id,
-                      avatarType: AvatarType.accountAvatar,
-                    );
+                    if (existingData != null) {
+                      await provider.updatePlayerProfile(
+                        profile.id,
+                        avatarType: AvatarType.accountAvatar,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已套用帳號頭像')),
+                        );
+                      }
+                      return;
+                    }
+
+                    // 尚未上傳帳號頭像
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已套用帳號頭像')),
+                        SnackBar(content: Text(
+                          profile.linkedAccountId != null
+                              ? '該玩家尚未設定帳號頭像'
+                              : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
+                        )),
                       );
                     }
-                    return;
-                  }
-
-                  // 尚未上傳帳號頭像
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(
-                        profile.linkedAccountId != null
-                            ? '該玩家尚未設定帳號頭像'
-                            : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
-                      )),
-                    );
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('載入帳號頭像失敗：$e')),
+                      );
+                    }
                   }
                 },
               ),

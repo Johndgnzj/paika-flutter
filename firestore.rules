@@ -30,7 +30,8 @@ service cloud.firestore {
 
       // 設定
       match /settings/{doc} {
-        allow read, write: if isOwner()
+        allow read: if isOwner();
+        allow write: if isOwner()
           && request.resource.data.size() <= 20;
       }
 
@@ -68,9 +69,16 @@ service cloud.firestore {
         allow delete: if isOwner();
       }
 
+      // 帳號頭像（任何登入用戶可讀，用於顯示連結玩家的頭像；只有擁有者可寫）
+      match /accountAvatar/{doc} {
+        allow read: if request.auth != null;
+        allow write: if isOwner();
+      }
+
       // 已存玩家
       match /savedPlayers/{doc} {
-        allow read, write: if isOwner()
+        allow read: if isOwner();
+        allow write: if isOwner()
           && request.resource.data.size() <= 100;
       }
 

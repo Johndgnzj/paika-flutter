@@ -811,39 +811,47 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                 onTap: () async {
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
 
-                  // 根據是否有連結帳號，決定從哪個帳號載入頭像
-                  final String? existingData;
-                  if (_currentProfile.linkedAccountId != null) {
-                    existingData = await FirestoreService.loadAccountAvatarByUid(
-                      _currentProfile.linkedAccountId!,
-                    );
-                  } else {
-                    existingData = await FirestoreService.loadAccountAvatar();
-                  }
+                  try {
+                    // 根據是否有連結帳號，決定從哪個帳號載入頭像
+                    final String? existingData;
+                    if (_currentProfile.linkedAccountId != null) {
+                      existingData = await FirestoreService.loadAccountAvatarByUid(
+                        _currentProfile.linkedAccountId!,
+                      );
+                    } else {
+                      existingData = await FirestoreService.loadAccountAvatar();
+                    }
 
-                  if (existingData != null) {
-                    await provider.updatePlayerProfile(
-                      _currentProfile.id,
-                      avatarType: AvatarType.accountAvatar,
-                    );
-                    _refreshProfile();
+                    if (existingData != null) {
+                      await provider.updatePlayerProfile(
+                        _currentProfile.id,
+                        avatarType: AvatarType.accountAvatar,
+                      );
+                      _refreshProfile();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已套用帳號頭像')),
+                        );
+                      }
+                      return;
+                    }
+
+                    // 尚未上傳帳號頭像
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已套用帳號頭像')),
+                        SnackBar(content: Text(
+                          _currentProfile.linkedAccountId != null
+                              ? '該玩家尚未設定帳號頭像'
+                              : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
+                        )),
                       );
                     }
-                    return;
-                  }
-
-                  // 尚未上傳帳號頭像
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(
-                        _currentProfile.linkedAccountId != null
-                            ? '該玩家尚未設定帳號頭像'
-                            : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
-                      )),
-                    );
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('載入帳號頭像失敗：$e')),
+                      );
+                    }
                   }
                 },
               ),
