@@ -81,6 +81,14 @@ service cloud.firestore {
         allow write: if isOwner()
           && request.resource.data.size() <= 10;
       }
+
+      // 帳號頭像（自己可讀寫；其他已登入用戶可讀，用於顯示連結玩家的頭像）
+      match /accountAvatar/{doc} {
+        allow read: if request.auth != null;
+        allow write: if isOwner()
+          && request.resource.data.keys().hasAll(['data'])
+          && request.resource.data.size() <= 5;
+      }
     }
   }
 }
