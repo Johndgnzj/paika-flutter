@@ -30,7 +30,8 @@ service cloud.firestore {
 
       // 設定
       match /settings/{doc} {
-        allow read, write: if isOwner()
+        allow read: if isOwner();
+        allow write: if isOwner()
           && request.resource.data.size() <= 20;
       }
 
@@ -76,7 +77,8 @@ service cloud.firestore {
 
       // 已存玩家
       match /savedPlayers/{doc} {
-        allow read, write: if isOwner()
+        allow read: if isOwner();
+        allow write: if isOwner()
           && request.resource.data.size() <= 100;
       }
 
