@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
+import '../services/tv_keyboard_service.dart' as tv;
 import '../widgets/animation_helpers.dart';
 import 'home_screen.dart';
 
@@ -17,6 +19,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool _isRegister = false;
   bool _obscurePassword = true;
+  bool _tvMode = false;
   String _version = '';
 
   final _emailController = TextEditingController();
@@ -31,9 +34,19 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
+    _tvMode = tv.isTvBrowser(); // 自動偵測 TV 瀏覽器
     PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _version = info.version);
     });
+  }
+
+  void _handleTvInput(TextEditingController controller, String label) {
+    final result = tv.promptInput('請輸入 $label', controller.text);
+    if (result != null) {
+      setState(() {
+        controller.text = result;
+      });
+    }
   }
 
   void _requestFocus(FocusNode node) {
@@ -167,10 +180,15 @@ class _AuthScreenState extends State<AuthScreen> {
                           controller: _emailController,
                           focusNode: _emailFocusNode,
                           onTap: () => _requestFocus(_emailFocusNode),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: Icon(Icons.email),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.email),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: _tvMode ? IconButton(
+                              icon: const Icon(Icons.keyboard, color: Colors.orange),
+                              tooltip: 'TV 鍵盤輸入',
+                              onPressed: () => _handleTvInput(_emailController, 'Email'),
+                            ) : null,
                           ),
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
@@ -193,9 +211,20 @@ class _AuthScreenState extends State<AuthScreen> {
                             labelText: '密碼',
                             prefixIcon: const Icon(Icons.lock),
                             border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_tvMode)
+                                  IconButton(
+                                    icon: const Icon(Icons.keyboard, color: Colors.orange),
+                                    tooltip: 'TV 鍵盤輸入',
+                                    onPressed: () => _handleTvInput(_passwordController, '密碼'),
+                                  ),
+                                IconButton(
+                                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                              ],
                             ),
                           ),
                           textInputAction: _isRegister ? TextInputAction.next : TextInputAction.done,
@@ -225,10 +254,15 @@ class _AuthScreenState extends State<AuthScreen> {
                             controller: _nameController,
                             focusNode: _nameFocusNode,
                             onTap: () => _requestFocus(_nameFocusNode),
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: '顯示名稱',
-                              prefixIcon: Icon(Icons.person),
-                              border: OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.person),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _tvMode ? IconButton(
+                                icon: const Icon(Icons.keyboard, color: Colors.orange),
+                                tooltip: 'TV 鍵盤輸入',
+                                onPressed: () => _handleTvInput(_nameController, '顯示名稱'),
+                              ) : null,
                             ),
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
@@ -238,6 +272,20 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
 
                         const SizedBox(height: 8),
+
+                        // TV 模式切換按鈕 (供非自動偵測到的設備手動開啟)
+                        if (kIsWeb)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: OutlinedButton.icon(
+                              onPressed: () => setState(() => _tvMode = !_tvMode),
+                              icon: Icon(_tvMode ? Icons.tv_off : Icons.tv),
+                              label: Text(_tvMode ? '切換為正常模式' : '開啟 TV 鍵盤模式'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _tvMode ? Colors.orange : null,
+                              ),
+                            ),
+                          ),
 
                         // 登入/註冊按鈕
                         SizedBox(
