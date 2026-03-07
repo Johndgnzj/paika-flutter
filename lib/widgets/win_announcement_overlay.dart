@@ -135,11 +135,8 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
     }).toList();
   }
 
-  /// 某位贏家的有效台數（從 scoreChanges 取絕對值）
-  int _effTaiForWinner(String winnerId) {
-    final change = widget.round.scoreChanges[winnerId] ?? 0;
-    if (change > 0) return change; // 贏家是正值
-    // fallback
+  /// 某位贏家的有效台數（用 CalculationService 計算，與分數無關）
+  int _effTaiForWinner(String _) {
     return CalculationService.effectiveTaiFromRound(
         widget.round, widget.game.settings, widget.game.players);
   }
@@ -224,6 +221,7 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                     runSpacing: 8,
                     children: _multiWinners.map((w) {
                       final tai = _effTaiForWinner(w.id);
+                      final score = widget.round.scoreChanges[w.id] ?? 0;
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -239,38 +237,22 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                                 decoration: TextDecoration.none,
                               )),
                           const SizedBox(height: 4),
-                          _chip('$tai 台', Colors.amberAccent),
+                          _chip('+$score  $tai台', Colors.amberAccent),
                         ],
                       );
                     }).toList(),
                   ),
-                  // 放槍者：兩列（名字 + 各人台數）
+                  // 放槍者名字（不重複台數，明細在下方分數表）
                   if (loser != null) ...[
                     const SizedBox(height: 14),
                     Text(
-                      '${loser.emoji} ${loser.name}',
+                      '${loser.emoji} ${loser.name} 放槍',
                       style: const TextStyle(
                         color: Colors.redAccent,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         decoration: TextDecoration.none,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      children: _multiWinners.map((w) {
-                        final tai = _effTaiForWinner(w.id);
-                        return Text(
-                          '→ ${w.name} $tai台',
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 14,
-                            decoration: TextDecoration.none,
-                          ),
-                        );
-                      }).toList(),
                     ),
                   ],
                 ],
@@ -466,8 +448,10 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
             spacing: 8,
             runSpacing: 6,
             children: [
-              Text('${w.emoji} ', style: const TextStyle(
-                  fontSize: 16, decoration: TextDecoration.none)),
+              Text('${w.name}：', style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  decoration: TextDecoration.none)),
               ...patterns.map((p) => _patternChip(p)),
             ],
           ),
