@@ -44,6 +44,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   bool _showWinAnnouncement = false;
   Round? _announcedRound;
   Game? _announcedGame;
+  bool _manualAnnouncement = false; // true = 手動叫出，不播音效
 
   // GameProvider listener（用於偵測新局）
   GameProvider? _gameProvider;
@@ -82,6 +83,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           _showWinAnnouncement = true;
           _announcedRound = latestRound;
           _announcedGame = game;
+          _manualAnnouncement = false;
         });
       }
     }
@@ -324,12 +326,14 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 round: _announcedRound!,
                 soundEnabled: provider.accountSettings.soundEnabled,
                 soundVolume: provider.accountSettings.soundVolume,
+                playSound: !_manualAnnouncement,
                 onDismiss: () {
                   if (mounted) {
                     setState(() {
                       _showWinAnnouncement = false;
                       _announcedRound = null;
                       _announcedGame = null;
+                      _manualAnnouncement = false;
                     });
                   }
                 },
@@ -425,6 +429,13 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                         icon: Icons.casino,
                         label: '數位骰子',
                         onTap: _showDiceDialog,
+                        scale: centerScale,
+                      ),
+                      SizedBox(height: 8 * centerScale),
+                      _buildCenterButton(
+                        icon: Icons.history,
+                        label: '上一局',
+                        onTap: () => _showLastRoundAnnouncement(game),
                         scale: centerScale,
                       ),
                     ],
@@ -987,6 +998,32 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       context: context,
       builder: (context) => const _DiceDialog(),
     );
+  }
+
+  /// 顯示上一局結果（不播音效）
+  void _showLastRoundAnnouncement(Game game) {
+    if (game.rounds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('目前沒有任何局數記錄')),
+      );
+      return;
+    }
+    final lastRound = game.rounds.last;
+    final isWinRound = lastRound.type == RoundType.win ||
+        lastRound.type == RoundType.selfDraw ||
+        lastRound.type == RoundType.multiWin;
+    if (!isWinRound) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('上一局為流局或詐胡，無公告可顯示')),
+      );
+      return;
+    }
+    setState(() {
+      _showWinAnnouncement = true;
+      _announcedRound = lastRound;
+      _announcedGame = game;
+      _manualAnnouncement = true; // 標記為手動叫出，不播音效
+    });
   }
 
   void _showSetDealerDialog() {

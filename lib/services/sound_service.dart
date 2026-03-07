@@ -4,19 +4,19 @@ import '../models/round.dart';
 import '../models/settings.dart';
 import 'calculation_service.dart';
 
-/// 音效檔案路徑
+/// 音效檔案路徑（ASCII only，避免 Flutter Web URL 編碼問題）
 class SoundEffects {
-  static const String highTai    = 'audios/result/effect-01-任何玩家自摸或胡牌超過6台以上.mp3';
-  static const String dealerCons = 'audios/result/effect-02-莊家連莊時自摸或胡牌.mp3';
-  static const String multiWin   = 'audios/result/effect-03-一炮多響.mp3';
-  static const String selfDraw   = 'audios/result/effect-04-任何玩家自摸.mp3';
-  static const String win        = 'audios/result/effect-05-任何玩家胡牌.mp3';
-  static const String draw       = 'audios/result/effect-06-流局.mp3';
+  static const String highTai    = 'audios/result/effect-01.mp3'; // 6台以上
+  static const String dealerCons = 'audios/result/effect-02.mp3'; // 莊家連莊
+  static const String multiWin   = 'audios/result/effect-03.mp3'; // 一炮多響
+  static const String selfDraw   = 'audios/result/effect-04.mp3'; // 自摸
+  static const String win        = 'audios/result/effect-05.mp3'; // 胡牌
+  static const String draw       = 'audios/result/effect-06.mp3'; // 流局
 }
 
 /// 音效服務：依局結果選擇並播放對應音效
 class SoundService {
-  static final AudioPlayer _player = AudioPlayer();
+  static AudioPlayer? _player;
 
   /// 根據局結果選擇對應音效（回傳 asset 路徑，null = 不播）
   static String? selectEffect({
@@ -78,18 +78,20 @@ class SoundService {
     await play(assetPath, volume);
   }
 
-  /// 底層播放
+  /// 底層播放（每次建新實例，避免 Web 靜態 AudioPlayer 重用問題）
   static Future<void> play(String assetPath, double volume) async {
     try {
-      await _player.stop();
-      await _player.setVolume(volume);
-      await _player.play(AssetSource(assetPath));
+      await _player?.stop();
+      await _player?.dispose();
+      _player = AudioPlayer();
+      await _player!.setVolume(volume);
+      await _player!.play(AssetSource(assetPath));
     } catch (e) {
       // Web 瀏覽器首次需要使用者互動才允許播放，靜默忽略
     }
   }
 
   static Future<void> stop() async {
-    await _player.stop();
+    await _player?.stop();
   }
 }
