@@ -45,6 +45,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   Round? _announcedRound;
   Game? _announcedGame;
 
+  // GameProvider listener（用於偵測新局）
+  GameProvider? _gameProvider;
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +55,44 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<GameProvider>();
+    if (_gameProvider != provider) {
+      _gameProvider?.removeListener(_onGameChanged);
+      _gameProvider = provider;
+      _gameProvider!.addListener(_onGameChanged);
+    }
+  }
+
+  /// GameProvider 變化時呼叫（在 build 外，安全 setState）
+  void _onGameChanged() {
+    if (!_isMonitorMode || !mounted) return;
+    final game = _gameProvider?.currentGame;
+    if (game == null) return;
+
+    final newCount = game.rounds.length;
+    if (newCount > _prevRoundCount && game.rounds.isNotEmpty) {
+      final latestRound = game.rounds.last;
+      final isWinRound = latestRound.type == RoundType.win ||
+          latestRound.type == RoundType.selfDraw ||
+          latestRound.type == RoundType.multiWin;
+      if (isWinRound && !_showWinAnnouncement) {
+        setState(() {
+          _showWinAnnouncement = true;
+          _announcedRound = latestRound;
+          _announcedGame = game;
+        });
+      }
+    }
+    if (newCount != _prevRoundCount) {
+      setState(() => _prevRoundCount = newCount);
+    }
+  }
+
+  @override
   void dispose() {
+    _gameProvider?.removeListener(_onGameChanged);
     _monitorTimer?.cancel();
     super.dispose();
   }
@@ -216,33 +256,6 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               final game = provider.currentGame;
               if (game == null) {
                 return const Center(child: Text('沒有進行中的遊戲'));
-              }
-
-              // 自動更新模式：偵測新局觸發胡牌公告
-              if (_isMonitorMode) {
-                final newCount = game.rounds.length;
-                if (newCount > _prevRoundCount && game.rounds.isNotEmpty) {
-                  final latestRound = game.rounds.last;
-                  final isWinRound = latestRound.type == RoundType.win ||
-                      latestRound.type == RoundType.selfDraw ||
-                      latestRound.type == RoundType.multiWin;
-                  if (isWinRound && !_showWinAnnouncement) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _showWinAnnouncement = true;
-                          _announcedRound = latestRound;
-                          _announcedGame = game;
-                        });
-                      }
-                    });
-                  }
-                }
-                if (newCount != _prevRoundCount) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => _prevRoundCount = newCount);
-                  });
-                }
               }
 
               return _buildMahjongTable(game);
