@@ -11,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/avatar_service.dart';
 import '../services/export_service.dart';
 import '../services/firestore_service.dart';
+import '../services/sound_service.dart';
 import '../utils/legal_texts.dart';
 import '../widgets/animation_helpers.dart';
 import 'custom_patterns_screen.dart';
@@ -297,13 +298,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               // 音效
               _buildSectionHeader('音效'),
-
-              SwitchListTile(
-                title: const Text('音效'),
-                subtitle: const Text('即將推出'),
-                value: false,
-                onChanged: null,
-              ),
+              _buildSoundSettings(provider),
 
               const SizedBox(height: 16),
 
@@ -392,6 +387,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSoundSettings(GameProvider provider) {
+    final enabled = provider.accountSettings.soundEnabled;
+    final volume = provider.accountSettings.soundVolume;
+
+    final effects = [
+      ('6台以上', SoundEffects.highTai),
+      ('莊家連莊', SoundEffects.dealerCons),
+      ('一炮多響', SoundEffects.multiWin),
+      ('自摸', SoundEffects.selfDraw),
+      ('胡牌', SoundEffects.win),
+      ('流局', SoundEffects.draw),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 開關
+        SwitchListTile(
+          title: const Text('音效'),
+          subtitle: const Text('胡牌時播放對應音效'),
+          value: enabled,
+          onChanged: (v) => provider.setSoundEnabled(v),
+        ),
+
+        // 音量滑桿
+        if (enabled) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.volume_down, size: 20),
+                Expanded(
+                  child: Slider(
+                    value: volume,
+                    min: 0.0,
+                    max: 1.0,
+                    divisions: 10,
+                    label: '${(volume * 100).round()}%',
+                    onChanged: (v) => provider.setSoundVolume(v),
+                    onChangeEnd: (_) {}, // 拖完自動存（setSoundVolume 即時存）
+                  ),
+                ),
+                const Icon(Icons.volume_up, size: 20),
+                const SizedBox(width: 8),
+                Text('${(volume * 100).round()}%',
+                    style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
+
+          // 試聽列表
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Text('試聽',
+                style: TextStyle(
+                    fontSize: 12, color: Theme.of(context).hintColor)),
+          ),
+          ...effects.map((e) {
+            final label = e.$1;
+            final path = e.$2;
+            return ListTile(
+              dense: true,
+              title: Text(label),
+              trailing: IconButton(
+                icon: const Icon(Icons.play_circle_outline),
+                tooltip: '試聽',
+                onPressed: () => SoundService.preview(path, volume),
+              ),
+            );
+          }),
+        ],
+      ],
     );
   }
 

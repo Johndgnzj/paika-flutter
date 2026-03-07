@@ -1012,6 +1012,22 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 更新音效開關
+  Future<void> setSoundEnabled(bool enabled) async {
+    if (_currentAccountId == null) return;
+    _accountSettings = _accountSettings.copyWith(soundEnabled: enabled);
+    await StorageService.saveAccountSettings(_accountSettings, accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
+  /// 更新音量
+  Future<void> setSoundVolume(double volume) async {
+    if (_currentAccountId == null) return;
+    _accountSettings = _accountSettings.copyWith(soundVolume: volume.clamp(0.0, 1.0));
+    await StorageService.saveAccountSettings(_accountSettings, accountId: _currentAccountId!);
+    notifyListeners();
+  }
+
   /// 更新主題模式
   Future<void> updateThemeMode(ThemeMode mode) async {
     _themeMode = mode;

@@ -1,5 +1,6 @@
 import '../models/game.dart';
 import '../models/round.dart';
+import 'calculation_service.dart';
 
 /// 單場牌局摘要
 class GameSummary {
@@ -219,6 +220,10 @@ class StatsService {
         final round = game.rounds[i];
         totalRounds++;
 
+        // 有效台數（含莊家、連莊加台）
+        final effTai = CalculationService.effectiveTaiFromRound(
+            round, game.settings, game.players);
+
         // 檢查該局得分（追蹤最高單局記錄）
         final roundScore = round.scoreChanges[playerId] ?? 0;
         if (roundScore > bestRoundAmount) {
@@ -229,7 +234,7 @@ class StatsService {
             gameDate: game.createdAt,
             roundId: round.id,
             roundIndex: i + 1,
-            tai: round.totalTai,
+            tai: effTai, // 使用有效台數
             amount: roundScore,
           );
         }
@@ -237,28 +242,28 @@ class StatsService {
         // 胡牌（放槍胡，不包含自摸）
         if (round.type == RoundType.win && round.winnerId == playerId) {
           wins++;
-          totalTai += round.tai;
+          totalTai += effTai;
           taiCount++;
-          if (round.tai > maxTai) maxTai = round.tai;
-          taiDistribution[round.tai] = (taiDistribution[round.tai] ?? 0) + 1;
+          if (effTai > maxTai) maxTai = effTai;
+          taiDistribution[effTai] = (taiDistribution[effTai] ?? 0) + 1;
         }
 
         // 自摸
         if (round.type == RoundType.selfDraw && round.winnerId == playerId) {
           selfDraws++;
-          totalTai += round.tai;
+          totalTai += effTai;
           taiCount++;
-          if (round.tai > maxTai) maxTai = round.tai;
-          taiDistribution[round.tai] = (taiDistribution[round.tai] ?? 0) + 1;
+          if (effTai > maxTai) maxTai = effTai;
+          taiDistribution[effTai] = (taiDistribution[effTai] ?? 0) + 1;
         }
 
         // 一炮多響中胡牌
         if (round.type == RoundType.multiWin && round.winnerIds.contains(playerId)) {
           wins++;
-          totalTai += round.tai;
+          totalTai += effTai;
           taiCount++;
-          if (round.tai > maxTai) maxTai = round.tai;
-          taiDistribution[round.tai] = (taiDistribution[round.tai] ?? 0) + 1;
+          if (effTai > maxTai) maxTai = effTai;
+          taiDistribution[effTai] = (taiDistribution[effTai] ?? 0) + 1;
         }
 
         // 放槍

@@ -69,6 +69,7 @@ dependencies:
   csv: ^7.1.0
   screenshot: ^3.0.0
   speech_to_text: ^7.3.0
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -112,6 +113,7 @@ flutter:
     - assets/images/dice-5.png
     - assets/images/dice-6.png
     - assets/images/paika-logo.png
+    - assets/audios/result/
 
   #   - images/a_dot_ham.jpeg
 

@@ -1,4 +1,6 @@
 import '../models/game.dart';
+import '../models/player.dart';
+import '../models/round.dart';
 import '../models/settings.dart';
 
 /// 分數計算服務
@@ -255,5 +257,54 @@ class CalculationService {
       return '$taiBreakdown\n'
              '${settings.baseScore} + ($effectiveTai × ${settings.perTai}) = $score';
     }
+  }
+
+  /// 計算某一局的有效台數（含莊家、連莊加台）
+  /// 用於音效判斷、統計顯示等需要完整台數的場景
+  static int effectiveTaiFromRound(
+    Round round,
+    GameSettings settings,
+    List<Player> players,
+  ) {
+    int tai = round.tai + round.flowers;
+
+    // 自摸加台
+    if (round.type == RoundType.selfDraw && settings.selfDrawAddTai) {
+      tai += 1;
+    }
+
+    // 判斷莊家是否參與本局
+    bool dealerInvolved = false;
+    if (round.dealerSeat >= 0 && round.dealerSeat < players.length) {
+      final dealerPlayer = players[round.dealerSeat];
+      switch (round.type) {
+        case RoundType.win:
+          dealerInvolved = round.winnerId == dealerPlayer.id ||
+              round.loserId == dealerPlayer.id;
+          break;
+        case RoundType.multiWin:
+          dealerInvolved = round.winnerIds.contains(dealerPlayer.id) ||
+              round.loserId == dealerPlayer.id;
+          break;
+        case RoundType.selfDraw:
+          // 自摸時莊家必定參與（不管是莊家自摸還是莊家付錢）
+          dealerInvolved = true;
+          break;
+        default:
+          dealerInvolved = false;
+      }
+    }
+
+    // 莊家加台
+    if (dealerInvolved && settings.dealerTai) {
+      tai += 1;
+    }
+
+    // 連莊加台
+    if (settings.consecutiveTai && round.consecutiveWins > 0) {
+      tai += round.consecutiveWins * 2;
+    }
+
+    return tai;
   }
 }

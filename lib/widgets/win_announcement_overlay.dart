@@ -4,18 +4,24 @@ import '../models/game.dart';
 import '../models/round.dart';
 import '../models/player.dart';
 import '../models/hand_pattern.dart';
+import '../services/calculation_service.dart';
+import '../services/sound_service.dart';
 
 /// 自動更新模式下的胡牌全屏公告
 class WinAnnouncementOverlay extends StatefulWidget {
   final Game game;
   final Round round;
   final VoidCallback onDismiss;
+  final bool soundEnabled;
+  final double soundVolume;
 
   const WinAnnouncementOverlay({
     super.key,
     required this.game,
     required this.round,
     required this.onDismiss,
+    this.soundEnabled = true,
+    this.soundVolume = 0.7,
   });
 
   @override
@@ -42,6 +48,15 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
     _fadeController.addStatusListener((status) {
       if (status == AnimationStatus.completed) widget.onDismiss();
     });
+
+    // 播放音效
+    SoundService.playForRound(
+      round: widget.round,
+      settings: widget.game.settings,
+      players: widget.game.players,
+      enabled: widget.soundEnabled,
+      volume: widget.soundVolume,
+    );
 
     // 倒數計時
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -114,6 +129,8 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
     final patterns = _handPatternNames();
     final dealerInfo = _dealerInfo();
     final scores = widget.game.currentScores;
+    final effTai = CalculationService.effectiveTaiFromRound(
+      round, widget.game.settings, widget.game.players);
 
     // 依分數高→低排列玩家
     final sortedPlayers = List<Player>.from(widget.game.players)
@@ -168,10 +185,10 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                         _typeChip(_typeLabel(),
                             isSelfDraw ? Colors.greenAccent : Colors.amberAccent),
                         const SizedBox(width: 10),
-                        _typeChip('${round.totalTai} 台', Colors.white70),
-                        if (round.flowers > 0) ...[
+                        _typeChip('$effTai 台', Colors.white70),
+                        if (round.flowers > 0 || effTai != round.totalTai) ...[
                           const SizedBox(width: 6),
-                          _typeChip('花 ${round.flowers}', Colors.pinkAccent),
+                          _typeChip('(底 ${round.totalTai})', Colors.white30),
                         ],
                       ],
                     ),

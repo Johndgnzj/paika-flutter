@@ -157,6 +157,17 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
               },
             ),
             actions: [
+              // 音效快速開關
+              Consumer<GameProvider>(
+                builder: (context, provider, _) {
+                  final enabled = provider.accountSettings.soundEnabled;
+                  return IconButton(
+                    icon: Icon(enabled ? Icons.volume_up : Icons.volume_off),
+                    tooltip: enabled ? '關閉音效' : '開啟音效',
+                    onPressed: () => provider.setSoundEnabled(!enabled),
+                  );
+                },
+              ),
               IconButton(
                 icon: Icon(
                   _isListening ? Icons.mic : Icons.mic_none,
@@ -307,18 +318,22 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
         // 胡牌全屏公告
         if (_showWinAnnouncement && _announcedRound != null && _announcedGame != null)
           Positioned.fill(
-            child: WinAnnouncementOverlay(
-              game: _announcedGame!,
-              round: _announcedRound!,
-              onDismiss: () {
-                if (mounted) {
-                  setState(() {
-                    _showWinAnnouncement = false;
-                    _announcedRound = null;
-                    _announcedGame = null;
-                  });
-                }
-              },
+            child: Consumer<GameProvider>(
+              builder: (context, provider, _) => WinAnnouncementOverlay(
+                game: _announcedGame!,
+                round: _announcedRound!,
+                soundEnabled: provider.accountSettings.soundEnabled,
+                soundVolume: provider.accountSettings.soundVolume,
+                onDismiss: () {
+                  if (mounted) {
+                    setState(() {
+                      _showWinAnnouncement = false;
+                      _announcedRound = null;
+                      _announcedGame = null;
+                    });
+                  }
+                },
+              ),
             ),
           ),
       ],
