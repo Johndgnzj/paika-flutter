@@ -349,10 +349,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           const SizedBox(width: 5),
           Text(
             '自動更新 ${_monitorCountdown}s',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
           const SizedBox(width: 6),
           GestureDetector(
