@@ -7,6 +7,7 @@ import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../services/calculation_service.dart';
+import '../models/round.dart';
 import '../services/firestore_service.dart';
 import '../services/voice_scoring_service.dart';
 import '../utils/constants.dart';
@@ -17,6 +18,7 @@ import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
 import '../widgets/voice_input_overlay.dart';
 import 'game_detail_screen.dart';
+import '../widgets/win_announcement_overlay.dart';
 
 class GamePlayScreen extends StatefulWidget {
   const GamePlayScreen({super.key});
@@ -31,11 +33,17 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   String _currentRecognizedText = '';
   bool _hasShownVoicePermissionInfo = false;
 
-  // 監測模式
+  // 自動更新模式
   bool _isMonitorMode = false;
   Timer? _monitorTimer;
   int _monitorCountdown = 10;
   bool _isMonitorRefreshing = false;
+
+  // 胡牌公告 overlay
+  int _prevRoundCount = 0;
+  bool _showWinAnnouncement = false;
+  Round? _announcedRound;
+  Game? _announcedGame;
 
   @override
   void initState() {
@@ -57,6 +65,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       _isMonitorMode = true;
       _monitorCountdown = 10;
       _isMonitorRefreshing = false;
+      _prevRoundCount = game.rounds.length; // 從當前局數開始計，不回放舊公告
+      _showWinAnnouncement = false;
     });
     _monitorTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -208,6 +218,33 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 return const Center(child: Text('沒有進行中的遊戲'));
               }
 
+              // 自動更新模式：偵測新局觸發胡牌公告
+              if (_isMonitorMode) {
+                final newCount = game.rounds.length;
+                if (newCount > _prevRoundCount && game.rounds.isNotEmpty) {
+                  final latestRound = game.rounds.last;
+                  final isWinRound = latestRound.type == RoundType.win ||
+                      latestRound.type == RoundType.selfDraw ||
+                      latestRound.type == RoundType.multiWin;
+                  if (isWinRound && !_showWinAnnouncement) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _showWinAnnouncement = true;
+                          _announcedRound = latestRound;
+                          _announcedGame = game;
+                        });
+                      }
+                    });
+                  }
+                }
+                if (newCount != _prevRoundCount) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _prevRoundCount = newCount);
+                  });
+                }
+              }
+
               return _buildMahjongTable(game);
             },
           ),
@@ -246,12 +283,30 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             },
           ),
 
-        // 監測模式 badge（右下角小標示）
-        if (_isMonitorMode)
+        // 自動更新模式 badge（右下角小標示）
+        if (_isMonitorMode && !_showWinAnnouncement)
           Positioned(
             right: 12,
             bottom: 20,
             child: _buildMonitorBadge(),
+          ),
+
+        // 胡牌全屏公告
+        if (_showWinAnnouncement && _announcedRound != null && _announcedGame != null)
+          Positioned.fill(
+            child: WinAnnouncementOverlay(
+              game: _announcedGame!,
+              round: _announcedRound!,
+              onDismiss: () {
+                if (mounted) {
+                  setState(() {
+                    _showWinAnnouncement = false;
+                    _announcedRound = null;
+                    _announcedGame = null;
+                  });
+                }
+              },
+            ),
           ),
       ],
     );
