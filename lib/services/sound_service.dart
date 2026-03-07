@@ -1,19 +1,20 @@
+// dart.library.js_interop = true on web (both WASM & JS build), false on native
 import 'sound_player_stub.dart'
-    if (dart.library.html) 'sound_player_web.dart';
+    if (dart.library.js_interop) 'sound_player_web.dart';
 
 import '../models/player.dart';
 import '../models/round.dart';
 import '../models/settings.dart';
 import 'calculation_service.dart';
 
-/// 音效檔案路徑（assets/audios/result/ 下，ASCII 檔名）
+/// 音效檔案路徑（Flutter Web URL = /assets/<key>，key 包含 assets/ 前綴）
 class SoundEffects {
-  static const String highTai    = 'audios/result/effect-01.mp3'; // 6台以上
-  static const String dealerCons = 'audios/result/effect-02.mp3'; // 莊家連莊
-  static const String multiWin   = 'audios/result/effect-03.mp3'; // 一炮多響
-  static const String selfDraw   = 'audios/result/effect-04.mp3'; // 自摸
-  static const String win        = 'audios/result/effect-05.mp3'; // 胡牌
-  static const String draw       = 'audios/result/effect-06.mp3'; // 流局
+  static const String highTai    = 'assets/audios/result/effect-01.mp3'; // 6台以上
+  static const String dealerCons = 'assets/audios/result/effect-02.mp3'; // 莊家連莊
+  static const String multiWin   = 'assets/audios/result/effect-03.mp3'; // 一炮多響
+  static const String selfDraw   = 'assets/audios/result/effect-04.mp3'; // 自摸
+  static const String win        = 'assets/audios/result/effect-05.mp3'; // 胡牌
+  static const String draw       = 'assets/audios/result/effect-06.mp3'; // 流局
 }
 
 /// 音效服務：依局結果選擇並播放對應音效
