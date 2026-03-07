@@ -327,6 +327,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 soundEnabled: provider.accountSettings.soundEnabled,
                 soundVolume: provider.accountSettings.soundVolume,
                 playSound: !_manualAnnouncement,
+                autoClose: !_manualAnnouncement,
                 onDismiss: () {
                   if (mounted) {
                     setState(() {
@@ -1022,7 +1023,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       _showWinAnnouncement = true;
       _announcedRound = lastRound;
       _announcedGame = game;
-      _manualAnnouncement = true; // 標記為手動叫出，不播音效
+      _manualAnnouncement = true;
     });
   }
 
