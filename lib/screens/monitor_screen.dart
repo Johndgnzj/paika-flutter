@@ -7,15 +7,17 @@ import '../models/game.dart';
 import '../models/player.dart';
 import '../services/firestore_service.dart';
 
-/// 監測模式：大字記分板，每 10 秒從 Firestore 拉取最新資料
+/// 自動更新模式：大字記分板，即時同步 Firestore 資料
 class MonitorScreen extends StatefulWidget {
   final String gameId;
   final Game initialGame;
+  final String? ownerUid; // 支援跨帳號監控
 
   const MonitorScreen({
     super.key,
     required this.gameId,
     required this.initialGame,
+    this.ownerUid,
   });
 
   @override
@@ -24,10 +26,9 @@ class MonitorScreen extends StatefulWidget {
 
 class _MonitorScreenState extends State<MonitorScreen> {
   late Game _game;
-  Timer? _timer;
-  int _countdown = 10;
+  StreamSubscription? _subscription;
   DateTime? _lastUpdated;
-  bool _isRefreshing = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -36,34 +37,45 @@ class _MonitorScreenState extends State<MonitorScreen> {
     _lastUpdated = DateTime.now();
     // 全螢幕沉浸模式
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    _startTimer();
+    _startListening();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _subscription?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _countdown--;
-        if (_countdown <= 0) {
-          _countdown = 10;
-          _refresh();
-        }
-      });
+  void _startListening() {
+    _isLoading = true;
+    
+    // 如果有指定 ownerUid，則監控該使用者的路徑；否則監控自己的
+    final stream = widget.ownerUid != null 
+        ? FirestoreService.gameStreamWithUid(widget.ownerUid!, widget.gameId)
+        : FirestoreService.gameStream(widget.gameId);
+
+    _subscription = stream.listen((game) {
+      if (game != null && mounted) {
+        setState(() {
+          _game = game;
+          _lastUpdated = DateTime.now();
+          _isLoading = false;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('[Monitor] Stream error: $e');
+      if (mounted) setState(() => _isLoading = false);
     });
   }
 
-  Future<void> _refresh() async {
-    if (_isRefreshing) return;
-    setState(() => _isRefreshing = true);
+  Future<void> _manualRefresh() async {
+    setState(() => _isLoading = true);
     try {
-      final game = await FirestoreService.loadGame(widget.gameId);
+      final game = widget.ownerUid != null
+          ? await FirestoreService.loadGameWithUid(widget.ownerUid!, widget.gameId)
+          : await FirestoreService.loadGame(widget.gameId);
+          
       if (game != null && mounted) {
         setState(() {
           _game = game;
@@ -71,7 +83,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
         });
       }
     } finally {
-      if (mounted) setState(() => _isRefreshing = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -159,34 +171,33 @@ class _MonitorScreenState extends State<MonitorScreen> {
         // 倒數 + 重新整理 + 關閉
         Row(
           children: [
-            _isRefreshing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.amber,
-                    ),
-                  )
-                : Text(
-                    '$_countdown s',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
+            if (_isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.amber,
+                ),
+              )
+            else
+              const Text(
+                'LIVE',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.grey, size: 20),
               tooltip: '立即更新',
-              onPressed: () {
-                setState(() => _countdown = 10);
-                _refresh();
-              },
+              onPressed: _manualRefresh,
             ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.grey, size: 20),
-              tooltip: '退出監測',
+              tooltip: '退出模式',
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],

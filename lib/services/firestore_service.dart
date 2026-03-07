@@ -244,6 +244,32 @@ class FirestoreService {
     return data?['currentGameId'] as String?;
   }
 
+  /// 讀取特定帳號的牌局（用於跨帳號監控）
+  static Future<Game?> loadGameWithUid(String uid, String gameId) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('games')
+        .doc(gameId)
+        .get();
+    if (!snapshot.exists) return null;
+    return Game.fromJson(snapshot.data()!);
+  }
+
+  /// 即時監聽特定帳號的牌局變化（用於跨帳號監控）
+  static Stream<Game?> gameStreamWithUid(String uid, String gameId) {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('games')
+        .doc(gameId)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      return Game.fromJson(snapshot.data()!);
+    });
+  }
+
   // --- Real-time Streams ---
 
   /// 即時監聽 currentGameId 變化（跨裝置同步進行中牌局）

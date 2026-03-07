@@ -307,9 +307,13 @@ class GameProvider with ChangeNotifier {
         }
         _currentGameSubscription?.cancel();
         _currentGameSubscription = null;
-      } else if (_currentGame?.id != gameId) {
-        // 有新的進行中牌局，開始監聽其內容
-        _subscribeToCurrentGame(gameId);
+      } else {
+        // 有進行中牌局（包含 ID 相同的情況），確保即時監聽已建立
+        // 修正：監控裝置已從本地載入同一個 gameId 時，條件 != 為 false
+        // 導致 _subscribeToCurrentGame 從未被呼叫，real-time stream 不存在
+        if (_currentGameSubscription == null) {
+          _subscribeToCurrentGame(gameId);
+        }
       }
     }, onError: (e) {
       if (kDebugMode) print('[Listener] currentGameId error: $e');
@@ -328,6 +332,14 @@ class GameProvider with ChangeNotifier {
     }, onError: (e) {
       if (kDebugMode) print('[Listener] currentGame error: $e');
     });
+  }
+
+  /// 從遠端同步更新目前牌局（供監控模式備用輪詢使用）
+  void applyRemoteGame(Game game) {
+    if (_currentGame?.id == game.id) {
+      _currentGame = game;
+      notifyListeners();
+    }
   }
 
   /// 取消所有 Firestore 監聽器

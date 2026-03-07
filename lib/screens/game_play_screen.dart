@@ -80,8 +80,12 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     if (_isMonitorRefreshing) return;
     setState(() => _isMonitorRefreshing = true);
     try {
-      // 從 Firestore 拉最新資料（real-time listener 已在跑，這是額外保險）
-      await FirestoreService.loadGame(gameId);
+      // 備用輪詢：直接從 Firestore 拉最新資料並更新 provider
+      // （real-time stream 應已在跑，此為保險機制）
+      final game = await FirestoreService.loadGame(gameId);
+      if (game != null && mounted) {
+        context.read<GameProvider>().applyRemoteGame(game);
+      }
     } finally {
       if (mounted) setState(() => _isMonitorRefreshing = false);
     }
@@ -117,7 +121,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                   if (game == null) return const SizedBox.shrink();
                   return IconButton(
                     icon: const Icon(Icons.monitor),
-                    tooltip: '監測模式',
+                    tooltip: '自動更新模式',
                     onPressed: () => _enterMonitorMode(game),
                   );
                 },
