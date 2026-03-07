@@ -309,6 +309,24 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             },
           ),
 
+        // 上一局結果小卡（右上角，AppBar 下方）
+        Consumer<GameProvider>(
+          builder: (context, provider, _) {
+            final game = provider.currentGame;
+            if (game == null || game.rounds.isEmpty) return const SizedBox.shrink();
+            final lastRound = game.rounds.last;
+            final isWinRound = lastRound.type == RoundType.win ||
+                lastRound.type == RoundType.selfDraw ||
+                lastRound.type == RoundType.multiWin;
+            if (!isWinRound) return const SizedBox.shrink();
+            return Positioned(
+              top: kToolbarHeight + MediaQuery.of(context).padding.top + 8,
+              right: 8,
+              child: _buildLastRoundCard(game, lastRound),
+            );
+          },
+        ),
+
         // 自動更新模式 badge（右下角小標示）
         if (_isMonitorMode && !_showWinAnnouncement)
           Positioned(
@@ -342,6 +360,88 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  /// 右上角「上一局」簡易卡片
+  Widget _buildLastRoundCard(Game game, Round lastRound) {
+    final winners = lastRound.type == RoundType.multiWin
+        ? lastRound.winnerIds
+            .map((id) {
+              try { return game.players.firstWhere((p) => p.id == id); }
+              catch (_) { return null; }
+            })
+            .whereType<Player>()
+            .toList()
+        : [
+            if (lastRound.winnerId != null)
+              () {
+                try { return game.players.firstWhere((p) => p.id == lastRound.winnerId); }
+                catch (_) { return null; }
+              }()
+          ].whereType<Player>().toList();
+
+    final typeIcon = lastRound.type == RoundType.selfDraw
+        ? '🀄'
+        : lastRound.type == RoundType.multiWin
+            ? '🎯'
+            : '🏆';
+
+    return GestureDetector(
+      onTap: () => _showLastRoundAnnouncement(game),
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(typeIcon, style: const TextStyle(
+                fontSize: 18, decoration: TextDecoration.none)),
+            const SizedBox(height: 2),
+            Text('上一局',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 10,
+                  decoration: TextDecoration.none,
+                )),
+            const SizedBox(height: 4),
+            // 每位贏家簡易分數
+            ...winners.take(3).map((w) {
+              final change = lastRound.scoreChanges[w.id] ?? 0;
+              return Text(
+                '${w.emoji} +$change',
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.none,
+                ),
+              );
+            }),
+            // 放槍者
+            if (lastRound.loserId != null) () {
+              try {
+                final loser = game.players.firstWhere(
+                    (p) => p.id == lastRound.loserId);
+                final change = lastRound.scoreChanges[loser.id] ?? 0;
+                return Text(
+                  '${loser.emoji} $change',
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 11,
+                    decoration: TextDecoration.none,
+                  ),
+                );
+              } catch (_) { return const SizedBox.shrink(); }
+            }(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -432,13 +532,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                         onTap: _showDiceDialog,
                         scale: centerScale,
                       ),
-                      SizedBox(height: 8 * centerScale),
-                      _buildCenterButton(
-                        icon: Icons.history,
-                        label: '上一局',
-                        onTap: () => _showLastRoundAnnouncement(game),
-                        scale: centerScale,
-                      ),
+
                     ],
                   );
                 },

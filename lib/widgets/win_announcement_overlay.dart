@@ -98,6 +98,17 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
     }
   }
 
+  bool get _isMultiWin => widget.round.type == RoundType.multiWin;
+  bool get _isSelfDraw => widget.round.type == RoundType.selfDraw;
+
+  /// 一炮多響的所有贏家
+  List<Player> get _multiWinners {
+    final ids = widget.round.winnerIds.isNotEmpty
+        ? widget.round.winnerIds
+        : (widget.round.winnerId != null ? [widget.round.winnerId!] : []);
+    return ids.map((id) => _playerById(id)).whereType<Player>().toList();
+  }
+
   String _typeLabel() {
     switch (widget.round.type) {
       case RoundType.selfDraw:  return '自摸';
@@ -108,19 +119,29 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
     }
   }
 
-  /// 查找牌型物件（含 referenceTai）
-  List<HandPattern> _handPatterns() {
+  /// 一般局：共同牌型；multiWin：各贏家自己的牌型
+  List<HandPattern> _handPatternsForWinner(String? winnerId) {
     final custom = widget.game.settings.customPatterns;
     final all = HandPattern.allPatterns(custom);
-    return widget.round.handPatternIds
-        .map((id) {
-          try {
-            return all.firstWhere((p) => p.id == id);
-          } catch (_) {
-            return HandPattern(id: id, name: id, referenceTai: 0);
-          }
-        })
-        .toList();
+    List<String> ids;
+    if (_isMultiWin && winnerId != null) {
+      ids = widget.round.winnerHandPatterns[winnerId] ?? widget.round.handPatternIds;
+    } else {
+      ids = widget.round.handPatternIds;
+    }
+    return ids.map((id) {
+      try { return all.firstWhere((p) => p.id == id); }
+      catch (_) { return HandPattern(id: id, name: id, referenceTai: 0); }
+    }).toList();
+  }
+
+  /// 某位贏家的有效台數（從 scoreChanges 取絕對值）
+  int _effTaiForWinner(String winnerId) {
+    final change = widget.round.scoreChanges[winnerId] ?? 0;
+    if (change > 0) return change; // 贏家是正值
+    // fallback
+    return CalculationService.effectiveTaiFromRound(
+        widget.round, widget.game.settings, widget.game.players);
   }
 
   String? _dealerInfo() {
@@ -135,30 +156,25 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
   @override
   Widget build(BuildContext context) {
     final round = widget.round;
-    final isSelfDraw = round.type == RoundType.selfDraw;
-    final winner = _playerById(round.winnerId);
     final loser = _playerById(round.loserId);
-    final patterns = _handPatterns();
     final dealerInfo = _dealerInfo();
     final scores = widget.game.currentScores;
     final settings = widget.game.settings;
     final players = widget.game.players;
 
-    // 有效台數（含莊家、連莊）
+    // 有效台數（單一贏家時用）
     final effTai = CalculationService.effectiveTaiFromRound(round, settings, players);
 
-    // 非莊家自摸時，分別計算一般玩家 vs 莊家付的台數
-    bool winnerIsDealer = round.dealerSeat < players.length &&
+    // 非莊家自摸：分別顯示兩種台數
+    final winnerIsDealer = round.dealerSeat < players.length &&
         players[round.dealerSeat].id == round.winnerId;
-    int? dealerPayTai; // 只在非莊家自摸時有值
+    int? dealerPayTai;
     int normalTai = effTai;
-
-    if (isSelfDraw && !winnerIsDealer) {
-      // 一般玩家台數（不含莊家bonus + 連莊）
+    if (_isSelfDraw && !winnerIsDealer) {
       int base = round.tai + round.flowers;
       if (settings.selfDrawAddTai) base += 1;
       normalTai = base;
-      dealerPayTai = effTai; // effectiveTai 已包含莊家+連莊
+      dealerPayTai = effTai;
     }
 
     final sortedPlayers = List<Player>.from(players)
@@ -173,7 +189,7 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               children: [
-                // 頂部提示
+                // 頂部提示列
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -186,12 +202,10 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                         decoration: TextDecoration.none,
                       ),
                     ),
-                    // 手動模式：明顯關閉按鈕
                     if (!widget.autoClose)
                       GestureDetector(
                         onTap: _dismiss,
-                        child: const Icon(Icons.close,
-                            color: Colors.white54, size: 22),
+                        child: const Icon(Icons.close, color: Colors.white54, size: 22),
                       )
                     else
                       const SizedBox(width: 40),
@@ -200,100 +214,122 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
 
                 const Spacer(flex: 1),
 
-                // ── 勝者 ──
-                if (winner != null) ...[
-                  Text(winner.emoji,
-                      style: const TextStyle(
-                          fontSize: 72, decoration: TextDecoration.none)),
-                  const SizedBox(height: 8),
-                  Text(
-                    winner.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 33,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 胡牌方式 + 台數 chip 列
+                // ── 一炮多響：橫排顯示所有贏家 ──
+                if (_isMultiWin) ...[
+                  _chip('一炮多響 🎯', Colors.redAccent),
+                  const SizedBox(height: 12),
                   Wrap(
                     alignment: WrapAlignment.center,
-                    spacing: 10,
-                    runSpacing: 6,
-                    children: [
-                      _chip(_typeLabel(),
-                          isSelfDraw ? Colors.greenAccent : Colors.amberAccent),
-                      _chip('$normalTai 台', Colors.white70),
-                      // 非莊家自摸：額外顯示莊家付的台數
-                      if (dealerPayTai != null && dealerPayTai != normalTai)
-                        _chip('莊家 $dealerPayTai 台', Colors.amber),
-                      // 台數有加成時顯示底台
-                      if (dealerPayTai == null && effTai != round.totalTai)
-                        _chip('底 ${round.totalTai}', Colors.white24),
-                    ],
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: _multiWinners.map((w) {
+                      final tai = _effTaiForWinner(w.id);
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(w.emoji,
+                              style: const TextStyle(
+                                  fontSize: 44, decoration: TextDecoration.none)),
+                          const SizedBox(height: 4),
+                          Text(w.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.none,
+                              )),
+                          const SizedBox(height: 4),
+                          _chip('$tai 台', Colors.amberAccent),
+                        ],
+                      );
+                    }).toList(),
                   ),
+                  // 放槍者：兩列（名字 + 各人台數）
+                  if (loser != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      '${loser.emoji} ${loser.name}',
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      children: _multiWinners.map((w) {
+                        final tai = _effTaiForWinner(w.id);
+                        return Text(
+                          '→ ${w.name} $tai台',
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 14,
+                            decoration: TextDecoration.none,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ],
 
-                // ── 放槍者 ──
-                if (loser != null && !isSelfDraw) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    '${loser.emoji} ${loser.name} 放槍',
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 17,
-                      decoration: TextDecoration.none,
+                // ── 一般胡牌 / 自摸 ──
+                if (!_isMultiWin) ...[
+                  if (_playerById(round.winnerId) case final winner?) ...[
+                    Text(winner.emoji,
+                        style: const TextStyle(
+                            fontSize: 72, decoration: TextDecoration.none)),
+                    const SizedBox(height: 8),
+                    Text(
+                      winner.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 33,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: [
+                        _chip(_typeLabel(),
+                            _isSelfDraw ? Colors.greenAccent : Colors.amberAccent),
+                        _chip('$normalTai 台', Colors.white70),
+                        if (dealerPayTai != null && dealerPayTai != normalTai)
+                          _chip('莊家 $dealerPayTai 台', Colors.amber),
+                        if (dealerPayTai == null && effTai != round.totalTai)
+                          _chip('底 ${round.totalTai}', Colors.white24),
+                      ],
+                    ),
+                  ],
+                  // 放槍者（非自摸）
+                  if (loser != null && !_isSelfDraw) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '${loser.emoji} ${loser.name} 放槍',
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 17,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
                 ],
 
                 const SizedBox(height: 18),
 
-                // ── 特殊牌型（依 referenceTai 上色，2x 字體）──
-                if (patterns.isNotEmpty)
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: patterns.map((p) {
-                      // ≥ 4台：金/橙暖色；< 4台：藍/紫冷色
-                      final isHighTai = p.referenceTai >= 4;
-                      final borderColor = isHighTai
-                          ? AppConstants.dealerColor.withValues(alpha: 0.8)
-                          : Colors.blueAccent.withValues(alpha: 0.7);
-                      final bgColor = isHighTai
-                          ? Colors.orange.withValues(alpha: 0.2)
-                          : Colors.deepPurple.withValues(alpha: 0.35);
-                      final textColor =
-                          isHighTai ? AppConstants.dealerColor : Colors.lightBlueAccent;
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Text(
-                          p.name,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                // ── 特殊牌型（一般局 or multiWin 各人）──
+                ..._buildPatternSection(),
 
                 // ── 連莊 ──
                 if (dealerInfo != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   Text(
                     dealerInfo,
                     style: const TextStyle(
@@ -414,6 +450,68 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
       );
     }
     return overlayContent;
+  }
+
+  /// 特殊牌型區塊：一炮多響時每位贏家分開顯示
+  List<Widget> _buildPatternSection() {
+    if (_isMultiWin) {
+      final widgets = <Widget>[];
+      for (final w in _multiWinners) {
+        final patterns = _handPatternsForWinner(w.id);
+        if (patterns.isEmpty) continue;
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Text('${w.emoji} ', style: const TextStyle(
+                  fontSize: 16, decoration: TextDecoration.none)),
+              ...patterns.map((p) => _patternChip(p)),
+            ],
+          ),
+        ));
+      }
+      return widgets;
+    } else {
+      final patterns = _handPatternsForWinner(widget.round.winnerId);
+      if (patterns.isEmpty) return [];
+      return [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 8,
+          children: patterns.map(_patternChip).toList(),
+        ),
+      ];
+    }
+  }
+
+  Widget _patternChip(HandPattern p) {
+    final isHighTai = p.referenceTai >= 4;
+    final borderColor = isHighTai
+        ? AppConstants.dealerColor.withValues(alpha: 0.8)
+        : Colors.blueAccent.withValues(alpha: 0.7);
+    final bgColor = isHighTai
+        ? Colors.orange.withValues(alpha: 0.2)
+        : Colors.deepPurple.withValues(alpha: 0.35);
+    final textColor = isHighTai ? AppConstants.dealerColor : Colors.lightBlueAccent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(p.name,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            decoration: TextDecoration.none,
+          )),
+    );
   }
 
   Widget _chip(String label, Color color) {
