@@ -1002,6 +1002,13 @@ class GameProvider with ChangeNotifier {
       events: [..._currentGame!.events, event],
     );
 
+    // 重新計算圈風時，立即開啟新的「將」（以新莊家為東家），
+    // 讓玩家風位（東南西北）即時同步，不必等到下一局結果輸入後才更新。
+    // （玩家風位是以「當前將的起莊座位」計算）
+    if (recalculateWind) {
+      _ensureCurrentJiang();
+    }
+
     await _saveCurrentGame();
     notifyListeners();
   }
