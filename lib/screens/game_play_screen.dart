@@ -18,6 +18,7 @@ import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
 import '../widgets/voice_input_overlay.dart';
 import '../widgets/player_avatar.dart';
+import '../widgets/settlement_dialog.dart';
 import 'game_detail_screen.dart';
 import '../widgets/win_announcement_overlay.dart';
 
@@ -205,6 +206,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 case 'undo':
                   _undoLastRound();
                   break;
+                case 'settle':
+                  _showSettlementDialog();
+                  break;
                 case 'finish':
                   _finishGame();
                   break;
@@ -248,6 +252,16 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                     Icon(Icons.undo),
                     SizedBox(width: 8),
                     Text('還原上局'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settle',
+                child: Row(
+                  children: [
+                    Icon(Icons.calculate),
+                    SizedBox(width: 8),
+                    Text('結算'),
                   ],
                 ),
               ),
@@ -1143,12 +1157,24 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   void _showSwapDialog() {
     final provider = context.read<GameProvider>();
     final game = provider.currentGame;
-    
+
     if (game == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => SwapPositionDialog(game: game),
+    );
+  }
+
+  void _showSettlementDialog() {
+    final provider = context.read<GameProvider>();
+    final game = provider.currentGame;
+
+    if (game == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => SettlementDialog(game: game),
     );
   }
 
