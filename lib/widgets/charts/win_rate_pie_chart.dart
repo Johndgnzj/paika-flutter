@@ -33,16 +33,12 @@ class WinRatePieChart extends StatelessWidget {
       legends.add(_LegendItem(label: '$label ($value)', color: color));
     }
 
+    // 只統計與本人勝負相關的結果，分母 = 這四項加總，確保百分比總和為 100%
+    // （流局與「本人非贏家/放槍者」的旁觀局數不計入勝負比例）
     addSection('胡牌', stats.wins, Colors.green);
     addSection('自摸', stats.selfDraws, Colors.blue);
     addSection('放槍', stats.losses, Colors.red);
     addSection('詐胡', stats.falseWins, Colors.orange);
-
-    // 其他局數（流局等）
-    final other = stats.totalRounds - total;
-    if (other > 0) {
-      addSection('其他', other, Colors.grey);
-    }
 
     return Column(
       children: [

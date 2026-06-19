@@ -29,6 +29,7 @@ class PlayerStatsScreen extends StatefulWidget {
 
 class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   TimeRange _timeRange = TimeRange.all;
+  DateTimeRange? _customRange; // 自訂時間區間（_timeRange == custom 時生效）
   late PlayerProfile _currentProfile;
 
   @override
@@ -74,20 +75,9 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
             [_currentProfile.id, ..._currentProfile.mergedProfileIds],
             provider.gameHistory,
             timeRange: _timeRange,
+            customStart: _customRange?.start,
+            customEnd: _customRange?.end,
           );
-
-          if (stats.totalGames == 0) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bar_chart, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('尚無牌局紀錄', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                ],
-              ),
-            );
-          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -98,19 +88,26 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                 const SizedBox(height: 16),
                 _buildTimeRangeSelector(),
                 const SizedBox(height: 24),
-                _buildStatsCards(context, stats),
-                const SizedBox(height: 24),
-                _buildTaiInfo(context, stats),
-                const SizedBox(height: 24),
-                if (stats.bestRound != null) ...[
-                  _buildBestRound(context, stats, provider),
+                // 空狀態改為行內顯示，確保時間範圍選擇器一直可操作
+                if (stats.totalGames == 0)
+                  _buildEmptyInRange()
+                else ...[
+                  _buildStatsCards(context, stats),
                   const SizedBox(height: 24),
+                  _buildTaiInfo(context, stats),
+                  const SizedBox(height: 24),
+                  if (stats.bestRound != null) ...[
+                    _buildBestRound(context, stats, provider),
+                    const SizedBox(height: 24),
+                  ],
+                  _buildCharts(context, stats),
+                  const SizedBox(height: 24),
+                  _buildHandPatterns(context, stats),
+                  const SizedBox(height: 24),
+                  _buildRecentGames(context, stats, provider),
+                  const SizedBox(height: 24),
+                  _buildOpponents(context, stats),
                 ],
-                _buildCharts(context, stats),
-                const SizedBox(height: 24),
-                _buildRecentGames(context, stats, provider),
-                const SizedBox(height: 24),
-                _buildOpponents(context, stats),
               ],
             ),
           );
@@ -120,27 +117,103 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   }
 
   Widget _buildTimeRangeSelector() {
-    return SegmentedButton<TimeRange>(
-      segments: const [
-        ButtonSegment(
-          value: TimeRange.week,
-          label: Text('近一週'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<TimeRange>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: TimeRange.week, label: Text('近一週')),
+              ButtonSegment(value: TimeRange.month, label: Text('近一月')),
+              ButtonSegment(value: TimeRange.all, label: Text('全部')),
+              ButtonSegment(value: TimeRange.custom, label: Text('自訂')),
+            ],
+            selected: {_timeRange},
+            onSelectionChanged: (Set<TimeRange> selected) async {
+              final choice = selected.first;
+              if (choice == TimeRange.custom) {
+                await _pickCustomRange();
+              } else {
+                setState(() => _timeRange = choice);
+              }
+            },
+          ),
         ),
-        ButtonSegment(
-          value: TimeRange.month,
-          label: Text('近一月'),
-        ),
-        ButtonSegment(
-          value: TimeRange.all,
-          label: Text('全部'),
-        ),
+        if (_timeRange == TimeRange.custom && _customRange != null) ...[
+          const SizedBox(height: 8),
+          _buildCustomRangeLabel(),
+        ],
       ],
-      selected: {_timeRange},
-      onSelectionChanged: (Set<TimeRange> selected) {
-        setState(() {
-          _timeRange = selected.first;
-        });
-      },
+    );
+  }
+
+  /// 自訂區間文字（可點擊重新選擇）
+  Widget _buildCustomRangeLabel() {
+    final f = DateFormat('yyyy/MM/dd');
+    final r = _customRange!;
+    return InkWell(
+      onTap: _pickCustomRange,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.date_range, size: 16, color: Colors.grey),
+            const SizedBox(width: 6),
+            Text(
+              '${f.format(r.start)} ~ ${f.format(r.end)}',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.edit, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 開啟自訂區間選擇器
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final initialRange = _customRange ??
+        DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      initialDateRange: initialRange,
+      helpText: '選擇統計區間',
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _customRange = picked;
+        _timeRange = TimeRange.custom;
+      });
+    }
+  }
+
+  /// 此時間範圍內無牌局
+  Widget _buildEmptyInRange() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Center(
+        child: Column(
+          children: [
+            const Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              _timeRange == TimeRange.all ? '尚無牌局紀錄' : '此時間範圍內尚無牌局紀錄',
+              style: const TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -443,13 +516,96 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     );
   }
 
+  Widget _buildHandPatterns(BuildContext context, PlayerStats stats) {
+    final scheme = Theme.of(context).colorScheme;
+    final patterns = stats.handPatternStats;
+    final totalTimes = patterns.fold<int>(0, (sum, p) => sum + p.count);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('特殊牌型', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            if (patterns.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Text('共 ${patterns.length} 種 / $totalTimes 次',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (patterns.isEmpty)
+          Card(
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '尚無特殊牌型紀錄\n（記分時於「特殊牌型」選擇牌型即會計入）',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: patterns.map((p) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      p.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                    if (p.referenceTai > 0) ...[
+                      const SizedBox(width: 4),
+                      Text('${p.referenceTai}台',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSecondaryContainer.withValues(alpha: 0.7),
+                          )),
+                    ],
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '×${p.count}',
+                        style: TextStyle(
+                          color: scheme.onPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
   Widget _buildCharts(BuildContext context, PlayerStats stats) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('分數趨勢', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('分數趨勢（近 20 場）', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        ScoreTrendChart(recentGames: stats.recentGames),
+        ScoreTrendChart(recentGames: stats.recentGames.take(20).toList()),
         const SizedBox(height: 24),
         const Text('勝負比例', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
@@ -472,7 +628,8 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('最近牌局', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('牌局紀錄（${stats.recentGames.length} 場）',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         ...sortedGames.asMap().entries.map((entry) {
           final idx = entry.key + 1;

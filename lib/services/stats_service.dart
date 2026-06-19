@@ -1,4 +1,5 @@
 import '../models/game.dart';
+import '../models/hand_pattern.dart';
 import '../models/round.dart';
 import 'calculation_service.dart';
 
@@ -71,6 +72,21 @@ class OpponentRecord {
   });
 }
 
+/// 特殊牌型統計（本人達成的牌型次數）
+class HandPatternStat {
+  final String id;
+  final String name;
+  final int referenceTai; // 參考台數（顯示用）
+  final int count;        // 達成次數
+
+  HandPatternStat({
+    required this.id,
+    required this.name,
+    required this.referenceTai,
+    required this.count,
+  });
+}
+
 /// 玩家統計資料
 class PlayerStats {
   final int totalGames;
@@ -88,8 +104,9 @@ class PlayerStats {
   final int maxTai;
   final Map<int, int> taiDistribution; // 台數 → 次數
   final List<OpponentRecord> opponents;
-  final List<GameSummary> recentGames;
+  final List<GameSummary> recentGames; // 時間範圍內所有牌局摘要（依時間降序）
   final BestRoundRecord? bestRound;  // 最高單局記錄
+  final List<HandPatternStat> handPatternStats; // 特殊牌型統計（依次數降序）
 
   PlayerStats({
     required this.totalGames,
@@ -109,6 +126,7 @@ class PlayerStats {
     required this.opponents,
     required this.recentGames,
     this.bestRound,
+    this.handPatternStats = const [],
   });
 }
 
@@ -117,30 +135,56 @@ enum TimeRange {
   week,   // 近一週
   month,  // 近一月
   all,    // 全部
+  custom, // 自訂區間
 }
 
 /// 統計計算服務
 class StatsService {
   /// 計算指定玩家的統計數據（支援多 profileId 聚合）
+  ///
+  /// 累計總分（totalScore）規則：把該玩家在「時間範圍內、有參與的每一場牌局」
+  /// 的單場淨得分（該場所有局的分數變動加總）再加總起來。
+  /// timeRange=all 時即為全部歷史牌局的累計；custom 時依 customStart~customEnd 篩選。
   static PlayerStats getPlayerStats(
     List<String> profileIds,
     List<Game> games, {
     TimeRange timeRange = TimeRange.all,
+    DateTime? customStart,
+    DateTime? customEnd,
   }) {
     // 篩選包含該玩家的牌局（任一 profileId 符合即可）
     var relevantGames = games.where((game) {
       return game.players.any((p) => profileIds.contains(p.userId));
     }).toList();
 
-    // 根據時間範圍篩選
-    if (timeRange != TimeRange.all) {
-      final now = DateTime.now();
-      final cutoffDate = timeRange == TimeRange.week
-          ? now.subtract(const Duration(days: 7))
-          : now.subtract(const Duration(days: 30));
-      
+    // 計算時間範圍的起訖（all 不限制）
+    final now = DateTime.now();
+    DateTime? rangeStart;
+    DateTime? rangeEnd;
+    switch (timeRange) {
+      case TimeRange.week:
+        rangeStart = now.subtract(const Duration(days: 7));
+        break;
+      case TimeRange.month:
+        rangeStart = now.subtract(const Duration(days: 30));
+        break;
+      case TimeRange.custom:
+        rangeStart = customStart;
+        // 結束日納入整天（到 23:59:59）
+        rangeEnd = customEnd == null
+            ? null
+            : DateTime(customEnd.year, customEnd.month, customEnd.day, 23, 59, 59, 999);
+        break;
+      case TimeRange.all:
+        break;
+    }
+
+    if (rangeStart != null || rangeEnd != null) {
       relevantGames = relevantGames.where((game) {
-        return game.createdAt.isAfter(cutoffDate);
+        final d = game.createdAt;
+        if (rangeStart != null && d.isBefore(rangeStart)) return false;
+        if (rangeEnd != null && d.isAfter(rangeEnd)) return false;
+        return true;
       }).toList();
     }
 
@@ -178,6 +222,7 @@ class StatsService {
     int maxTai = 0;
     final taiDistribution = <int, int>{};
     final opponentMap = <String, _OpponentAccumulator>{};
+    final patternMap = <String, _PatternAccumulator>{};
     final gameSummaries = <GameSummary>[];
     BestRoundRecord? bestRound;
     int bestRoundAmount = 0;
@@ -277,6 +322,24 @@ class StatsService {
           falseWins++;
         }
 
+        // 特殊牌型統計（僅計入本人為贏家的局）
+        List<String> myPatternIds = const [];
+        if (round.winnerId == playerId &&
+            (round.type == RoundType.win || round.type == RoundType.selfDraw)) {
+          myPatternIds = round.handPatternIds;
+        } else if (round.type == RoundType.multiWin &&
+            round.winnerIds.contains(playerId)) {
+          myPatternIds = round.winnerHandPatterns[playerId] ?? round.handPatternIds;
+        }
+        for (final pid in myPatternIds) {
+          final acc = patternMap.putIfAbsent(pid, () {
+            final hp = _resolveHandPattern(pid, game.settings.customPatterns);
+            return _PatternAccumulator(
+                id: pid, name: hp.name, referenceTai: hp.referenceTai);
+          });
+          acc.count++;
+        }
+
         // 對手勝負統計
         if (round.type == RoundType.win || round.type == RoundType.selfDraw) {
           if (round.winnerId == playerId && round.loserId != null) {
@@ -330,6 +393,17 @@ class StatsService {
     // 排序牌局摘要（依時間降序）
     gameSummaries.sort((a, b) => b.date.compareTo(a.date));
 
+    // 特殊牌型統計（依次數降序，次數相同時依參考台數降序）
+    final handPatternStats = patternMap.values
+        .map((a) => HandPatternStat(
+            id: a.id, name: a.name, referenceTai: a.referenceTai, count: a.count))
+        .toList()
+      ..sort((a, b) {
+        final byCount = b.count.compareTo(a.count);
+        if (byCount != 0) return byCount;
+        return b.referenceTai.compareTo(a.referenceTai);
+      });
+
     return PlayerStats(
       totalGames: totalGames,
       totalRounds: totalRounds,
@@ -346,8 +420,9 @@ class StatsService {
       maxTai: maxTai,
       taiDistribution: taiDistribution,
       opponents: opponents.take(5).toList(),
-      recentGames: gameSummaries.take(10).toList(),
+      recentGames: gameSummaries, // 時間範圍內的完整清單（已依時間降序），由 UI 決定呈現
       bestRound: bestRound,
+      handPatternStats: handPatternStats,
     );
   }
 
@@ -355,6 +430,14 @@ class StatsService {
     Map<String, _OpponentAccumulator> map, String name, String emoji,
   ) {
     return map.putIfAbsent(name, () => _OpponentAccumulator(name: name, emoji: emoji));
+  }
+
+  /// 依 ID 解析牌型（系統 + 該局自訂）；找不到時以 ID 作為名稱、台數 0
+  static HandPattern _resolveHandPattern(String id, List<HandPattern> customPatterns) {
+    for (final p in HandPattern.allPatterns(customPatterns)) {
+      if (p.id == id) return p;
+    }
+    return HandPattern(id: id, name: id, referenceTai: 0);
   }
 }
 
@@ -369,4 +452,17 @@ class _OpponentAccumulator {
   int lossesBy = 0;   // 被對手直接胡（我放槍）
 
   _OpponentAccumulator({required this.name, required this.emoji});
+}
+
+class _PatternAccumulator {
+  final String id;
+  final String name;
+  final int referenceTai;
+  int count = 0;
+
+  _PatternAccumulator({
+    required this.id,
+    required this.name,
+    required this.referenceTai,
+  });
 }
