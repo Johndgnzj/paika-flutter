@@ -142,6 +142,14 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
         widget.round, widget.game.settings, widget.game.players);
   }
 
+  /// 骰規標籤（未使用時回 null）
+  String? _diceLabel() {
+    final r = widget.round;
+    if (r.diceMode == DiceRuleMode.none || r.diceFactor <= 1) return null;
+    final mode = r.diceMode == DiceRuleMode.total ? '整體' : '台數';
+    return '🎲 骰規 ×${r.diceFactor}（$mode）';
+  }
+
   String? _dealerInfo() {
     final consecutive = widget.round.consecutiveWins;
     if (!widget.game.settings.consecutiveTai || consecutive <= 0) return null;
@@ -215,6 +223,10 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                 // ── 一炮多響：橫排顯示所有贏家 ──
                 if (_isMultiWin) ...[
                   _chip('一炮多響 🎯', Colors.redAccent),
+                  if (_diceLabel() != null) ...[
+                    const SizedBox(height: 6),
+                    _chip(_diceLabel()!, Colors.purpleAccent),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     alignment: WrapAlignment.center,
@@ -280,6 +292,8 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                         _chip(_typeLabel(),
                             _isSelfDraw ? Colors.greenAccent : Colors.amberAccent),
                         _chip('$normalTai 台', Colors.white70),
+                        if (_diceLabel() != null)
+                          _chip(_diceLabel()!, Colors.purpleAccent),
                         if (dealerPayTai != null && dealerPayTai != normalTai)
                           _chip('莊家 $dealerPayTai 台', Colors.amber),
                         if (dealerPayTai == null && effTai != round.totalTai)

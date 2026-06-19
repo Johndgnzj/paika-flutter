@@ -15,6 +15,13 @@ enum Wind {
   north,  // 北
 }
 
+/// 骰規（倍數規則）—— 只影響最終金額，不影響台數
+enum DiceRuleMode {
+  none,   // 未使用
+  total,  // 整體加倍：(底 + 台×每台) × N
+  tai,    // 台數加倍：底 + (台×每台 × N)
+}
+
 /// 單局結果
 class Round {
   final String id;
@@ -44,6 +51,10 @@ class Round {
   final List<String> handPatternIds;              // win/selfDraw 的牌型
   final Map<String, List<String>> winnerHandPatterns; // multiWin 各贏家的牌型 {winnerId: [patternId]}
 
+  // ★ 骰規（倍數規則）—— 只影響金額，不影響台數
+  final DiceRuleMode diceMode;
+  final int diceFactor; // >= 2 時生效
+
   Round({
     required this.id,
     required this.timestamp,
@@ -62,6 +73,8 @@ class Round {
     this.notes,
     this.handPatternIds = const [],
     this.winnerHandPatterns = const {},
+    this.diceMode = DiceRuleMode.none,
+    this.diceFactor = 1,
   });
 
   /// 計算實際台數（包含花牌）
@@ -131,7 +144,16 @@ class Round {
       winnerHandPatterns: (json['winnerHandPatterns'] as Map<String, dynamic>?)?.map(
         (k, v) => MapEntry(k, (v as List<dynamic>).cast<String>()),
       ) ?? {},
+      diceMode: _parseDiceMode(json['diceMode'] as int?),
+      diceFactor: json['diceFactor'] as int? ?? 1,
     );
+  }
+
+  static DiceRuleMode _parseDiceMode(int? index) {
+    if (index == null || index < 0 || index >= DiceRuleMode.values.length) {
+      return DiceRuleMode.none;
+    }
+    return DiceRuleMode.values[index];
   }
 
   /// 序列化為 JSON
@@ -154,6 +176,8 @@ class Round {
       'notes': notes,
       'handPatternIds': handPatternIds,
       'winnerHandPatterns': winnerHandPatterns,
+      'diceMode': diceMode.index,
+      'diceFactor': diceFactor,
     };
   }
 }

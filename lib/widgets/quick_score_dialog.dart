@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/game.dart';
 import '../models/hand_pattern.dart';
 import '../models/player.dart';
+import '../models/round.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
 import 'player_avatar.dart';
@@ -41,6 +42,10 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
 
   // 特殊牌型（已選的 ID）
   final Set<String> _selectedPatternIds = {};
+
+  // 骰規（倍數規則）
+  DiceRuleMode _diceMode = DiceRuleMode.none;
+  int _diceFactor = 2;
 
   @override
   void initState() {
@@ -126,6 +131,9 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                 const SizedBox(height: 16),
                 // 特殊牌型（可收合，預設收起）
                 _buildPatternSelection(),
+                const SizedBox(height: 16),
+                // 骰規（倍數規則）
+                _buildDiceRuleSelection(),
               ],
 
               const SizedBox(height: 16),
@@ -335,51 +343,147 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
 
   // _buildLoserSelection 已整合進 _buildCombinedTypeSelection
 
+  /// 骰規（倍數規則）選擇
+  Widget _buildDiceRuleSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('骰規', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: _showDiceRuleInfo,
+              child: const Icon(Icons.info_outline, size: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('無'),
+              selected: _diceMode == DiceRuleMode.none,
+              onSelected: (_) => setState(() => _diceMode = DiceRuleMode.none),
+            ),
+            ChoiceChip(
+              label: const Text('整體加倍'),
+              selected: _diceMode == DiceRuleMode.total,
+              onSelected: (_) => setState(() => _diceMode = DiceRuleMode.total),
+            ),
+            ChoiceChip(
+              label: const Text('台數加倍'),
+              selected: _diceMode == DiceRuleMode.tai,
+              onSelected: (_) => setState(() => _diceMode = DiceRuleMode.tai),
+            ),
+          ],
+        ),
+        if (_diceMode != DiceRuleMode.none) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('倍數：'),
+              const SizedBox(width: 8),
+              ...[2, 3, 4, 5].map((n) => Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text('×$n'),
+                      selected: _diceFactor == n,
+                      onSelected: (_) => setState(() => _diceFactor = n),
+                    ),
+                  )),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showDiceRuleInfo() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('骰規說明'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('骰規會把計算結果乘上倍數，但「台數」本身不變（統計仍以原台數計算）。',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              Text('🎲 整體加倍：（底 + 台×每台）× N'),
+              SizedBox(height: 6),
+              Text('🎲 台數加倍：底 + (台×每台 × N)'),
+              SizedBox(height: 12),
+              Text('例：底 50、2 台、每台 20、倍數 ×3',
+                  style: TextStyle(color: Colors.grey)),
+              Text('整體：(50 + 2×20) × 3 = 270', style: TextStyle(color: Colors.grey)),
+              Text('台數：50 + (2×20 × 3) = 170', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('了解了')),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPreview(GameProvider provider) {
     final settings = widget.game.settings;
-    final dealer = widget.game.dealer;
-    final consecutiveWins = widget.game.consecutiveWins;
+    final game = widget.game;
+    final dealer = game.dealer;
+    final consecutiveWins = game.consecutiveWins;
+    final diceActive = _diceMode != DiceRuleMode.none && _diceFactor > 1;
+    final effFactor = diceActive ? _diceFactor : 1;
+    final diceNote = diceActive
+        ? '\n🎲 骰規 ×$_diceFactor（${_diceMode == DiceRuleMode.total ? '整體加倍' : '台數加倍'}）'
+        : '';
     String previewText = '';
-    
+
     if (_scoreType == 'selfDraw') {
+      final changes = CalculationService.calculateSelfDraw(
+        game: game,
+        winnerId: widget.selectedPlayer.id,
+        tai: _tai,
+        flowers: 0,
+        diceMode: _diceMode,
+        diceFactor: effFactor,
+      );
+      final winnerGets = changes[widget.selectedPlayer.id] ?? 0;
       final isWinnerDealer = (widget.selectedPlayer.id == dealer.id);
       if (isWinnerDealer) {
         // 莊家自摸：三家各付相同
-        previewText = CalculationService.getScorePreview(
-          settings: settings,
-          tai: _tai,
-          flowers: 0,
-          isSelfDraw: true,
-          isDealer: true,
-          consecutiveWins: consecutiveWins,
-        );
+        final each = -(changes.entries
+            .firstWhere((e) => e.key != widget.selectedPlayer.id)
+            .value);
+        previewText = '莊家自摸\n三家各付 $each，共得 $winnerGets$diceNote';
       } else {
         // 非莊家自摸：莊家付更多
-        final dealerScore = settings.calculateScore(
-          _tai,
-          isSelfDraw: true,
-          isDealer: true,
-          consecutiveWins: consecutiveWins,
-        );
-        final nonDealerScore = settings.calculateScore(
-          _tai,
-          isSelfDraw: true,
-          isDealer: false,
-          consecutiveWins: 0,
-        );
-        final winnerTotal = dealerScore + nonDealerScore * 2;
-        previewText = '非莊家自摸\n'
-            '莊家(${dealer.name}) 付 $dealerScore，閒家各付 $nonDealerScore\n'
-            '${widget.selectedPlayer.name} 共得 $winnerTotal';
+        final lines = game.players
+            .where((p) => p.id != widget.selectedPlayer.id)
+            .map((p) => '${p.name} 付 ${-(changes[p.id] ?? 0)}')
+            .join('，');
+        previewText =
+            '非莊家自摸\n$lines\n${widget.selectedPlayer.name} 共得 $winnerGets$diceNote';
       }
     } else if (_scoreType == 'win' && _loser != null) {
-      final isDealerInvolved = (widget.selectedPlayer.id == dealer.id || _loser!.id == dealer.id);
-      final score = settings.calculateScore(
-        _tai,
-        isDealer: isDealerInvolved,
-        consecutiveWins: isDealerInvolved ? consecutiveWins : 0,
+      final isDealerInvolved =
+          (widget.selectedPlayer.id == dealer.id || _loser!.id == dealer.id);
+      final changes = CalculationService.calculateWin(
+        game: game,
+        winnerId: widget.selectedPlayer.id,
+        loserId: _loser!.id,
+        tai: _tai,
+        flowers: 0,
+        diceMode: _diceMode,
+        diceFactor: effFactor,
       );
-      previewText = CalculationService.getScorePreview(
+      final amt = changes[widget.selectedPlayer.id] ?? 0;
+      // 底台拆解（未套骰規），再標示骰規與最終金額
+      final base = CalculationService.getScorePreview(
         settings: settings,
         tai: _tai,
         flowers: 0,
@@ -387,8 +491,8 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
         isDealer: isDealerInvolved,
         consecutiveWins: isDealerInvolved ? consecutiveWins : 0,
       );
-      previewText = '$previewText\n${widget.selectedPlayer.name} +$score\n'
-                    '${_loser!.name} -$score';
+      previewText =
+          '$base$diceNote\n${widget.selectedPlayer.name} +$amt\n${_loser!.name} -$amt';
     } else if (_scoreType == 'falseWin') {
       final penalty = settings.calculateScore(settings.falseWinTai);
       if (settings.falseWinPayAll) {
@@ -400,7 +504,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                      '${widget.selectedPlayer.name} -$penalty';
       }
     }
-    
+
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
@@ -449,6 +553,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
 
   Future<void> _submit(GameProvider provider) async {
     final patternIds = _selectedPatternIds.toList();
+    final effFactor = _diceMode == DiceRuleMode.none ? 1 : _diceFactor;
     switch (_scoreType) {
       case 'win':
         if (_loser != null) {
@@ -458,16 +563,20 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
             tai: _tai,
             flowers: 0,
             handPatternIds: patternIds,
+            diceMode: _diceMode,
+            diceFactor: effFactor,
           );
         }
         break;
-        
+
       case 'selfDraw':
         await provider.recordSelfDraw(
           winnerId: widget.selectedPlayer.id,
           tai: _tai,
           flowers: 0,
           handPatternIds: patternIds,
+          diceMode: _diceMode,
+          diceFactor: effFactor,
         );
         break;
         

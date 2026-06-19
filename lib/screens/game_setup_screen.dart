@@ -371,54 +371,168 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   }
 
   void _showProfilePicker(int index) {
-    final profiles = context.read<GameProvider>().playerProfiles;
-    if (profiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('尚未登錄任何玩家，請先到「玩家管理」新增')),
-      );
-      return;
-    }
-
     showModalBottomSheet(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
+        final profiles = context.read<GameProvider>().playerProfiles;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('選擇已有玩家', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text('選擇玩家', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const Divider(height: 1),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: profiles.length,
-                  itemBuilder: (context, i) {
-                    final profile = profiles[i];
-                    return ListTile(
-                      leading: PlayerAvatar(profile: profile, size: 28),
-                      title: Text(profile.name),
-                      onTap: () {
-                        setState(() {
-                          _players[index] = _players[index].copyWith(
-                            userId: profile.id,
-                            name: profile.name,
-                            emoji: profile.emoji,
-                          );
-                          _nameControllers[index].text = profile.name;
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
+              // 即時新增玩家
+              ListTile(
+                leading: Icon(Icons.person_add, color: Theme.of(sheetContext).colorScheme.primary),
+                title: Text('新增玩家',
+                    style: TextStyle(
+                        color: Theme.of(sheetContext).colorScheme.primary,
+                        fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showAddPlayerDialog(index);
+                },
               ),
+              const Divider(height: 1),
+              if (profiles.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28),
+                  child: Text('尚未登錄任何玩家', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: profiles.length,
+                    itemBuilder: (context, i) {
+                      final profile = profiles[i];
+                      return ListTile(
+                        leading: PlayerAvatar(profile: profile, size: 28),
+                        title: Text(profile.name),
+                        onTap: () {
+                          setState(() {
+                            _players[index] = _players[index].copyWith(
+                              userId: profile.id,
+                              name: profile.name,
+                              emoji: profile.emoji,
+                            );
+                            _nameControllers[index].text = profile.name;
+                          });
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
             ],
           ),
         );
       },
+    );
+  }
+
+  /// 即時新增玩家檔案，並帶入指定座位
+  void _showAddPlayerDialog(int index) {
+    final nameController = TextEditingController();
+    String selectedEmoji = AppConstants.availableEmojis.first;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setLocal) {
+            return AlertDialog(
+              title: const Text('新增玩家'),
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () => _pickEmoji(dialogCtx, (e) => setLocal(() => selectedEmoji = e)),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(dialogCtx).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(selectedEmoji, style: const TextStyle(fontSize: 28)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: nameController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: '玩家名稱',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('取消')),
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+                    final provider = context.read<GameProvider>();
+                    final profile = await provider.addPlayerProfile(name, selectedEmoji);
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    if (!mounted) return;
+                    if (profile != null) {
+                      setState(() {
+                        _players[index] = _players[index].copyWith(
+                          userId: profile.id,
+                          name: profile.name,
+                          emoji: profile.emoji,
+                        );
+                        _nameControllers[index].text = profile.name;
+                      });
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('新增失敗，請確認已登入')),
+                      );
+                    }
+                  },
+                  child: const Text('新增'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 共用的 emoji 選擇器
+  void _pickEmoji(BuildContext ctx, void Function(String) onPicked) {
+    showDialog(
+      context: ctx,
+      builder: (gridCtx) => AlertDialog(
+        title: const Text('選擇圖示'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: GridView.count(
+            shrinkWrap: true,
+            crossAxisCount: 4,
+            children: AppConstants.availableEmojis.map((emoji) {
+              return InkWell(
+                onTap: () {
+                  onPicked(emoji);
+                  Navigator.pop(gridCtx);
+                },
+                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
     );
   }
 

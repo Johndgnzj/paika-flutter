@@ -424,9 +424,9 @@ class GameProvider with ChangeNotifier {
     _pendingSelfProfileName = displayName.trim();
   }
 
-  /// 新增玩家檔案
-  Future<void> addPlayerProfile(String name, String emoji, {bool isSelf = false}) async {
-    if (_currentAccountId == null) return;
+  /// 新增玩家檔案；回傳建立的 profile（未登入時回 null）
+  Future<PlayerProfile?> addPlayerProfile(String name, String emoji, {bool isSelf = false}) async {
+    if (_currentAccountId == null) return null;
     final now = DateTime.now();
     final profile = PlayerProfile(
       id: _uuid.v4(),
@@ -440,6 +440,7 @@ class GameProvider with ChangeNotifier {
     _playerProfiles.add(profile);
     await StorageService.savePlayerProfile(profile, accountId: _currentAccountId!);
     notifyListeners();
+    return profile;
   }
 
   /// 更新玩家檔案
@@ -745,6 +746,8 @@ class GameProvider with ChangeNotifier {
     String? notes,
     List<String> handPatternIds = const [],
     Map<String, List<String>> winnerHandPatterns = const {},
+    DiceRuleMode diceMode = DiceRuleMode.none,
+    int diceFactor = 1,
   }) {
     return Round(
       id: _uuid.v4(),
@@ -764,6 +767,8 @@ class GameProvider with ChangeNotifier {
       notes: notes,
       handPatternIds: handPatternIds,
       winnerHandPatterns: winnerHandPatterns,
+      diceMode: diceMode,
+      diceFactor: diceFactor,
     );
   }
 
@@ -774,6 +779,8 @@ class GameProvider with ChangeNotifier {
     required int tai,
     required int flowers,
     List<String> handPatternIds = const [],
+    DiceRuleMode diceMode = DiceRuleMode.none,
+    int diceFactor = 1,
   }) async {
     if (_currentGame == null) return;
 
@@ -786,6 +793,8 @@ class GameProvider with ChangeNotifier {
         loserId: loserId,
         tai: tai,
         flowers: flowers,
+        diceMode: diceMode,
+        diceFactor: diceFactor,
       );
 
       final round = _createRound(
@@ -796,6 +805,8 @@ class GameProvider with ChangeNotifier {
         flowers: flowers,
         scoreChanges: scoreChanges,
         handPatternIds: handPatternIds,
+        diceMode: diceMode,
+        diceFactor: diceFactor,
       );
 
       _currentGame = _currentGame!.addRound(round);
@@ -814,6 +825,8 @@ class GameProvider with ChangeNotifier {
     required int tai,
     required int flowers,
     List<String> handPatternIds = const [],
+    DiceRuleMode diceMode = DiceRuleMode.none,
+    int diceFactor = 1,
   }) async {
     if (_currentGame == null) return;
 
@@ -824,6 +837,8 @@ class GameProvider with ChangeNotifier {
       winnerId: winnerId,
       tai: tai,
       flowers: flowers,
+      diceMode: diceMode,
+      diceFactor: diceFactor,
     );
 
     final round = _createRound(
@@ -833,6 +848,8 @@ class GameProvider with ChangeNotifier {
       flowers: flowers,
       scoreChanges: scoreChanges,
       handPatternIds: handPatternIds,
+      diceMode: diceMode,
+      diceFactor: diceFactor,
     );
 
     _currentGame = _currentGame!.addRound(round);

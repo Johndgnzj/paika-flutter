@@ -12,20 +12,27 @@ class CalculationService {
     required String loserId,
     required int tai,
     required int flowers,
+    DiceRuleMode diceMode = DiceRuleMode.none,
+    int diceFactor = 1,
   }) {
     final settings = game.settings;
     final totalTai = tai + flowers;
-    
+
     // 檢查是否涉及莊家（莊家胡或莊家被胡）
     final dealer = game.dealer;
     final isDealerInvolved = (winnerId == dealer.id || loserId == dealer.id);
-    
-    final score = settings.calculateScore(
-      totalTai,
-      isDealer: isDealerInvolved,
-      consecutiveWins: isDealerInvolved ? game.consecutiveWins : 0,
+
+    final score = applyDiceRule(
+      settings.calculateScore(
+        totalTai,
+        isDealer: isDealerInvolved,
+        consecutiveWins: isDealerInvolved ? game.consecutiveWins : 0,
+      ),
+      settings,
+      diceMode,
+      diceFactor,
     );
-    
+
     final changes = <String, int>{};
     for (var player in game.players) {
       if (player.id == winnerId) {
@@ -46,22 +53,29 @@ class CalculationService {
     required String winnerId,
     required int tai,
     required int flowers,
+    DiceRuleMode diceMode = DiceRuleMode.none,
+    int diceFactor = 1,
   }) {
     final settings = game.settings;
     final totalTai = tai + flowers;
-    
+
     final dealer = game.dealer;
     final isWinnerDealer = (winnerId == dealer.id);
-    
+
     final changes = <String, int>{};
-    
+
     if (isWinnerDealer) {
       // 莊家自摸：三家各付相同金額（含莊家倍＋連莊）
-      final score = settings.calculateScore(
-        totalTai,
-        isSelfDraw: true,
-        isDealer: true,
-        consecutiveWins: game.consecutiveWins,
+      final score = applyDiceRule(
+        settings.calculateScore(
+          totalTai,
+          isSelfDraw: true,
+          isDealer: true,
+          consecutiveWins: game.consecutiveWins,
+        ),
+        settings,
+        diceMode,
+        diceFactor,
       );
       for (var player in game.players) {
         if (player.id == winnerId) {
@@ -72,19 +86,29 @@ class CalculationService {
       }
     } else {
       // 非莊家自摸：莊家付「莊家倍＋連莊」，閒家付基本分
-      final dealerScore = settings.calculateScore(
-        totalTai,
-        isSelfDraw: true,
-        isDealer: true,
-        consecutiveWins: game.consecutiveWins,
+      final dealerScore = applyDiceRule(
+        settings.calculateScore(
+          totalTai,
+          isSelfDraw: true,
+          isDealer: true,
+          consecutiveWins: game.consecutiveWins,
+        ),
+        settings,
+        diceMode,
+        diceFactor,
       );
-      final nonDealerScore = settings.calculateScore(
-        totalTai,
-        isSelfDraw: true,
-        isDealer: false,
-        consecutiveWins: 0,
+      final nonDealerScore = applyDiceRule(
+        settings.calculateScore(
+          totalTai,
+          isSelfDraw: true,
+          isDealer: false,
+          consecutiveWins: 0,
+        ),
+        settings,
+        diceMode,
+        diceFactor,
       );
-      
+
       int winnerTotal = 0;
       for (var player in game.players) {
         if (player.id == winnerId) continue;
@@ -190,6 +214,30 @@ class CalculationService {
       changes[player.id] = 0;
     }
     return changes;
+  }
+
+  /// 套用骰規（倍數規則）到單一筆分數
+  ///
+  /// [score] 為 `底 + 有效台數 × 每台分數` 的結果。
+  /// - [DiceRuleMode.total]：整體加倍 → score × factor
+  /// - [DiceRuleMode.tai]：台數加倍 → 底 + (台部分 × factor)
+  /// 只影響金額，不影響台數；factor <= 1 或 none 時原值回傳。
+  static int applyDiceRule(
+    int score,
+    GameSettings settings,
+    DiceRuleMode mode,
+    int factor,
+  ) {
+    if (mode == DiceRuleMode.none || factor <= 1) return score;
+    switch (mode) {
+      case DiceRuleMode.total:
+        return score * factor;
+      case DiceRuleMode.tai:
+        final taiPortion = score - settings.baseScore;
+        return settings.baseScore + taiPortion * factor;
+      case DiceRuleMode.none:
+        return score;
+    }
   }
 
   /// 格式化分數顯示（加上 + / - 符號）

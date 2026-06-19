@@ -650,6 +650,25 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                 ),
                               // 牌型標籤
                               ..._buildPatternTags(round),
+                              // 骰規標記
+                              if (round.diceMode != DiceRuleMode.none && round.diceFactor > 1)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purple.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.purple.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Text(
+                                    '🎲×${round.diceFactor}${round.diceMode == DiceRuleMode.total ? '整' : '台'}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.purple,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
