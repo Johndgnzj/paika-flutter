@@ -5,6 +5,7 @@ import '../models/hand_pattern.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
+import 'player_avatar.dart';
 
 /// 一炮多響對話框
 class MultiWinDialog extends StatefulWidget {
@@ -143,7 +144,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(player.emoji, style: const TextStyle(fontSize: 20)),
+                  PlayerGameAvatar(player: player, size: 26),
                   const SizedBox(width: 4),
                   Text(player.name),
                 ],
@@ -188,7 +189,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(player.emoji, style: const TextStyle(fontSize: 20)),
+                  PlayerGameAvatar(player: player, size: 26),
                   const SizedBox(width: 4),
                   Text(player.name),
                   if (isSelected) ...[
@@ -249,7 +250,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
           children: [
             Row(
               children: [
-                Text(player.emoji, style: const TextStyle(fontSize: 24)),
+                PlayerGameAvatar(player: player, size: 30),
                 const SizedBox(width: 8),
                 Text(
                   player.name,
@@ -418,7 +419,7 @@ class _MultiWinDialogState extends State<MultiWinDialog> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  Text(player.emoji, style: const TextStyle(fontSize: 20)),
+                  PlayerGameAvatar(player: player, size: 26),
                   const SizedBox(width: 8),
                   Expanded(child: Text(player.name)),
                   Text(

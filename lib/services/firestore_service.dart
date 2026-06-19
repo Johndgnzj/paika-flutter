@@ -127,6 +127,13 @@ class FirestoreService {
 
   // --- Account Avatar ---
 
+  /// 帳號頭像快取（uid -> base64 data；含「查無」結果以 null 表示）
+  /// 避免 PlayerAvatar 在牌局中隨計分頻繁 rebuild 時重複讀取 Firestore 造成閃爍
+  static final Map<String, String?> _accountAvatarCache = {};
+
+  /// 同步取得已快取的帳號頭像；尚未快取時回傳 null（呼叫端可改走非同步載入）
+  static String? cachedAccountAvatarByUid(String uid) => _accountAvatarCache[uid];
+
   /// 儲存帳號頭像 base64 data
   static Future<void> saveAccountAvatar(String data) async {
     final doc = _userDoc;
@@ -136,6 +143,8 @@ class FirestoreService {
       'data': data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    // 頭像已更新，清除快取讓新頭像即時生效
+    _accountAvatarCache.clear();
   }
 
   /// 載入帳號頭像 base64 data
@@ -164,14 +173,21 @@ class FirestoreService {
 
   /// 載入其他帳號的頭像 base64 data（用於顯示 accountAvatar 類型的頭像）
   static Future<String?> loadAccountAvatarByUid(String uid) async {
+    if (_accountAvatarCache.containsKey(uid)) {
+      return _accountAvatarCache[uid];
+    }
     final snapshot = await _db
         .collection('users')
         .doc(uid)
         .collection('accountAvatar')
         .doc('default')
         .get();
-    if (!snapshot.exists) return null;
-    return snapshot.data()?['data'] as String?;
+    String? data;
+    if (snapshot.exists) {
+      data = snapshot.data()?['data'] as String?;
+    }
+    _accountAvatarCache[uid] = data;
+    return data;
   }
 
   // --- Player Profiles ---

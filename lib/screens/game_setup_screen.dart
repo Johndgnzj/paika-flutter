@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../models/settings.dart';
 import '../utils/constants.dart';
 import '../widgets/animation_helpers.dart';
+import '../widgets/player_avatar.dart';
 import 'game_play_screen.dart';
 
 class GameSetupScreen extends StatefulWidget {
@@ -397,7 +398,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                   itemBuilder: (context, i) {
                     final profile = profiles[i];
                     return ListTile(
-                      leading: Text(profile.emoji, style: const TextStyle(fontSize: 28)),
+                      leading: PlayerAvatar(profile: profile, size: 28),
                       title: Text(profile.name),
                       onTap: () {
                         setState(() {

@@ -12,6 +12,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import '../services/export_service.dart';
 import '../widgets/game_share_card.dart';
+import '../widgets/player_avatar.dart';
 
 /// 牌局詳細頁面
 class GameDetailScreen extends StatefulWidget {
@@ -126,7 +127,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(player.emoji, style: const TextStyle(fontSize: 24)),
+                        PlayerGameAvatar(player: player, size: 30),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
@@ -404,7 +405,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           flex: 2,
                           child: Row(
                             children: [
-                              Text(player.emoji, style: const TextStyle(fontSize: 24)),
+                              PlayerGameAvatar(player: player, size: 30),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -935,7 +936,7 @@ class _RoundsPlayerHeaderDelegate extends SliverPersistentHeaderDelegate {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(player.emoji, style: const TextStyle(fontSize: 22)),
+                    PlayerGameAvatar(player: player, size: 28),
                     Text(
                       player.name,
                       style: const TextStyle(

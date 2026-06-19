@@ -17,6 +17,7 @@ import '../widgets/swap_position_dialog.dart';
 import '../widgets/draw_dialog.dart';
 import '../widgets/quick_score_dialog.dart';
 import '../widgets/voice_input_overlay.dart';
+import '../widgets/player_avatar.dart';
 import 'game_detail_screen.dart';
 import '../widgets/win_announcement_overlay.dart';
 
@@ -562,17 +563,23 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     // 響應式卡片寬度：手機窄螢幕自動縮小
     final cardWidth = math.min(constraints.maxWidth * 0.28, 150.0);
     final scaleFactor = cardWidth / 150.0;
-    
+    // 與 _buildPlayerCard 內一致的文字縮放（窄螢幕時文字相對放大）
+    final textScale = math.max(1.0, 1.2 - scaleFactor * 0.3);
+
     // 響應式半徑：橫向模式時增加水平半徑，避免蓋住中央按鈕
-    final radiusX = isLandscape 
+    final radiusX = isLandscape
         ? math.max(cardWidth * 1.2, constraints.maxWidth * 0.35)
         : cardWidth * 0.6;
     final radiusY = isLandscape
         ? math.max(cardWidth * 0.8, constraints.maxHeight * 0.35)
         : constraints.maxHeight * 0.33 * 0.6;
-    
+
     final halfCard = cardWidth * 0.5;
-    final cardHeight = cardWidth * 1.2;
+    // 卡片高度由內容決定（風位列 + 頭像 + 名稱 + 大分數 + padding），會明顯高於寬度。
+    // 須精準（略寬鬆）估算，否則下方卡片的邊界 clamp 會算錯，使卡片超出畫面底部。
+    final cardHeight = 12 +
+        46 * scaleFactor +              // Card 外距 + Container 垂直 padding + 三段間距
+        160 * scaleFactor * textScale;  // 風位 / 頭像 / 名稱 / 分數 行高總和（含緩衝）
     
     // 最小邊距 6px（手機版最小值）
     const minMargin = 6.0;
@@ -699,10 +706,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
 
               SizedBox(height: 8 * s),
 
-              // Emoji
-              Text(
-                player.emoji,
-                style: TextStyle(fontSize: 38 * s * textScale),
+              // 頭像（有上傳照片則顯示照片，否則顯示 emoji）
+              PlayerGameAvatar(
+                player: player,
+                size: 46 * s * textScale,
               ),
 
               SizedBox(height: 4 * s),
@@ -1674,7 +1681,7 @@ class _SetDealerDialogState extends State<_SetDealerDialog> {
                   label: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                      PlayerGameAvatar(player: player, size: 22),
                       const SizedBox(width: 4),
                       Text(player.name),
                       Text(' (${windLabel(index)})',

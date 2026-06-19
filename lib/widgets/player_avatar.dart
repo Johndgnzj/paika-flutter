@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/player.dart';
 import '../models/player_profile.dart';
+import '../providers/game_provider.dart';
 import '../services/firestore_service.dart';
 
 /// 玩家頭像 Widget
@@ -48,6 +51,13 @@ class PlayerAvatar extends StatelessWidget {
     // linkedAccountId 優先：這個玩家已連結自己的帳號，頭像來自連結帳號
     // fallback 到 accountId：自己的 self profile（isSelf=true），頭像來自自己帳號
     final uid = profile.linkedAccountId ?? profile.accountId;
+
+    // 已快取則同步渲染，避免 rebuild 時 FutureBuilder 先閃回 emoji
+    final cached = FirestoreService.cachedAccountAvatarByUid(uid);
+    if (cached != null) {
+      return _buildBase64Avatar(cached);
+    }
+
     return FutureBuilder<String?>(
       future: FirestoreService.loadAccountAvatarByUid(uid),
       builder: (context, snapshot) {
@@ -105,6 +115,56 @@ class PlayerAvatar extends StatelessWidget {
       // base64 解析失敗時 fallback 到 emoji
       return _buildEmojiAvatar();
     }
+  }
+}
+
+/// 牌局中玩家頭像
+///
+/// 牌局內的 [Player] 只帶 emoji，完整頭像資訊（自訂照片 / 帳號頭像）存在
+/// [PlayerProfile]。本 widget 依 `player.userId` 反查對應的 profile 後，
+/// 透過 [PlayerAvatar] 正確顯示上傳照片；找不到對應 profile 時退回顯示 emoji。
+class PlayerGameAvatar extends StatelessWidget {
+  final Player player;
+  final double size;
+  final bool showBorder;
+
+  const PlayerGameAvatar({
+    super.key,
+    required this.player,
+    this.size = 40,
+    this.showBorder = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = context.watch<GameProvider>().profileForPlayer(player);
+
+    // 只有當對應 profile 真的設定了照片 / 帳號頭像時，才以 profile 渲染；
+    // emoji 類型或找不到 profile 時沿用牌局中該玩家的 emoji，
+    // 以保留「每局可自訂 emoji」的既有行為。
+    final hasPhotoAvatar = profile != null &&
+        ((profile.avatarType == AvatarType.customPhoto &&
+                profile.customPhotoData != null) ||
+            profile.avatarType == AvatarType.accountAvatar);
+
+    if (hasPhotoAvatar) {
+      return PlayerAvatar(
+        profile: profile,
+        size: size,
+        showBorder: showBorder,
+      );
+    }
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Center(
+        child: Text(
+          player.emoji,
+          style: TextStyle(fontSize: size * 0.8),
+        ),
+      ),
+    );
   }
 }
 

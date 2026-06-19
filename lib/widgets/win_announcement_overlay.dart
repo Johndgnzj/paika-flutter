@@ -6,6 +6,7 @@ import '../models/round.dart';
 import '../services/calculation_service.dart';
 import '../services/sound_service.dart';
 import '../utils/constants.dart';
+import 'player_avatar.dart';
 
 /// 自動更新模式下的胡牌全屏公告
 class WinAnnouncementOverlay extends StatefulWidget {
@@ -225,9 +226,7 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(w.emoji,
-                              style: const TextStyle(
-                                  fontSize: 44, decoration: TextDecoration.none)),
+                          PlayerGameAvatar(player: w, size: 54),
                           const SizedBox(height: 4),
                           Text(w.name,
                               style: const TextStyle(
@@ -260,9 +259,7 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                 // ── 一般胡牌 / 自摸 ──
                 if (!_isMultiWin) ...[
                   if (_playerById(round.winnerId) case final winner?) ...[
-                    Text(winner.emoji,
-                        style: const TextStyle(
-                            fontSize: 72, decoration: TextDecoration.none)),
+                    PlayerGameAvatar(player: winner, size: 84),
                     const SizedBox(height: 8),
                     Text(
                       winner.name,
@@ -343,9 +340,7 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                     padding: const EdgeInsets.symmetric(vertical: 5),
                     child: Row(
                       children: [
-                        Text(player.emoji,
-                            style: const TextStyle(
-                                fontSize: 23, decoration: TextDecoration.none)),
+                        PlayerGameAvatar(player: player, size: 30),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Row(children: [

@@ -94,6 +94,20 @@ class GameProvider with ChangeNotifier {
     return sorted;
   }
 
+  /// 依牌局中的 Player 反查對應的 PlayerProfile（用於顯示頭像 / 上傳照片）
+  /// 先以 userId 對應 profile.id，再以名稱 fallback；找不到回 null（呼叫端退回 emoji）
+  PlayerProfile? profileForPlayer(Player player) {
+    if (player.userId != null) {
+      for (final p in _playerProfiles) {
+        if (p.id == player.userId) return p;
+      }
+    }
+    for (final p in _playerProfiles) {
+      if (p.name == player.name) return p;
+    }
+    return null;
+  }
+
   /// 當 AuthService 狀態變化時呼叫
   void onAuthChanged(AuthService authService) {
     final newAccountId = authService.uid;

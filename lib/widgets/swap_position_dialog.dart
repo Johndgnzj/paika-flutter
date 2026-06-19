@@ -4,6 +4,7 @@ import '../models/game.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../utils/constants.dart';
+import 'player_avatar.dart';
 
 /// 換位置對話框
 class SwapPositionDialog extends StatefulWidget {
@@ -267,11 +268,8 @@ class _SwapPositionDialogState extends State<SwapPositionDialog> {
 
                   SizedBox(height: 4 * scaleFactor),
 
-                  // Emoji
-                  Text(
-                    player.emoji,
-                    style: TextStyle(fontSize: emojiSize),
-                  ),
+                  // 頭像（有上傳照片則顯示照片，否則 emoji）
+                  PlayerGameAvatar(player: player, size: emojiSize),
 
                   SizedBox(height: 4 * scaleFactor),
 

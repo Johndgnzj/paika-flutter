@@ -7,6 +7,7 @@ import '../models/player_profile.dart';
 import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../widgets/animation_helpers.dart';
+import '../widgets/player_avatar.dart';
 import 'auth_screen.dart';
 import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
@@ -610,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      Text(player.emoji, style: const TextStyle(fontSize: 22)),
+                      PlayerGameAvatar(player: player, size: 28),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(

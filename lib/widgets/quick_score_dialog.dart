@@ -6,6 +6,7 @@ import '../models/hand_pattern.dart';
 import '../models/player.dart';
 import '../providers/game_provider.dart';
 import '../services/calculation_service.dart';
+import 'player_avatar.dart';
 
 /// 快速記分對話框
 class QuickScoreDialog extends StatefulWidget {
@@ -81,10 +82,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                   
                   return Row(
                     children: [
-                      Text(
-                        currentPlayer.emoji,
-                        style: const TextStyle(fontSize: 32),
-                      ),
+                      PlayerGameAvatar(player: currentPlayer, size: 40),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -198,7 +196,7 @@ class _QuickScoreDialogState extends State<QuickScoreDialog> {
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(player.emoji, style: const TextStyle(fontSize: 20.7)),
+                    PlayerGameAvatar(player: player, size: 26),
                     const SizedBox(width: 5),
                     Text(player.name, style: const TextStyle(fontSize: 16.1)),
                   ],
