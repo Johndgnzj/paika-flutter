@@ -53,6 +53,7 @@ class BestRoundRecord {
 class OpponentRecord {
   final String name;
   final String emoji;
+  final String? userId;      // 代表性 profileId（用於顯示對手頭像照片）
   final int gamesTogether;   // 同場次數（場）
   final int roundsTogether;  // 同場總局數
   final int winsAgainst;    // 我胡牌（任意）總次數（舊欄位保留相容）
@@ -63,6 +64,7 @@ class OpponentRecord {
   OpponentRecord({
     required this.name,
     required this.emoji,
+    this.userId,
     required this.gamesTogether,
     required this.roundsTogether,
     required this.winsAgainst,
@@ -345,16 +347,16 @@ class StatsService {
           if (round.winnerId == playerId && round.loserId != null) {
             // 我胡了對手（放槍）
             final opp = game.players.firstWhere((p) => p.id == round.loserId);
-            _getOpponent(opponentMap, opp.name, opp.emoji).winsAgainst++;
+            _getOpponent(opponentMap, opp.name, opp.emoji, opp.userId).winsAgainst++;
             if (round.type == RoundType.win) {
-              _getOpponent(opponentMap, opp.name, opp.emoji).winsBy++;
+              _getOpponent(opponentMap, opp.name, opp.emoji, opp.userId).winsBy++;
             }
           } else if (round.loserId == playerId && round.winnerId != null) {
             // 對手胡了我
             final opp = game.players.firstWhere((p) => p.id == round.winnerId);
-            _getOpponent(opponentMap, opp.name, opp.emoji).lossesAgainst++;
+            _getOpponent(opponentMap, opp.name, opp.emoji, opp.userId).lossesAgainst++;
             if (round.type == RoundType.win) {
-              _getOpponent(opponentMap, opp.name, opp.emoji).lossesBy++;
+              _getOpponent(opponentMap, opp.name, opp.emoji, opp.userId).lossesBy++;
             }
           }
         }
@@ -363,7 +365,7 @@ class StatsService {
       // 記錄同場對手
       for (final opp in game.players) {
         if (opp.id != playerId) {
-          final acc = _getOpponent(opponentMap, opp.name, opp.emoji);
+          final acc = _getOpponent(opponentMap, opp.name, opp.emoji, opp.userId);
           acc.gamesTogether++;
           acc.roundsTogether += game.rounds.length;
         }
@@ -380,6 +382,7 @@ class StatsService {
       return OpponentRecord(
         name: acc.name,
         emoji: acc.emoji,
+        userId: acc.userId,
         gamesTogether: acc.gamesTogether,
         roundsTogether: acc.roundsTogether,
         winsAgainst: acc.winsAgainst,
@@ -427,9 +430,11 @@ class StatsService {
   }
 
   static _OpponentAccumulator _getOpponent(
-    Map<String, _OpponentAccumulator> map, String name, String emoji,
-  ) {
-    return map.putIfAbsent(name, () => _OpponentAccumulator(name: name, emoji: emoji));
+      Map<String, _OpponentAccumulator> map, String name, String emoji,
+      [String? userId]) {
+    final acc = map.putIfAbsent(name, () => _OpponentAccumulator(name: name, emoji: emoji));
+    acc.userId ??= userId; // 記錄第一個非空 userId 作為頭像反查依據
+    return acc;
   }
 
   /// 依 ID 解析牌型（系統 + 該局自訂）；找不到時以 ID 作為名稱、台數 0
@@ -444,6 +449,7 @@ class StatsService {
 class _OpponentAccumulator {
   final String name;
   final String emoji;
+  String? userId;
   int gamesTogether = 0;
   int roundsTogether = 0;
   int winsAgainst = 0;

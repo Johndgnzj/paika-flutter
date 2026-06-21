@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/game.dart';
+import '../models/player.dart';
 import '../models/round.dart';
 import '../services/calculation_service.dart';
+import 'player_avatar.dart';
 
 /// 牌局分享卡片 Widget（用於截圖分享）
 class GameShareCard extends StatelessWidget {
@@ -13,7 +15,7 @@ class GameShareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scores = game.currentScores;
-    final sortedPlayers = List.from(game.players)
+    final sortedPlayers = List<Player>.from(game.players)
       ..sort((a, b) => (scores[b.id] ?? 0).compareTo(scores[a.id] ?? 0));
     final stats = _calculateStats();
     final dateStr = DateFormat('yyyy/MM/dd').format(game.createdAt);
@@ -62,7 +64,7 @@ class GameShareCard extends StatelessWidget {
     );
   }
 
-  Widget _buildRankingSection(List sortedPlayers, Map<String, int> scores) {
+  Widget _buildRankingSection(List<Player> sortedPlayers, Map<String, int> scores) {
     const rankEmojis = ['🥇', '🥈', '🥉', '4️⃣'];
 
     return Container(
@@ -96,7 +98,7 @@ class GameShareCard extends StatelessWidget {
                 children: [
                   Text(rankEmojis[rank < 4 ? rank : 3], style: const TextStyle(fontSize: 20)),
                   const SizedBox(width: 8),
-                  Text(player.emoji, style: const TextStyle(fontSize: 20)),
+                  PlayerGameAvatar(player: player, size: 26),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(player.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
@@ -118,7 +120,7 @@ class GameShareCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsSection(List sortedPlayers, Map<String, Map<String, int>> stats) {
+  Widget _buildStatsSection(List<Player> sortedPlayers, Map<String, Map<String, int>> stats) {
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF16213E), borderRadius: BorderRadius.circular(12)),
       padding: const EdgeInsets.all(16),
@@ -141,7 +143,7 @@ class GameShareCard extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(flex: 2, child: Row(children: [
-                    Text(player.emoji, style: const TextStyle(fontSize: 18)),
+                    PlayerGameAvatar(player: player, size: 22),
                     const SizedBox(width: 6),
                     Expanded(child: Text(player.name, style: const TextStyle(fontSize: 14, color: Colors.white), overflow: TextOverflow.ellipsis)),
                   ])),

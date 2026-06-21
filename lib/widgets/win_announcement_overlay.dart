@@ -256,14 +256,22 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                   // 放槍者名字（不重複台數，明細在下方分數表）
                   if (loser != null) ...[
                     const SizedBox(height: 14),
-                    Text(
-                      '${loser.emoji} ${loser.name} 放槍',
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.none,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        PlayerGameAvatar(player: loser, size: 26),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${loser.name} 放槍',
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -304,13 +312,21 @@ class _WinAnnouncementOverlayState extends State<WinAnnouncementOverlay>
                   // 放槍者（非自摸）
                   if (loser != null && !_isSelfDraw) ...[
                     const SizedBox(height: 12),
-                    Text(
-                      '${loser.emoji} ${loser.name} 放槍',
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 17,
-                        decoration: TextDecoration.none,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        PlayerGameAvatar(player: loser, size: 22),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${loser.name} 放槍',
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 17,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],

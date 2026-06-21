@@ -440,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Text(profile.emoji, style: const TextStyle(fontSize: 32)),
+        leading: PlayerAvatar(profile: profile, size: 36),
         title: Text(profile.name, style: const TextStyle(fontSize: 16)),
         subtitle: Text('最後遊玩：${dateFormat.format(profile.lastPlayedAt)}'),
         trailing: const Icon(Icons.chevron_right),

@@ -428,14 +428,22 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             // 每位贏家簡易分數
             ...winners.take(3).map((w) {
               final change = lastRound.scoreChanges[w.id] ?? 0;
-              return Text(
-                '${w.emoji} +$change',
-                style: const TextStyle(
-                  color: Colors.greenAccent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  decoration: TextDecoration.none,
-                ),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  PlayerGameAvatar(player: w, size: 16),
+                  const SizedBox(width: 2),
+                  Text(
+                    '+$change',
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
               );
             }),
             // 放槍者
@@ -444,13 +452,21 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
                 final loser = game.players.firstWhere(
                     (p) => p.id == lastRound.loserId);
                 final change = lastRound.scoreChanges[loser.id] ?? 0;
-                return Text(
-                  '${loser.emoji} $change',
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 11,
-                    decoration: TextDecoration.none,
-                  ),
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    PlayerGameAvatar(player: loser, size: 16),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$change',
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 11,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
                 );
               } catch (_) { return const SizedBox.shrink(); }
             }(),

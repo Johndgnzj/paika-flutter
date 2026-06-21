@@ -724,7 +724,7 @@ class PlayerListScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final other = otherProfiles[index];
                 return ListTile(
-                  leading: Text(other.emoji, style: const TextStyle(fontSize: 28)),
+                  leading: PlayerAvatar(profile: other, size: 28),
                   title: Text(other.name),
                   subtitle: other.isSelf ? const Text('(自己)') : null,
                   onTap: () {

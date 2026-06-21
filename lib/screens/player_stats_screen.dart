@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart' show ImageSource;
+import '../models/player.dart';
 import '../models/player_profile.dart';
 import '../providers/game_provider.dart';
 import '../services/stats_service.dart';
@@ -451,7 +452,15 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-              leading: Text(opp.emoji, style: const TextStyle(fontSize: 28)),
+              leading: PlayerGameAvatar(
+                player: Player(
+                  id: opp.userId ?? opp.name,
+                  userId: opp.userId,
+                  name: opp.name,
+                  emoji: opp.emoji,
+                ),
+                size: 36,
+              ),
               title: Text(opp.name),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

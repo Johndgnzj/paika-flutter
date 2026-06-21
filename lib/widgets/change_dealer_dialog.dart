@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/game.dart';
 import '../providers/game_provider.dart';
 import '../utils/constants.dart';
+import 'player_avatar.dart';
 
 /// 更換莊家對話框
 class ChangeDealerDialog extends StatefulWidget {
@@ -116,10 +117,7 @@ class _ChangeDealerDialogState extends State<ChangeDealerDialog> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          player.emoji,
-                          style: const TextStyle(fontSize: 24),
-                        ),
+                        PlayerGameAvatar(player: player, size: 30),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(

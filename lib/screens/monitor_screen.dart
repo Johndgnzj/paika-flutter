@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/game.dart';
 import '../models/player.dart';
 import '../services/firestore_service.dart';
+import '../widgets/player_avatar.dart';
 
 /// 自動更新模式：大字記分板，即時同步 Firestore 資料
 class MonitorScreen extends StatefulWidget {
@@ -279,7 +280,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(player.emoji, style: const TextStyle(fontSize: 30)),
+                PlayerGameAvatar(player: player, size: 38),
                 const SizedBox(height: 4),
                 Text(
                   player.name,
