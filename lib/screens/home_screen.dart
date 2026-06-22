@@ -44,10 +44,24 @@ class _HomeScreenState extends State<HomeScreen> {
             : Consumer2<AuthService, GameProvider>(
                 builder: (context, auth, gameProvider, _) {
                   final name = auth.displayName;
-                  final displayText = name != null && name.isNotEmpty ? '🀄 $name' : '🀄 牌咖';
+                  final displayName = name != null && name.isNotEmpty ? name : '牌咖';
+                  // 找到「自己」的 profile，顯示其頭像（有上傳照片則用照片，否則 emoji）
+                  final selfProfile = gameProvider.playerProfiles
+                      .where((p) => p.id == gameProvider.selfProfileId || p.isSelf)
+                      .firstOrNull;
                   return GestureDetector(
                     onTap: () => _navigateToSelfStats(context, gameProvider),
-                    child: Text(displayText),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (selfProfile != null)
+                          PlayerAvatar(profile: selfProfile, size: 28)
+                        else
+                          const Text('🀄'),
+                        const SizedBox(width: 8),
+                        Flexible(child: Text(displayName, overflow: TextOverflow.ellipsis)),
+                      ],
+                    ),
                   );
                 },
               ),
