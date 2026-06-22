@@ -10,8 +10,9 @@ class WinRatePieChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = stats.wins + stats.selfDraws + stats.losses + stats.falseWins;
-    if (total == 0) {
+    final involved = stats.wins + stats.selfDraws + stats.losses + stats.falseWins;
+    final totalRounds = stats.totalRounds;
+    if (totalRounds == 0) {
       return const Center(
         child: Text('尚無數據', style: TextStyle(color: Colors.grey)),
       );
@@ -20,9 +21,10 @@ class WinRatePieChart extends StatelessWidget {
     final sections = <PieChartSectionData>[];
     final legends = <_LegendItem>[];
 
+    // 分母為總局數，所有項目（含「與自己無關」）百分比加總為 100%
     void addSection(String label, int value, Color color) {
       if (value <= 0) return;
-      final percent = (value / total * 100).toStringAsFixed(1);
+      final percent = (value / totalRounds * 100).toStringAsFixed(1);
       sections.add(PieChartSectionData(
         value: value.toDouble(),
         color: color,
@@ -33,12 +35,12 @@ class WinRatePieChart extends StatelessWidget {
       legends.add(_LegendItem(label: '$label ($value)', color: color));
     }
 
-    // 只統計與本人勝負相關的結果，分母 = 這四項加總，確保百分比總和為 100%
-    // （流局與「本人非贏家/放槍者」的旁觀局數不計入勝負比例）
     addSection('胡牌', stats.wins, Colors.green);
     addSection('自摸', stats.selfDraws, Colors.blue);
     addSection('放槍', stats.losses, Colors.red);
     addSection('詐胡', stats.falseWins, Colors.orange);
+    // 與自己無關：流局，以及本人非贏家/放槍者的旁觀局
+    addSection('與自己無關', totalRounds - involved, Colors.grey);
 
     return Column(
       children: [

@@ -266,14 +266,14 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
     final lossRate   = totalRounds > 0 ? stats.losses    / totalRounds * 100 : 0.0;
 
     // 綜合戰力 0~100
-    // 公式：胡牌率*40 + 自摸率*30 + (1-放槍率)*20 + 場次權重*10
+    // 公式：自摸率*40 + 胡牌率*30 + (1-放槍率)*20 + 場次權重*10
     // 場次權重：log(場次+1)/log(51) capped at 1
 
     final gameWeight = stats.totalGames > 0
         ? (math.log(stats.totalGames + 1) / math.log(51)).clamp(0.0, 1.0)
         : 0.0;
-    final power = ((winRate / 100) * 40 +
-                   (selfRate / 100) * 30 +
+    final power = ((selfRate / 100) * 40 +
+                   (winRate / 100) * 30 +
                    (1 - (lossRate / 100)) * 20 +
                    gameWeight * 10).clamp(0.0, 100.0);
 
@@ -412,11 +412,11 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
             children: [
               Text('滿分 100 分，由以下四項加總：', style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 12),
-              Text('🀄 胡牌率 × 40 分'),
-              Text('   胡牌次數 ÷ 參與局數'),
-              SizedBox(height: 8),
-              Text('🀄 自摸率 × 30 分'),
+              Text('🀄 自摸率 × 40 分'),
               Text('   自摸次數 ÷ 參與局數'),
+              SizedBox(height: 8),
+              Text('🀄 胡牌率 × 30 分'),
+              Text('   胡牌次數 ÷ 參與局數'),
               SizedBox(height: 8),
               Text('🛡 不放槍率 × 20 分'),
               Text('   (1 − 放槍率)，放槍越少越高'),
