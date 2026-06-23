@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../models/player.dart';
@@ -55,6 +56,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    // 牌局進行中保持螢幕喚醒（手機網頁：Screen Wake Lock API；不支援時自動忽略）
+    unawaited(WakelockPlus.enable().catchError((Object _) {}));
   }
 
   @override
@@ -98,6 +101,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   void dispose() {
     _gameProvider?.removeListener(_onGameChanged);
     _monitorTimer?.cancel();
+    // 離開牌局畫面，恢復正常待機行為
+    unawaited(WakelockPlus.disable().catchError((Object _) {}));
     super.dispose();
   }
 

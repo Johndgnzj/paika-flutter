@@ -58,6 +58,9 @@ dependencies:
   intl: ^0.20.2
   package_info_plus: ^9.0.0
 
+  # 保持螢幕喚醒（手機網頁不進入待機；底層使用 Screen Wake Lock API）
+  wakelock_plus: ^1.2.8
+
   # Firebase
   firebase_core: ^4.4.0
   firebase_auth: ^6.1.4
