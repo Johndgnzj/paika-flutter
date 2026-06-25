@@ -72,8 +72,14 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
       ),
       body: Consumer<GameProvider>(
         builder: (context, provider, _) {
+          // For the self profile, include linked profile IDs from other accounts so
+          // that games recorded under the linked account also appear in stats.
+          final profileIds = [_currentProfile.id, ..._currentProfile.mergedProfileIds];
+          if (provider.selfProfileIds.contains(_currentProfile.id)) {
+            profileIds.addAll(provider.linkedProfileIds);
+          }
           final stats = StatsService.getPlayerStats(
-            [_currentProfile.id, ..._currentProfile.mergedProfileIds],
+            profileIds,
             provider.gameHistory,
             timeRange: _timeRange,
             customStart: _customRange?.start,
@@ -943,6 +949,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
   }
 
   void _showAvatarOptionsSheet(BuildContext context, GameProvider provider) {
+    final isLinked = _currentProfile.linkedAccountId != null;
     showModalBottomSheet(
       context: context,
       builder: (sheetContext) {
@@ -950,9 +957,84 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 已連結帳號：優先顯示「對方頭像」選項
+              if (isLinked)
+                ListTile(
+                  leading: const Icon(Icons.account_circle),
+                  title: const Text('顯示對方的頭像'),
+                  subtitle: const Text('即時同步對方帳號設定的大頭照（連結後預設）'),
+                  trailing: _currentProfile.avatarType == AvatarType.accountAvatar
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  onTap: () async {
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                    final existingData = await FirestoreService.loadAccountAvatarByUid(
+                      _currentProfile.linkedAccountId!,
+                    );
+
+                    if (existingData != null) {
+                      await provider.updatePlayerProfile(
+                        _currentProfile.id,
+                        avatarType: AvatarType.accountAvatar,
+                      );
+                      _refreshProfile();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已切換為對方帳號頭像')),
+                        );
+                      }
+                      return;
+                    }
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('對方尚未設定帳號頭像')),
+                      );
+                    }
+                  },
+                ),
+              // 未連結帳號：顯示「使用帳號頭像」
+              if (!isLinked)
+                ListTile(
+                  leading: const Icon(Icons.account_circle),
+                  title: const Text('使用帳號頭像'),
+                  subtitle: const Text('套用您的帳號大頭照'),
+                  trailing: _currentProfile.avatarType == AvatarType.accountAvatar
+                      ? const Icon(Icons.check, color: Colors.green)
+                      : null,
+                  onTap: () async {
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+
+                    final existingData = await FirestoreService.loadAccountAvatar();
+
+                    if (existingData != null) {
+                      await provider.updatePlayerProfile(
+                        _currentProfile.id,
+                        avatarType: AvatarType.accountAvatar,
+                      );
+                      _refreshProfile();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已套用帳號頭像')),
+                        );
+                      }
+                      return;
+                    }
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('尚未設定帳號頭像，請先至個人資料上傳大頭照')),
+                      );
+                    }
+                  },
+                ),
+              if (isLinked) const Divider(height: 1),
+              // 以下選項：自訂顯示（連結後覆蓋對方頭像，但保留連結）
               ListTile(
                 leading: const Icon(Icons.emoji_emotions),
                 title: const Text('顯示 Emoji'),
+                subtitle: isLinked ? const Text('保留連結，顯示我設定的圖示') : null,
                 trailing: _currentProfile.avatarType == AvatarType.emoji
                     ? const Icon(Icons.check, color: Colors.green)
                     : null,
@@ -965,59 +1047,12 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                   _refreshProfile();
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.account_circle),
-                title: const Text('使用帳號頭像'),
-                subtitle: Text(_currentProfile.linkedAccountId != null
-                    ? '套用該玩家連結帳號的大頭照'
-                    : '套用您的帳號大頭照'),
-                trailing: _currentProfile.avatarType == AvatarType.accountAvatar
-                    ? const Icon(Icons.check, color: Colors.green)
-                    : null,
-                onTap: () async {
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
-
-                  // 根據是否有連結帳號，決定從哪個帳號載入頭像
-                  final String? existingData;
-                  if (_currentProfile.linkedAccountId != null) {
-                    existingData = await FirestoreService.loadAccountAvatarByUid(
-                      _currentProfile.linkedAccountId!,
-                    );
-                  } else {
-                    existingData = await FirestoreService.loadAccountAvatar();
-                  }
-
-                  if (existingData != null) {
-                    await provider.updatePlayerProfile(
-                      _currentProfile.id,
-                      avatarType: AvatarType.accountAvatar,
-                    );
-                    _refreshProfile();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已套用帳號頭像')),
-                      );
-                    }
-                    return;
-                  }
-
-                  // 尚未上傳帳號頭像
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(
-                        _currentProfile.linkedAccountId != null
-                            ? '該玩家尚未設定帳號頭像'
-                            : '尚未設定帳號頭像，請先至個人資料上傳大頭照',
-                      )),
-                    );
-                  }
-                },
-              ),
               // Web 平台只顯示「從裝置選擇照片」，手機平台顯示「相機」和「相簿」
               if (!kIsWeb) ...[
                 ListTile(
                   leading: const Icon(Icons.photo_camera),
                   title: const Text('拍照（相機）'),
+                  subtitle: isLinked ? const Text('保留連結，顯示我設定的照片') : null,
                   onTap: () async {
                     // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
                     final base64Data = await AvatarService.pickImageAsBase64(source: ImageSource.camera);
@@ -1031,6 +1066,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從相簿選擇'),
+                  subtitle: isLinked ? const Text('保留連結，顯示我設定的照片') : null,
                   onTap: () async {
                     // 重要：先 pick 圖片（必須是 onTap 中第一個 await）
                     final base64Data = await AvatarService.pickImageAsBase64();
@@ -1045,6 +1081,7 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
                 ListTile(
                   leading: const Icon(Icons.photo_library),
                   title: const Text('從裝置選擇照片'),
+                  subtitle: isLinked ? const Text('保留連結，顯示我設定的照片') : null,
                   onTap: () async {
                     // 重要：先 pick 圖片（必須是 onTap 中第一個 await，保留 gesture context）
                     final base64Data = await AvatarService.pickImageAsBase64();
