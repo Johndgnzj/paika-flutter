@@ -45,6 +45,9 @@ class GameProvider with ChangeNotifier {
   final _uuid = const Uuid();
 
   Game? get currentGame => _currentGame;
+  /// 在別人帳號中代表「我」的 profileId 集合（用於跨帳號場次統計）
+  Set<String> get linkedProfileIds => Set<String>.from(_linkedProfileIds);
+
   /// 代表「自己」的 profileId 集合（用於 UI 高亮自己）
   /// 包含 _linkedProfileIds（跨帳號連結）和 selfProfileId（自己設定）
   Set<String> get selfProfileIds {
@@ -277,7 +280,27 @@ class GameProvider with ChangeNotifier {
     _profilesSubscription =
         FirestoreService.playerProfilesStream().listen((profiles) {
       if (profiles.isEmpty) return;
-      _playerProfiles = profiles;
+
+      // Auto-switch to accountAvatar when a profile is newly linked
+      // (linkedAccountId just appeared for the first time and user hasn't chosen a custom avatar)
+      final updated = <PlayerProfile>[];
+      for (final newProfile in profiles) {
+        final old = _playerProfiles.firstWhere(
+          (p) => p.id == newProfile.id,
+          orElse: () => newProfile,
+        );
+        if (newProfile.linkedAccountId != null &&
+            old.linkedAccountId == null &&
+            newProfile.avatarType == AvatarType.emoji) {
+          final switched = newProfile.copyWith(avatarType: AvatarType.accountAvatar);
+          updated.add(switched);
+          StorageService.savePlayerProfile(switched, accountId: accountId);
+        } else {
+          updated.add(newProfile);
+        }
+      }
+
+      _playerProfiles = updated;
       notifyListeners();
     }, onError: (e) {
       if (kDebugMode) print('[Listener] profiles error: $e');
