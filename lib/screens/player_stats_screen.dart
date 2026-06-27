@@ -74,8 +74,9 @@ class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
         builder: (context, provider, _) {
           // For the self profile, include linked profile IDs from other accounts so
           // that games recorded under the linked account also appear in stats.
+          // （被連結用戶在別人帳號中以 linkedProfileIds 代表自己，需一併聚合）
           final profileIds = [_currentProfile.id, ..._currentProfile.mergedProfileIds];
-          if (provider.selfProfileIds.contains(_currentProfile.id)) {
+          if (provider.isSelfProfile(_currentProfile)) {
             profileIds.addAll(provider.linkedProfileIds);
           }
           final stats = StatsService.getPlayerStats(

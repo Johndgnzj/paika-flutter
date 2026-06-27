@@ -68,6 +68,11 @@ class GameProvider with ChangeNotifier {
   /// 取得 selfProfileId（若有設定）
   String? get selfProfileId => _accountSettings.selfProfileId;
 
+  /// 判斷某個 profile 是否代表「自己」（用於決定統計頁是否聚合跨帳號場次）
+  bool isSelfProfile(PlayerProfile profile) {
+    return profile.isSelf || _accountSettings.selfProfileId == profile.id;
+  }
+
   /// 取得帳號設定
   AccountSettings get accountSettings => _accountSettings;
 
@@ -203,6 +208,16 @@ class GameProvider with ChangeNotifier {
         }
       }
 
+      // 3. 被連結用戶（有 linkedSources）若仍未辨識「自己」，且只有單一 profile，
+      //    視為自己。確保被連結用戶能在玩家管理選自己看到跨帳號統計，而非只能從首頁看。
+      if (_linkedProfileIds.isNotEmpty &&
+          _accountSettings.selfProfileId == null &&
+          !_playerProfiles.any((p) => p.isSelf) &&
+          _playerProfiles.length == 1) {
+        _playerProfiles[0] = _playerProfiles[0].copyWith(isSelf: true);
+        await StorageService.savePlayerProfile(_playerProfiles[0], accountId: accountId);
+      }
+
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
 
@@ -224,6 +239,10 @@ class GameProvider with ChangeNotifier {
       final linkedSources = await FirestoreService.loadLinkedSources();
       if (linkedSources.isEmpty) return;
 
+      // 先記錄「在別人帳號中代表我」的 profileId，即使對方目前沒有場次，
+      // 之後查看自己的統計頁時仍能正確聚合（避免 early return 漏設）
+      _linkedProfileIds = linkedSources.map((s) => s.profileId).toSet();
+
       final linkedGames = <Game>[];
       for (final source in linkedSources) {
         final games = await FirestoreService.loadLinkedGames(
@@ -233,11 +252,8 @@ class GameProvider with ChangeNotifier {
         linkedGames.addAll(games);
       }
 
-      if (linkedGames.isEmpty) return;
-
       // 存入 _linkedGames（不混入 _gameHistory，避免被 listener 過濾掉）
       _linkedGames = linkedGames;
-      _linkedProfileIds = linkedSources.map((s) => s.profileId).toSet();
     } catch (e) {
       if (kDebugMode) print('[GameProvider] loadLinkedGames failed: $e');
     }
