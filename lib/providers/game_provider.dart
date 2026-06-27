@@ -48,8 +48,6 @@ class GameProvider with ChangeNotifier {
   final _uuid = const Uuid();
 
   Game? get currentGame => _currentGame;
-  /// 在別人帳號中代表「我」的 profileId 集合（用於跨帳號場次統計）
-  Set<String> get linkedProfileIds => Set<String>.from(_linkedProfileIds);
 
   /// 代表「自己」的 profileId 集合（用於 UI 高亮自己）
   /// 包含 _linkedProfileIds（跨帳號連結）和 selfProfileId（自己設定）
@@ -70,11 +68,6 @@ class GameProvider with ChangeNotifier {
 
   /// 取得 selfProfileId（若有設定）
   String? get selfProfileId => _accountSettings.selfProfileId;
-
-  /// 判斷某個 profile 是否代表「自己」（用於決定統計頁是否聚合跨帳號場次）
-  bool isSelfProfile(PlayerProfile profile) {
-    return profile.isSelf || _accountSettings.selfProfileId == profile.id;
-  }
 
   /// 取得帳號設定
   AccountSettings get accountSettings => _accountSettings;
@@ -211,9 +204,9 @@ class GameProvider with ChangeNotifier {
         }
       }
 
-      // 3. 被連結用戶（有 linkedSources）若仍未辨識「自己」，自動標記，
-      //    確保被連結用戶能在玩家管理選自己看到跨帳號統計，而非只能從首頁看。
-      await _autoHealSelfForLinked(accountId);
+      // 3. 被連結用戶：把跨帳號代表我的 profileId 關聯到自己 profile
+      //    （含為既有已連結用戶補強，確保玩家管理選自己即可看到跨帳號統計）
+      await _ensureLinkedAssociations(accountId);
 
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
@@ -270,25 +263,54 @@ class GameProvider with ChangeNotifier {
     _linkedGames = merged.values.toList();
   }
 
-  /// 被連結用戶若尚未辨識「自己」，自動標記（displayName 比對；否則單一 profile 即視為自己）
-  Future<void> _autoHealSelfForLinked(String accountId) async {
-    if (_linkedProfileIds.isEmpty) return;
-    if (_accountSettings.selfProfileId != null) return;
-    if (_playerProfiles.any((p) => p.isSelf)) return;
-    if (_playerProfiles.isEmpty) return;
+  /// 取得（或建立）代表「自己」的 profile。
+  /// 順序：已標記 isSelf / selfProfileId → displayName 比對 → 建立新的自己 profile。
+  /// 在連結這個明確動作時呼叫，一次性確立「我是誰」，不需在檢視統計時臨時猜測。
+  Future<PlayerProfile> _ensureSelfProfile(String accountId) async {
+    // 1. 已標記的自己
+    final existingIdx = _playerProfiles.indexWhere(
+      (p) => p.isSelf || p.id == _accountSettings.selfProfileId,
+    );
+    if (existingIdx >= 0) return _playerProfiles[existingIdx];
 
-    int index = -1;
+    // 2. 用帳號 displayName 比對既有 profile，補標記 isSelf
     final displayName = FirebaseAuth.instance.currentUser?.displayName ?? '';
     if (displayName.isNotEmpty) {
-      index = _playerProfiles.indexWhere((p) => p.name == displayName);
+      final idx = _playerProfiles.indexWhere((p) => p.name == displayName);
+      if (idx >= 0) {
+        _playerProfiles[idx] = _playerProfiles[idx].copyWith(isSelf: true);
+        await StorageService.savePlayerProfile(_playerProfiles[idx], accountId: accountId);
+        return _playerProfiles[idx];
+      }
     }
-    if (index < 0 && _playerProfiles.length == 1) {
-      index = 0; // 只有單一 profile，視為自己
-    }
-    if (index >= 0) {
-      _playerProfiles[index] = _playerProfiles[index].copyWith(isSelf: true);
-      await StorageService.savePlayerProfile(_playerProfiles[index], accountId: accountId);
-    }
+
+    // 3. 都沒有 → 建立新的自己 profile（與註冊流程一致）
+    final created = await addPlayerProfile(
+      displayName.isNotEmpty ? displayName : '我',
+      '🀄',
+      isSelf: true,
+    );
+    return created!; // accountId 已確認非 null，addPlayerProfile 必回傳非 null
+  }
+
+  /// 把「在別人帳號中代表我」的 profileId 直接關聯到我的自己 profile
+  /// （存進 self.mergedProfileIds，統計頁即可透過既有聚合機制自動納入跨帳號場次，
+  ///  不需在統計頁特判 isSelf / linkedProfileIds）。
+  /// 涵蓋兩種情境：兌換連結碼當下、以及為既有已連結用戶做資料補強（migration）。
+  Future<void> _ensureLinkedAssociations(String accountId) async {
+    if (_linkedProfileIds.isEmpty) return;
+
+    final self = await _ensureSelfProfile(accountId);
+    final missing =
+        _linkedProfileIds.where((id) => !self.mergedProfileIds.contains(id)).toList();
+    if (missing.isEmpty) return;
+
+    final idx = _playerProfiles.indexWhere((p) => p.id == self.id);
+    if (idx < 0) return;
+    _playerProfiles[idx] = _playerProfiles[idx].copyWith(
+      mergedProfileIds: [..._playerProfiles[idx].mergedProfileIds, ...missing],
+    );
+    await StorageService.savePlayerProfile(_playerProfiles[idx], accountId: accountId);
   }
 
   /// 重新載入跨帳號連結場次（兌換連結碼後呼叫，免重啟 App 即可生效）
@@ -296,7 +318,7 @@ class GameProvider with ChangeNotifier {
     final accountId = _currentAccountId;
     if (accountId == null || !FirebaseInitService.isInitialized) return;
     await _loadLinkedGames(accountId);
-    await _autoHealSelfForLinked(accountId);
+    await _ensureLinkedAssociations(accountId);
     _startLinkedGamesListeners();
     notifyListeners();
   }
