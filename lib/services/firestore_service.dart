@@ -428,6 +428,20 @@ class FirestoreService {
         .toList();
   }
 
+  /// 即時監聽其他帳號中我參與的場次（跨帳號即時同步）
+  /// 讓場主新增牌局 / 記分後，被連結用戶不必重啟 App 也能看到更新
+  static Stream<List<Game>> linkedGamesStream(String ownerUid, String myProfileId) {
+    return _db
+        .collection('users')
+        .doc(ownerUid)
+        .collection('games')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((d) => Game.fromJson(d.data()))
+            .where((g) => g.players.any((p) => p.userId == myProfileId))
+            .toList());
+  }
+
   /// 更新玩家檔案的 linkedAccountId（連結操作，用 merge 方式只更新該欄位）
   static Future<void> updateProfileLinkedAccountId({
     required String ownerUid,

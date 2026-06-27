@@ -334,8 +334,9 @@ class PlayerListScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('連結成功！')),
                     );
-                    // 重新載入 profiles
+                    // 重新載入 profiles，並即時拉取 / 監聽跨帳號連結場次（免重啟 App）
                     provider.loadPlayerProfiles();
+                    provider.reloadLinkedGames();
                   }
                 } catch (e) {
                   if (dialogContext.mounted) {

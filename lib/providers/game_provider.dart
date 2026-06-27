@@ -21,7 +21,9 @@ import '../services/storage_service.dart';
 class GameProvider with ChangeNotifier {
   Game? _currentGame;
   List<Game> _gameHistory = [];
-  List<Game> _linkedGames = []; // 來自其他玩家綁定的場次
+  List<Game> _linkedGames = []; // 來自其他玩家綁定的場次（由 _linkedGamesByOwner 彙整）
+  final Map<String, List<Game>> _linkedGamesByOwner = {}; // ownerUid -> 該帳號中我參與的場次
+  List<LinkedSource> _linkedSources = []; // 我連結到的來源帳號清單
   Set<String> _linkedProfileIds = {}; // 在別人牌局中代表「我」的 profileId
   GameSettings _settings = const GameSettings();
   AccountSettings _accountSettings = const AccountSettings();
@@ -41,6 +43,7 @@ class GameProvider with ChangeNotifier {
   StreamSubscription<AccountSettings?>? _accountSettingsSubscription;
   StreamSubscription<String?>? _currentGameIdSubscription;
   StreamSubscription<Game?>? _currentGameSubscription;
+  final List<StreamSubscription<List<Game>>> _linkedGamesSubscriptions = [];
 
   final _uuid = const Uuid();
 
@@ -208,15 +211,9 @@ class GameProvider with ChangeNotifier {
         }
       }
 
-      // 3. 被連結用戶（有 linkedSources）若仍未辨識「自己」，且只有單一 profile，
-      //    視為自己。確保被連結用戶能在玩家管理選自己看到跨帳號統計，而非只能從首頁看。
-      if (_linkedProfileIds.isNotEmpty &&
-          _accountSettings.selfProfileId == null &&
-          !_playerProfiles.any((p) => p.isSelf) &&
-          _playerProfiles.length == 1) {
-        _playerProfiles[0] = _playerProfiles[0].copyWith(isSelf: true);
-        await StorageService.savePlayerProfile(_playerProfiles[0], accountId: accountId);
-      }
+      // 3. 被連結用戶（有 linkedSources）若仍未辨識「自己」，自動標記，
+      //    確保被連結用戶能在玩家管理選自己看到跨帳號統計，而非只能從首頁看。
+      await _autoHealSelfForLinked(accountId);
 
       final themeModeStr = await StorageService.loadThemeMode();
       _themeMode = _parseThemeMode(themeModeStr);
@@ -237,26 +234,71 @@ class GameProvider with ChangeNotifier {
   Future<void> _loadLinkedGames(String accountId) async {
     try {
       final linkedSources = await FirestoreService.loadLinkedSources();
-      if (linkedSources.isEmpty) return;
+      _linkedSources = linkedSources;
 
-      // 先記錄「在別人帳號中代表我」的 profileId，即使對方目前沒有場次，
-      // 之後查看自己的統計頁時仍能正確聚合（避免 early return 漏設）
+      // 記錄「在別人帳號中代表我」的 profileId（即使對方目前沒有場次也要設，
+      // 確保查看自己的統計頁時能正確聚合）
       _linkedProfileIds = linkedSources.map((s) => s.profileId).toSet();
 
-      final linkedGames = <Game>[];
+      _linkedGamesByOwner.clear();
+      if (linkedSources.isEmpty) {
+        _rebuildLinkedGames();
+        return;
+      }
+
       for (final source in linkedSources) {
         final games = await FirestoreService.loadLinkedGames(
           source.ownerUid,
           source.profileId,
         );
-        linkedGames.addAll(games);
+        _linkedGamesByOwner[source.ownerUid] = games;
       }
-
-      // 存入 _linkedGames（不混入 _gameHistory，避免被 listener 過濾掉）
-      _linkedGames = linkedGames;
+      _rebuildLinkedGames();
     } catch (e) {
       if (kDebugMode) print('[GameProvider] loadLinkedGames failed: $e');
     }
+  }
+
+  /// 由 _linkedGamesByOwner 彙整出 _linkedGames（去重，不混入 _gameHistory）
+  void _rebuildLinkedGames() {
+    final merged = <String, Game>{};
+    for (final games in _linkedGamesByOwner.values) {
+      for (final g in games) {
+        merged[g.id] = g;
+      }
+    }
+    _linkedGames = merged.values.toList();
+  }
+
+  /// 被連結用戶若尚未辨識「自己」，自動標記（displayName 比對；否則單一 profile 即視為自己）
+  Future<void> _autoHealSelfForLinked(String accountId) async {
+    if (_linkedProfileIds.isEmpty) return;
+    if (_accountSettings.selfProfileId != null) return;
+    if (_playerProfiles.any((p) => p.isSelf)) return;
+    if (_playerProfiles.isEmpty) return;
+
+    int index = -1;
+    final displayName = FirebaseAuth.instance.currentUser?.displayName ?? '';
+    if (displayName.isNotEmpty) {
+      index = _playerProfiles.indexWhere((p) => p.name == displayName);
+    }
+    if (index < 0 && _playerProfiles.length == 1) {
+      index = 0; // 只有單一 profile，視為自己
+    }
+    if (index >= 0) {
+      _playerProfiles[index] = _playerProfiles[index].copyWith(isSelf: true);
+      await StorageService.savePlayerProfile(_playerProfiles[index], accountId: accountId);
+    }
+  }
+
+  /// 重新載入跨帳號連結場次（兌換連結碼後呼叫，免重啟 App 即可生效）
+  Future<void> reloadLinkedGames() async {
+    final accountId = _currentAccountId;
+    if (accountId == null || !FirebaseInitService.isInitialized) return;
+    await _loadLinkedGames(accountId);
+    await _autoHealSelfForLinked(accountId);
+    _startLinkedGamesListeners();
+    notifyListeners();
   }
 
   void _clearState() {
@@ -264,6 +306,8 @@ class GameProvider with ChangeNotifier {
     _currentGame = null;
     _gameHistory = [];
     _linkedGames = [];
+    _linkedGamesByOwner.clear();
+    _linkedSources = [];
     _linkedProfileIds = {};
     _settings = const GameSettings();
     _accountSettings = const AccountSettings();
@@ -371,6 +415,31 @@ class GameProvider with ChangeNotifier {
     }, onError: (e) {
       if (kDebugMode) print('[Listener] currentGameId error: $e');
     });
+
+    // 跨帳號連結場次的即時監聽（場主新增牌局 / 記分後被連結用戶即時更新）
+    _startLinkedGamesListeners();
+  }
+
+  /// 為每個連結來源帳號建立即時監聽，讓 _linkedGames 隨場主端變動更新
+  void _startLinkedGamesListeners() {
+    for (final sub in _linkedGamesSubscriptions) {
+      sub.cancel();
+    }
+    _linkedGamesSubscriptions.clear();
+
+    for (final source in _linkedSources) {
+      final sub = FirestoreService.linkedGamesStream(
+        source.ownerUid,
+        source.profileId,
+      ).listen((games) {
+        _linkedGamesByOwner[source.ownerUid] = games;
+        _rebuildLinkedGames();
+        notifyListeners();
+      }, onError: (e) {
+        if (kDebugMode) print('[Listener] linkedGames error: $e');
+      });
+      _linkedGamesSubscriptions.add(sub);
+    }
   }
 
   /// 監聽特定進行中牌局的即時更新（只更新記憶體，不回寫 Firestore 避免循環）
@@ -404,6 +473,10 @@ class GameProvider with ChangeNotifier {
     _accountSettingsSubscription?.cancel();
     _currentGameIdSubscription?.cancel();
     _currentGameSubscription?.cancel();
+    for (final sub in _linkedGamesSubscriptions) {
+      sub.cancel();
+    }
+    _linkedGamesSubscriptions.clear();
     _gamesSubscription = null;
     _profilesSubscription = null;
     _savedPlayersSubscription = null;
