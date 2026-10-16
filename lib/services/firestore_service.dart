@@ -130,6 +130,7 @@ class FirestoreService {
   /// 帳號頭像快取（uid -> base64 data；含「查無」結果以 null 表示）
   /// 避免 PlayerAvatar 在牌局中隨計分頻繁 rebuild 時重複讀取 Firestore 造成閃爍
   static final Map<String, String?> _accountAvatarCache = {};
+  static final Map<String, Stream<String?>> _accountAvatarStreams = {};
 
   /// 同步取得已快取的帳號頭像；尚未快取時回傳 null（呼叫端可改走非同步載入）
   static String? cachedAccountAvatarByUid(String uid) => _accountAvatarCache[uid];
@@ -143,8 +144,9 @@ class FirestoreService {
       'data': data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    // 頭像已更新，清除快取讓新頭像即時生效
-    _accountAvatarCache.clear();
+    // 寫入成功後只更新自己的快取，避免清空其他好友的最新資料。
+    final uid = _uid;
+    if (uid != null) _accountAvatarCache[uid] = data;
   }
 
   /// 載入帳號頭像 base64 data
@@ -188,6 +190,24 @@ class FirestoreService {
     }
     _accountAvatarCache[uid] = data;
     return data;
+  }
+
+  /// 即時監聽其他帳號的頭像，讓好友換圖後所有裝置同步更新
+  static Stream<String?> accountAvatarStreamByUid(String uid) {
+    return _accountAvatarStreams.putIfAbsent(uid, () {
+      return _db
+          .collection('users')
+          .doc(uid)
+          .collection('accountAvatar')
+          .doc('default')
+          .snapshots()
+          .map((snapshot) {
+        final raw = snapshot.exists ? (snapshot.data()?['data']) : null;
+        final data = raw is String && raw.isNotEmpty ? raw : null;
+        _accountAvatarCache[uid] = data;
+        return data;
+      }).asBroadcastStream();
+    });
   }
 
   // --- Player Profiles ---

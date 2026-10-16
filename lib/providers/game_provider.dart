@@ -104,6 +104,22 @@ class GameProvider with ChangeNotifier {
       for (final p in _playerProfiles) {
         if (p.id == player.userId) return p;
       }
+      // 跨帳號牌局中的 player.userId 是對方帳號的 profileId，
+      // 不會出現在本帳號的 _playerProfiles。該 profile 是用連結碼
+      // 連到目前登入者的玩家，因此頭像應讀目前帳號的 accountAvatar。
+      if (_linkedProfileIds.contains(player.userId) &&
+          _currentAccountId != null) {
+        final now = DateTime.fromMillisecondsSinceEpoch(0);
+        return PlayerProfile(
+          id: player.userId!,
+          accountId: _currentAccountId!,
+          name: player.name,
+          emoji: player.emoji,
+          avatarType: AvatarType.accountAvatar,
+          createdAt: now,
+          lastPlayedAt: now,
+        );
+      }
     }
     for (final p in _playerProfiles) {
       if (p.name == player.name) return p;

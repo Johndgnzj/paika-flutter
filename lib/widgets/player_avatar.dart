@@ -52,17 +52,14 @@ class PlayerAvatar extends StatelessWidget {
     // fallback 到 accountId：自己的 self profile（isSelf=true），頭像來自自己帳號
     final uid = profile.linkedAccountId ?? profile.accountId;
 
-    // 已快取則同步渲染，避免 rebuild 時 FutureBuilder 先閃回 emoji
-    final cached = FirestoreService.cachedAccountAvatarByUid(uid);
-    if (cached != null) {
-      return _buildBase64Avatar(cached);
-    }
-
-    return FutureBuilder<String?>(
-      future: FirestoreService.loadAccountAvatarByUid(uid),
+    // 先顯示快取，並持續監聽 Firestore；好友換頭像時會即時收到新資料。
+    return StreamBuilder<String?>(
+      stream: FirestoreService.accountAvatarStreamByUid(uid),
+      initialData: FirestoreService.cachedAccountAvatarByUid(uid),
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          return _buildBase64Avatar(snapshot.data!);
+        final avatarData = snapshot.data;
+        if (avatarData != null && avatarData.isNotEmpty) {
+          return _buildBase64Avatar(avatarData);
         }
         // 若帳號頭像不存在，fallback 到 emoji
         return _buildEmojiAvatar();
