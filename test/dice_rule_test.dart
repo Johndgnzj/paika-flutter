@@ -86,6 +86,48 @@ void main() {
     });
   });
 
+  test('詐胡使用牌局設定的台數，且莊家收錢時連莊', () {
+    final game = Game(
+      id: 'false-win',
+      createdAt: DateTime(2026, 1, 1),
+      settings: const GameSettings(
+        baseScore: 50,
+        maxTai: 20,
+        falseWinTai: 3,
+        falseWinPayAll: false,
+      ),
+      players: [
+        Player(id: 'dealer', name: '莊', emoji: '🀄'),
+        Player(id: 'A', name: 'A', emoji: '🀄'),
+        Player(id: 'B', name: 'B', emoji: '🀄'),
+        Player(id: 'C', name: 'C', emoji: '🀄'),
+      ],
+      dealerSeat: 0,
+    );
+    final changes = CalculationService.calculateFalseWin(
+      game: game,
+      falserId: 'A',
+    );
+    expect(changes['A'], -110);
+    expect(changes['dealer'], 110);
+
+    final round = Round(
+      id: 'r1',
+      timestamp: DateTime(2026, 1, 1),
+      type: RoundType.falseWin,
+      loserId: 'A',
+      tai: 3,
+      scoreChanges: changes,
+      dealerPassCount: game.dealerPassCount,
+      dealerSeat: game.dealerSeat,
+      jiangNumber: 1,
+      jiangStartDealerPassCount: 0,
+    );
+    final after = game.addRound(round);
+    expect(after.dealerSeat, 0);
+    expect(after.consecutiveWins, 1);
+  });
+
   test('還原上局不會重播換位事件而改變玩家位置', () {
     final players = [
       Player(id: 'A', name: 'A', emoji: '🀄'),

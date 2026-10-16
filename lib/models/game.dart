@@ -223,6 +223,10 @@ class Game {
       shouldContinueDealer = true;
     } else if (round.type == RoundType.draw) {
       shouldContinueDealer = true;
+    } else if (round.type == RoundType.falseWin &&
+        (round.scoreChanges[dealer.id] ?? 0) > 0) {
+      // 詐胡者不是莊家時，莊家收賠付並連莊。
+      shouldContinueDealer = true;
     }
 
     if (shouldContinueDealer) {

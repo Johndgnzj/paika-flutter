@@ -1056,6 +1056,11 @@ class GameProvider with ChangeNotifier {
   /// 更新設定
   Future<void> updateSettings(GameSettings newSettings) async {
     _settings = newSettings;
+    if (_currentGame != null) {
+      // 設定頁修改後，當前牌局也要使用新設定；否則詐胡等計算仍讀取建局時的舊快照。
+      _currentGame = _currentGame!.copyWith(settings: newSettings);
+      await _saveCurrentGame();
+    }
     if (_currentAccountId != null) {
       await StorageService.saveSettings(newSettings, accountId: _currentAccountId!);
     }
