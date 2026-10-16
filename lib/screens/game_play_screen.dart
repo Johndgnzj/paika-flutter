@@ -618,6 +618,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     
     // 最小邊距 6px（手機版最小值）
     const minMargin = 6.0;
+    final bottomMargin = minMargin + MediaQuery.of(context).viewPadding.bottom;
 
     return List.generate(4, (index) {
       final player = players[index];
@@ -629,7 +630,9 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       final windPos = (index - startDealer + 4) % 4;
 
       // 用 index（固定座位）決定螢幕位置和風位標籤
-      double left, top;
+      double left;
+      double? top;
+      double? bottom;
       switch (index) {
         case 0: // 座位0（右）
           left = centerX + radiusX;
@@ -644,8 +647,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           top = centerY - halfCard;
           break;
         case 3: // 座位3（下）
+          // 用 bottom 定位而不是估算 top，實際卡片高度再變也不會超出下緣。
           left = centerX - halfCard;
-          top = centerY + radiusY - cardHeight * 0.1 - cardHeight / 3;
+          top = null;
+          bottom = bottomMargin;
           break;
         default:
           left = centerX;
@@ -654,11 +659,14 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
 
       // 確保卡片不超出邊界（使用最小邊距）
       left = left.clamp(minMargin, constraints.maxWidth - cardWidth - minMargin);
-      top = top.clamp(minMargin, constraints.maxHeight - cardHeight - minMargin);
+      if (top != null) {
+        top = top.clamp(minMargin, constraints.maxHeight - cardHeight - minMargin);
+      }
 
       return Positioned(
         left: left,
         top: top,
+        bottom: bottom,
         child: _buildPlayerCard(
           player: player,
           score: score,
