@@ -249,70 +249,39 @@ class Game {
   Game undoLastRound() {
     if (rounds.isEmpty) return this;
 
+    final lastRound = rounds.last;
     final newRounds = rounds.sublist(0, rounds.length - 1);
 
-    // 從頭重播，套用事件日誌
-    Game game = copyWith(
-      rounds: [],
-      dealerSeat: initialDealerSeat,
-      dealerPassCount: 0,
-      consecutiveWins: 0,
-      // 保留 players 為初始狀態？不行，事件會重播 swap
-      // 所以需要保留初始 players... 暫時用現有 players
-    );
-
-    // 重建初始 players（從事件反推 swap 前的狀態）
-    // 簡化方案：先套用事件，再重播 rounds
-    int eventIndex = 0;
-    for (int i = 0; i < newRounds.length; i++) {
-      // 先套用在這個 round 之前發生的事件
-      while (eventIndex < events.length &&
-             events[eventIndex].afterRoundIndex < i) {
-        game = _applyEvent(game, events[eventIndex]);
-        eventIndex++;
+    // Round 已保存該局開始前的莊家狀態，直接還原快照。
+    // 玩家座位與 events 不重播：swapPlayers 已經反映在目前 players 中，
+    // 重播事件會把同一次換位再套用一次，導致「還原上局」改變座位。
+    final restoredJiangs = jiangs
+        .where((j) => j.startDealerPassCount <= lastRound.dealerPassCount)
+        .toList();
+    // 快照的 dealerSeat 是該局當下的座位；若之後又換位，莊家已移到別的座位，
+    // 需依序套用這些換位，才能讓莊家仍是同一位玩家。
+    var restoredDealerSeat = lastRound.dealerSeat;
+    for (final event in events) {
+      if (event.type != GameEventType.swapPlayers ||
+          event.afterRoundIndex < newRounds.length) {
+        continue;
       }
-      game = game.addRound(newRounds[i]);
+      final seat1 = event.data['seat1'] as int;
+      final seat2 = event.data['seat2'] as int;
+      if (restoredDealerSeat == seat1) {
+        restoredDealerSeat = seat2;
+      } else if (restoredDealerSeat == seat2) {
+        restoredDealerSeat = seat1;
+      }
     }
-
-    return game.copyWith(events: events); // 保留所有事件，由外部決定是否裁剪
+    return copyWith(
+      rounds: newRounds,
+      dealerSeat: restoredDealerSeat,
+      dealerPassCount: lastRound.dealerPassCount,
+      consecutiveWins: lastRound.consecutiveWins,
+      jiangs: restoredJiangs,
+      events: events,
+    );
   }
 
-  /// 套用事件到遊戲狀態
-  static Game _applyEvent(Game game, GameEvent event) {
-    switch (event.type) {
-      case GameEventType.setDealer:
-        final newSeat = event.data['newDealerSeat'] as int;
-        final recalculate = event.data['recalculateWind'] as bool? ?? false;
-        int passCount = game.dealerPassCount;
-        if (recalculate) {
-          // 進入下一將的東風東局（不是回到第一將）
-          passCount = ((passCount ~/ 16) + 1) * 16;
-        }
-        return game.copyWith(
-          dealerSeat: newSeat,
-          dealerPassCount: passCount,
-          consecutiveWins: 0,
-        );
-
-      case GameEventType.swapPlayers:
-        final seat1 = event.data['seat1'] as int;
-        final seat2 = event.data['seat2'] as int;
-        final players = List<Player>.from(game.players);
-        final temp = players[seat1];
-        players[seat1] = players[seat2];
-        players[seat2] = temp;
-
-        int newDealerSeat = game.dealerSeat;
-        if (newDealerSeat == seat1) {
-          newDealerSeat = seat2;
-        } else if (newDealerSeat == seat2) {
-          newDealerSeat = seat1;
-        }
-
-        return game.copyWith(
-          players: players,
-          dealerSeat: newDealerSeat,
-        );
-    }
-  }
 }

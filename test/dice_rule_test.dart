@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paika/models/game.dart';
+import 'package:paika/models/game_event.dart';
 import 'package:paika/models/player.dart';
 import 'package:paika/models/round.dart';
 import 'package:paika/models/settings.dart';
@@ -83,5 +84,93 @@ void main() {
       expect(c['A'], 90);
       expect(c['B'], -90);
     });
+  });
+
+  test('還原上局不會重播換位事件而改變玩家位置', () {
+    final players = [
+      Player(id: 'A', name: 'A', emoji: '🀄'),
+      Player(id: 'B', name: 'B', emoji: '🀄'),
+      Player(id: 'C', name: 'C', emoji: '🀄'),
+      Player(id: 'D', name: 'D', emoji: '🀄'),
+    ];
+    final game = Game(
+      id: 'undo',
+      createdAt: DateTime(2026, 1, 1),
+      settings: settings,
+      players: [players[1], players[0], players[2], players[3]],
+      events: [
+        GameEvent(
+          id: 'swap',
+          timestamp: DateTime(2026, 1, 1),
+          type: GameEventType.swapPlayers,
+          data: {'seat1': 0, 'seat2': 1},
+          afterRoundIndex: 0,
+        ),
+      ],
+    );
+    final round = Round(
+      id: 'r1',
+      timestamp: DateTime(2026, 1, 1),
+      type: RoundType.win,
+      winnerId: 'A',
+      loserId: 'B',
+      tai: 1,
+      scoreChanges: {'A': 70, 'B': -70, 'C': 0, 'D': 0},
+      dealerPassCount: 0,
+      dealerSeat: 0,
+      jiangNumber: 1,
+      jiangStartDealerPassCount: 0,
+    );
+    final secondRound = round;
+    final restored = game.copyWith(
+      rounds: [round, secondRound],
+      dealerSeat: 1,
+      dealerPassCount: 2,
+    ).undoLastRound();
+    expect(restored.players.map((p) => p.id).toList(), ['B', 'A', 'C', 'D']);
+    expect(restored.rounds, hasLength(1));
+  });
+
+  test('打完一局後換位再還原，莊家仍是同一位玩家', () {
+    final round = Round(
+      id: 'r1',
+      timestamp: DateTime(2026, 1, 1),
+      type: RoundType.draw,
+      tai: 0,
+      scoreChanges: const {'A': 0, 'B': 0, 'C': 0, 'D': 0},
+      dealerPassCount: 0,
+      dealerSeat: 0,
+      jiangNumber: 1,
+      jiangStartDealerPassCount: 0,
+    );
+    // A 在座位 0 坐莊打完一局（流局連莊），之後 A 與 B 交換座位。
+    final game = Game(
+      id: 'undo-after-swap',
+      createdAt: DateTime(2026, 1, 1),
+      settings: settings,
+      players: [
+        Player(id: 'B', name: 'B', emoji: '🀄'),
+        Player(id: 'A', name: 'A', emoji: '🀄'),
+        Player(id: 'C', name: 'C', emoji: '🀄'),
+        Player(id: 'D', name: 'D', emoji: '🀄'),
+      ],
+      rounds: [round],
+      dealerSeat: 1,
+      consecutiveWins: 1,
+      events: [
+        GameEvent(
+          id: 'swap',
+          timestamp: DateTime(2026, 1, 1),
+          type: GameEventType.swapPlayers,
+          data: {'seat1': 0, 'seat2': 1},
+          afterRoundIndex: 0,
+        ),
+      ],
+    );
+
+    final restored = game.undoLastRound();
+    expect(restored.players.map((p) => p.id).toList(), ['B', 'A', 'C', 'D']);
+    expect(restored.dealer.id, 'A');
+    expect(restored.consecutiveWins, 0);
   });
 }
