@@ -1,6 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
     // 預設拒絕所有
     match /{document=**} {
       allow read, write: if false;
@@ -20,7 +24,8 @@ service cloud.firestore {
       }
 
       // 用戶 profile
-      allow read: if isOwner();
+      // 管理員可列出/讀取使用者基本資料，但沒有寫入權限。
+      allow read: if isOwner() || isAdmin();
       allow create: if isOwner()
         && request.resource.data.keys().hasAll(['displayName', 'createdAt'])
         && request.resource.data.size() <= 10;
@@ -36,8 +41,8 @@ service cloud.firestore {
 
       // 玩家檔案
       match /playerProfiles/{profileId} {
-        // 自己可讀；被連結的用戶也可讀（用於跨帳號 collectionGroup 查詢）
-        allow read: if isOwner()
+        // 自己可讀；管理員唯讀；被連結的用戶也可讀（用於跨帳號 collectionGroup 查詢）
+        allow read: if isOwner() || isAdmin()
           || (request.auth != null && resource.data.linkedAccountId == request.auth.uid);
         allow create: if isOwner()
           && request.resource.data.keys().hasAll(['name', 'emoji'])
@@ -58,8 +63,8 @@ service cloud.firestore {
 
       // 牌局
       match /games/{gameId} {
-        // 自己可讀寫；有 linkedSources 紀錄的用戶可讀（跨帳號查詢場次）
-        allow read: if isOwner()
+        // 自己可讀寫；管理員唯讀；有 linkedSources 紀錄的用戶可讀（跨帳號查詢場次）
+        allow read: if isOwner() || isAdmin()
           || (request.auth != null
             && exists(/databases/$(database)/documents/users/$(request.auth.uid)/linkedSources/$(userId)));
         allow create, update: if isOwner()

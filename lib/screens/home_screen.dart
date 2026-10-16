@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import '../providers/game_provider.dart';
 import '../models/game.dart';
 import '../models/player_profile.dart';
+import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../services/calculation_service.dart';
 import '../widgets/animation_helpers.dart';
 import '../widgets/player_avatar.dart';
+import 'admin_stats_screen.dart';
 import 'auth_screen.dart';
 import 'game_setup_screen.dart';
 import 'game_play_screen.dart';
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.watch<AdminService>().isAdmin;
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
@@ -90,6 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       FadeSlidePageRoute(page: const SettingsScreen()),
                     );
+                  case 'admin':
+                    Navigator.pushNamed(context, AdminStatsScreen.routeName);
                   case 'logout':
                     final confirm = await showDialog<bool>(
                       context: context,
@@ -141,6 +146,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+                if (isAdmin)
+                  const PopupMenuItem(
+                    value: 'admin',
+                    child: Row(
+                      children: [
+                        Icon(Icons.admin_panel_settings),
+                        SizedBox(width: 12),
+                        Text('管理員戰績查詢'),
+                      ],
+                    ),
+                  ),
                 const PopupMenuDivider(),
                 const PopupMenuItem(
                   value: 'logout',

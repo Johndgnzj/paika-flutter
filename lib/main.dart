@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
+import 'services/admin_service.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_init_service.dart';
+import 'screens/admin_stats_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
 import 'utils/theme.dart';
@@ -22,6 +24,7 @@ class MahjongScorerApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
+        ChangeNotifierProvider(create: (_) => AdminService()..initialize()),
         ChangeNotifierProxyProvider<AuthService, GameProvider>(
           create: (_) => GameProvider(),
           update: (_, authService, gameProvider) {
@@ -48,7 +51,12 @@ class MahjongScorerApp extends StatelessWidget {
               Locale('zh', 'HK'),
               Locale('en'),
             ],
-            home: authService.isLoggedIn ? const HomeScreen() : const AuthScreen(),
+            routes: {
+              AdminStatsScreen.routeName: (_) => const AdminStatsScreen(),
+            },
+            home: authService.isLoggedIn
+                ? const HomeScreen()
+                : const AuthScreen(),
             debugShowCheckedModeBanner: false,
           );
         },
